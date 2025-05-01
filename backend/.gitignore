@@ -1,0 +1,5 @@
+.vscode/
+__pycache__/
+processed/
+qdrant_data/
+raw_data/
