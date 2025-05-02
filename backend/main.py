@@ -23,7 +23,7 @@ EPS  = 0.1     # ε-greedy rate
 class Feedback(BaseModel):
     session_id: str
     id: int
-    action: str        # "like" | "order" | "dislike"
+    action: str        # "maybe" | "skip"
 
 # -------- utility -------------------------------------------------------
 def vec_key(sess): return f"vec:{sess}"
@@ -42,8 +42,7 @@ def set_user_vec(sess_id, vec):
     rdb.set(vec_key(sess_id), vec.astype(np.float32).tobytes())
 
 def update_user_vec(vec, dish_vec, action):
-    if action=="order":  w=2.0
-    elif action=="like": w=0.5
+    if action=="maybe":  w=0.5
     else:                w=-0.3
     new_vec = vec + w* dish_vec
     return new_vec / (np.linalg.norm(new_vec)+1e-8)
@@ -96,7 +95,7 @@ def feedback(fb: Feedback):
     vec  = np.array(dish.vector)
 
     # --- bandit update
-    r  = 1.0 if fb.action=="order" else 0.4 if fb.action=="like" else 0.0
+    r  = 0.4 if fb.action=="maybe" else 0.0
     pipe = rdb.pipeline()
     pipe.hincrbyfloat(stat_key(fb.id),"reward", r)
     pipe.hincrby(stat_key(fb.id),"impr", 1)
@@ -120,9 +119,8 @@ def history(session_id: str):
         recs = qd.retrieve(qd_collection_name, ids=ids)
         return [{"id": r.id, **r.payload} for r in recs]
     return {
-        "likes":    fetch("like"),
-        "orders":   fetch("order"),
-        "dislikes": fetch("dislike"),
+        "maybe": fetch("maybe"),
+        "skip":  fetch("skip"),
     }
 
 if __name__ == "__main__":
