@@ -28,10 +28,15 @@ class Feedback(BaseModel):
 # -------- utility -------------------------------------------------------
 def vec_key(sess): return f"vec:{sess}"
 def stat_key(d):    return f"stat:{d}"
+def seen_key(sess): return f"seen:{sess}"
 
 def get_user_vec(sess_id):
     raw = rdb.get(vec_key(sess_id))
-    return np.frombuffer(raw, dtype=np.float32) if raw else np.zeros(DIM)
+    if raw:
+        return np.frombuffer(raw, dtype=np.float32)
+    else:
+        # cold-start tiny random vector
+        return np.random.normal(0, 0.01, DIM).astype(np.float32)
 
 def set_user_vec(sess_id, vec):
     rdb.set(vec_key(sess_id), vec.astype(np.float32).tobytes())
@@ -45,23 +50,38 @@ def update_user_vec(vec, dish_vec, action):
 
 # -------- endpoints -----------------------------------------------------
 @app.get("/recommend")
-def recommend(session_id: str, veg: int|None=None, price_cap: int|None=None):
+def recommend(session_id: str, is_veg: bool|None=None, price_cap: int|None=None):
     user_vec = get_user_vec(session_id)
     filt = []
-    if veg is not None:
-        filt.append({"key": "veg_flag", "match": {"value": veg}})
-    if price_cap:
-        filt.append({"key": "price", "match": {"lte": price_cap}})
+    if is_veg is not None:
+        filt.append({"key": "veg_flag", "match": {"value": 1 if is_veg else 0}})
+    if price_cap is not None:
+        # use RangeCondition for numeric filtering
+        filt.append({"key": "price", "range": {"lte": price_cap}})
     res = qd.search(qd_collection_name, user_vec.tolist(), query_filter={"must":filt} if filt else None, limit=10)
     cand_ids = [hit.id for hit in res]
 
-    # ε-greedy
-    if random.random() < EPS:     dish_id = random.choice(cand_ids)
-    else:
-        def ctr(d):
-            s,r = rdb.hget(stat_key(d),"reward") or 0, rdb.hget(stat_key(d),"impr") or 1
-            return float(s)/float(r)
-        dish_id = max(cand_ids, key=ctr)
+    # seen-item filter: drop items already shown and reset when exhausted
+    seen = rdb.smembers(seen_key(session_id))
+    used = {int(x.decode()) for x in seen} if seen else set()
+    remaining = [d for d in cand_ids if d not in used]
+    if not remaining:
+        rdb.delete(seen_key(session_id))
+        remaining = cand_ids
+    cand_ids = remaining
+
+    # Thompson sampling for best candidate
+    samples = []
+    for d in cand_ids:
+        s = float(rdb.hget(stat_key(d), "reward") or 0)
+        r = float(rdb.hget(stat_key(d), "impr") or 0)
+        # Beta prior: add 1 to each count for smoothing
+        sample = np.random.beta(s + 1, r - s + 1 if r - s > 0 else 1)
+        samples.append((sample, d))
+    dish_id = max(samples)[1]
+
+    # record this recommendation
+    rdb.sadd(seen_key(session_id), dish_id)
 
     payload = qd.retrieve(qd_collection_name, ids=[dish_id])[0].payload
     return {"id": dish_id, **payload}
@@ -71,7 +91,6 @@ def feedback(fb: Feedback):
     dish = qd.retrieve(
         qd_collection_name,
         ids=[fb.id],
-        # with_payload=True,
         with_vectors=True
     )[0]
     vec  = np.array(dish.vector)
@@ -87,7 +106,25 @@ def feedback(fb: Feedback):
     uvec = get_user_vec(fb.session_id)
     uvec = update_user_vec(uvec, vec, fb.action)
     set_user_vec(fb.session_id, uvec)
+    # record feedback history per session and action
+    rdb.rpush(f"history:{fb.session_id}:{fb.action}", fb.id)
     return {"ok": True}
 
+@app.get("/history")
+def history(session_id: str):
+    def fetch(action: str):
+        key = f"history:{session_id}:{action}"
+        ids = [int(x) for x in rdb.lrange(key, 0, -1)]
+        if not ids:
+            return []
+        recs = qd.retrieve(qd_collection_name, ids=ids)
+        return [{"id": r.id, **r.payload} for r in recs]
+    return {
+        "likes":    fetch("like"),
+        "orders":   fetch("order"),
+        "dislikes": fetch("dislike"),
+    }
+
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8005)
+    # Use import string for reload to work
+    uvicorn.run("main:app", host="0.0.0.0", port=8005, reload=True)
