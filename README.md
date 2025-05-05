@@ -14,3 +14,7 @@ Running frontend:
 cd aglio-app
 npm start
 ```
+Ngrok tunnel:
+```bash
+ngrok http --url=urchin-creative-supposedly.ngrok-free.app 8005
+```

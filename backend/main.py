@@ -3,19 +3,35 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import numpy as np, redis, qdrant_client, random
 import uvicorn
+from config import rdb, qd, qd_collection_name, root_dir
 
 app = FastAPI()
 
+# --- Enable CORS ---
+from fastapi.middleware.cors import CORSMiddleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Consider restricting this in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.mount(
     "/image_data",
-    StaticFiles(directory="raw_data"),
+    StaticFiles(directory=root_dir / "raw_data"),
     name="image_data",
 )
 
-rdb   = redis.Redis(host="localhost", port=6379, decode_responses=False)
-qd    = qdrant_client.QdrantClient("localhost", port=6333)
-restaurant_name = "chianti"
-qd_collection_name = f"{restaurant_name}_dishes"
+from urls.categories import router as categories_router
+app.include_router(categories_router, prefix="/categories", tags=["categories"])
+
+from urls.menu import router as menu_router
+app.include_router(menu_router, prefix="/menu", tags=["menu"])
+
+from urls.filtered_recommendations import router as filtered_router
+app.include_router(filtered_router, prefix="/filtered_recommendations", tags=["recommendations"])
+
 
 DIM = 1280
 EPS  = 0.1     # ε-greedy rate
