@@ -1,18 +1,26 @@
 import React, { useEffect, useState } from 'react';
-import { View, FlatList, Text, StyleSheet, SectionList } from 'react-native';
+import { View, Text, StyleSheet, SectionList, Modal } from 'react-native';
 import useStore from '../store';
 import api, { baseURL } from '../lib/api';
 import ItemCard from '../components/ItemCard';
+import ItemPreviewModal from '../components/ItemPreviewModal';
 import SkeletonLoader from '../components/SkeletonLoader';
 import ErrorToast from '../components/ErrorToast';
+import FloatingCartFab from '../components/FloatingCartFab';
 import qs from 'qs';
 
 const Menu = () => {
   const filters = useStore(state => state.filters);
   const sessionId = useStore(state => state.sessionId);
+  const addToCart = useStore(state => state.addToCart);
+  const updateQty = useStore(state => state.updateQty);
+  const removeFromCart = useStore(state => state.removeFromCart);
+  const cart = useStore(state => state.cart);
   const [menu, setMenu] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
 
   useEffect(() => {
     const fetchMenu = async () => {
@@ -68,13 +76,40 @@ const Menu = () => {
         <SectionList
           sections={sections}
           keyExtractor={item => item.id.toString()}
-          renderItem={({ item }) => <ItemCard item={item} />}
+          renderItem={({ item }) => {
+            const cartQty = cart.find(i => i.id === item.id)?.qty || 0;
+            return (
+              <ItemCard
+                item={item}
+                cartQty={cartQty}
+                onPress={() => {
+                  setSelectedItem(item);
+                  setModalVisible(true);
+                }}
+                onAdd={addToCart}
+                onQtyChange={updateQty}
+                onRemove={removeFromCart}
+                isVertical={true}
+              />
+            );
+          }}
           renderSectionHeader={({ section: { title } }) => (
             <Text style={styles.categoryHeader}>{title}</Text>
           )}
           contentContainerStyle={{ paddingBottom: 32 }}
         />
       )}
+      <Modal
+        visible={modalVisible}
+        transparent={true}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <ItemPreviewModal
+          item={selectedItem}
+          onClose={() => setModalVisible(false)}
+        />
+      </Modal>
+      <FloatingCartFab />
     </View>
   );
 };

@@ -37,6 +37,7 @@
     "react-content-loader": "^7.0.2",
     "react-dom": "19.0.0",
     "react-native": "0.79.2",
+    "react-native-confetti-cannon": "^1.5.2",
     "react-native-content-loader": "^0.1.6",
     "react-native-css-interop": "^0.1.22",
     "react-native-reanimated": "^3.17.5",

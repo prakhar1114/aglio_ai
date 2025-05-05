@@ -1,11 +1,11 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import useStore from '../store';
+import useCartStore from '../store/cart';
 
 const CartBar = () => {
   const navigation = useNavigation();
-  const cart = useStore((state) => state.cart);
+  const cart = useCartStore((state) => state.cart);
   if (cart.length === 0) return null;
 
   return (

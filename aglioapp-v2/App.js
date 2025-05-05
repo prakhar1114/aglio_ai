@@ -10,6 +10,8 @@ import Auth from '@/screens/Auth';
 import Filters from '@/screens/Filters';
 import Home from '@/screens/Home';
 import Menu from '@/screens/Menu';
+import OrderPreview from '@/screens/OrderPreview';
+import Success from '@/screens/Success';
 import * as Linking from 'expo-linking';
 
 const linking = {
@@ -28,6 +30,8 @@ export default function App() {
           <Stack.Screen name="Filters" component={Filters} />
           <Stack.Screen name="Home" component={Home} />
           <Stack.Screen name="Menu" component={Menu} />
+          <Stack.Screen name="Cart" component={OrderPreview} />
+          <Stack.Screen name="Success" component={Success} />
         </Stack.Navigator>
       </NavigationContainer>
     </GluestackUIProvider>
