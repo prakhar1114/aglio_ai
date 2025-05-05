@@ -45,7 +45,6 @@ Use these bite‑sized tasks in Windsurf; tick one box at a time as you implemen
 ### 6. Polish
 - [x] **Add skeleton loaders** (`expo-content-loader`) for Menu & AI. Use iconography from common e‑commerce sets (FontAwesome / MaterialIcons) for familiarity.
 - [x] **Implement error toasts** (`gluestack-ui` alert) for network failures.
-- [ ] **Ensure dark‑mode compatibility** via NativeWind `dark:` classes.
 
 - [x] **Menu grouping & ItemCard UI polish**
     - Group menu items by `category_brief` in Menu screen and display using `SectionList` with concise section headers.
@@ -55,3 +54,52 @@ Use these bite‑sized tasks in Windsurf; tick one box at a time as you implemen
     - "Add" Button on bottom right
 
 
+---
+
+### 7. Cart & Wishlist (In‑Memory Store)
+- [ ] **Create `store/cart.js`**  
+- [ ] **Replace all cart access**  
+      - Update `screens/Menu.js`, `components/ItemCard.js`, `components/CartBar.js`, and upcoming new components to import from `store/cart.js` instead of the global store index.
+
+### 8. UI Primitives
+- [ ] **components/ui/Chip.js** – pill‑shaped filter button (`rounded-full px-3 py-1`, active uses `bg-[#3B82F6] text-white`).  
+- [ ] **components/ui/Badge.js** – 20 × 20 px circle count badge (`text-xs font-bold`) – reused by `FloatingCartFab`.
+- [ ] **components/ui/QtyStepper.js** – inline `−  qty  +` control; emits `onChange(newQty)`.
+
+### 9. ItemPreviewModal
+- [ ] **Component `components/ItemPreviewModal.js`**  
+      - 56 vh hero image (`object-cover rounded-t-2xl`).  
+      - Name + price row, description paragraph.  
+      - Bottom sticky bar: **Wishlist** outline button, **Add to Cart** solid button.  
+      - Close on X icon, overlay click, or `Esc`.  
+      - Wire actions to `toggleWish` / `addItem`.
+- [ ] **Trigger modal from Menu** – tapping anywhere on an `ItemCard` (except the inline add button).
+
+### 10. FloatingCartFab
+- [ ] **Component `components/FloatingCartFab.js`**  
+      - `position:fixed; bottom:16px; left:50%; transform:translateX(-50%)`.  
+      - Shows only when `cartCount > 0` and route ≠ `/cart` or `/success`.  
+      - Contains “View Cart” text and Badge with `cartCount`.  
+      - On click → navigate to `/cart`.
+
+### 11. OrderPreviewScreen (`/cart`)
+- [ ] **Create `screens/OrderPreview.js`** (link existing Nav stack)  
+      - `FlatList` of `CartItemRow` (see next task).  
+      - Sub‑total & tax placeholder under list.  
+      - Green “Place Order (Coming Soon)” button → `alert('Backend integration pending')`.
+- [ ] **Component `components/CartItemRow.js`**  
+      - Left 48 px thumb; middle column name & price; right qty stepper + red trash icon.  
+      - Uses `updateQty` / `removeItem`.
+
+### 12. Success Screen Skeleton (`/success`)
+- [ ] **Create `screens/Success.js`**  
+      - Large green check icon, “Order Placed!”, small text “Show this to wait staff”.  
+      - Map over last cart snapshot (pass via params) to list items.  
+      - Outline “Back to Menu” button → `/`.
+      - This route will be wired later once POST is added.
+
+### 13. Responsive & Accessibility Audit
+- [ ] **Audit 320 – 768 px** – ensure FAB & modals stay centred, text wraps.  
+- [ ] **Add `aria-live="polite"`** to cart count Badge.  
+- [ ] **Verify tap targets ≥ 44 px**; fix where needed.  
+- [ ] **Colour contrast** passes WCAG AA (use Tailwind `dark:` also ties into next task).
