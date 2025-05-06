@@ -57,49 +57,134 @@ Use these bite‑sized tasks in Windsurf; tick one box at a time as you implemen
 ---
 
 ### 7. Cart & Wishlist (In‑Memory Store)
-- [ ] **Create `store/cart.js`**  
-- [ ] **Replace all cart access**  
+- [x] **Create `store/cart.js`**  
+- [x] **Replace all cart access**  
       - Update `screens/Menu.js`, `components/ItemCard.js`, `components/CartBar.js`, and upcoming new components to import from `store/cart.js` instead of the global store index.
 
 ### 8. UI Primitives
-- [ ] **components/ui/Chip.js** – pill‑shaped filter button (`rounded-full px-3 py-1`, active uses `bg-[#3B82F6] text-white`).  
-- [ ] **components/ui/Badge.js** – 20 × 20 px circle count badge (`text-xs font-bold`) – reused by `FloatingCartFab`.
-- [ ] **components/ui/QtyStepper.js** – inline `−  qty  +` control; emits `onChange(newQty)`.
+- [x] **components/ui/Chip.js** – pill‑shaped filter button (`rounded-full px-3 py-1`, active uses `bg-[#3B82F6] text-white`).  
+- [x] **components/ui/Badge.js** – 20 × 20 px circle count badge (`text-xs font-bold`) – reused by `FloatingCartFab`.
+- [x] **components/ui/QtyStepper.js** – inline `−  qty  +` control; emits `onChange(newQty)`.
 
 ### 9. ItemPreviewModal
-- [ ] **Component `components/ItemPreviewModal.js`**  
+- [x] **Component `components/ItemPreviewModal.js`**  
       - 56 vh hero image (`object-cover rounded-t-2xl`).  
       - Name + price row, description paragraph.  
       - Bottom sticky bar: **Wishlist** outline button, **Add to Cart** solid button.  
       - Close on X icon, overlay click, or `Esc`.  
       - Wire actions to `toggleWish` / `addItem`.
-- [ ] **Trigger modal from Menu** – tapping anywhere on an `ItemCard` (except the inline add button).
+- [x] **Trigger modal from Menu** – tapping anywhere on an `ItemCard` (except the inline add button).
 
 ### 10. FloatingCartFab
-- [ ] **Component `components/FloatingCartFab.js`**  
+- [x] **Component `components/FloatingCartFab.js`**  
       - `position:fixed; bottom:16px; left:50%; transform:translateX(-50%)`.  
       - Shows only when `cartCount > 0` and route ≠ `/cart` or `/success`.  
       - Contains “View Cart” text and Badge with `cartCount`.  
       - On click → navigate to `/cart`.
 
 ### 11. OrderPreviewScreen (`/cart`)
-- [ ] **Create `screens/OrderPreview.js`** (link existing Nav stack)  
+- [x] **Create `screens/OrderPreview.js`** (link existing Nav stack)  
       - `FlatList` of `CartItemRow` (see next task).  
       - Sub‑total & tax placeholder under list.  
       - Green “Place Order (Coming Soon)” button → `alert('Backend integration pending')`.
-- [ ] **Component `components/CartItemRow.js`**  
+- [x] **Component `components/CartItemRow.js`**  
       - Left 48 px thumb; middle column name & price; right qty stepper + red trash icon.  
       - Uses `updateQty` / `removeItem`.
 
 ### 12. Success Screen Skeleton (`/success`)
-- [ ] **Create `screens/Success.js`**  
+- [x] **Create `screens/Success.js`**  
       - Large green check icon, “Order Placed!”, small text “Show this to wait staff”.  
       - Map over last cart snapshot (pass via params) to list items.  
       - Outline “Back to Menu” button → `/`.
       - This route will be wired later once POST is added.
 
 ### 13. Responsive & Accessibility Audit
-- [ ] **Audit 320 – 768 px** – ensure FAB & modals stay centred, text wraps.  
-- [ ] **Add `aria-live="polite"`** to cart count Badge.  
-- [ ] **Verify tap targets ≥ 44 px**; fix where needed.  
-- [ ] **Colour contrast** passes WCAG AA (use Tailwind `dark:` also ties into next task).
+- [x] **Audit 320 – 768 px** – ensure FAB & modals stay centred, text wraps.  
+- [x] **Add `aria-live="polite"`** to cart count Badge.  
+- [x] **Verify tap targets ≥ 44 px**; fix where needed.  
+- [x] **Colour contrast** passes WCAG AA (use Tailwind `dark:` also ties into next task).
+
+### 14. Ask Aglio Chat Module  (phase‑2)
+
+> Bring the AI chatbot (“Ask Aglio”) into the Expo‑web build.  
+> All tasks below are **new**—leave boxes unchecked until complete.
+
+- [ ] **Install chat & socket deps**  
+      `expo install @gorhom/bottom-sheet react-native-reanimated`  
+      `npm i react-native-gifted-chat socket.io-client`
+- [ ] **Add Reanimated plugin** to `babel.config.js` (below nativewind):  
+      `plugins: ['nativewind/babel', 'react-native-reanimated/plugin']`
+- [ ] **Re‑run** `expo r -c` to clear Metro cache and verify builds on web & iOS sim.
+
+#### 14.2 Core Components
+- [ ] **components/ChatFAB.tsx**  
+      - 56×56 dp circular FAB (`rounded-full bg-primary/90`) positioned `fixed bottom‑right 16`.  
+      - Shows Ionicon `chatbubble-ellipses` 24 dp.  
+      - Animations: mount spring; 6 s idle nudge.  
+      - Hide on `/cart` & `/success`.
+- [ ] **components/ChatSheet.tsx**  
+      - Wrap `<BottomSheet>` with snap points `['15%', '75%']`, index `-1`.  
+      - Header: avatar + “Ask Aglio” + ✕ icon.  
+      - Body: `<GiftedChat>`; pass `renderMessage={renderBlockMessage}`.  
+      - Input toolbar: text field, emoji, mic, Send; disable while loading.  
+      - `onClose` sets sheet index to `-1`.
+
+#### 14.3 Block Rendering Pipeline
+- [ ] **utils/blockRenderers.tsx**  
+      - Export `renderBlockMessage(message)` that iterates `message.blocks`.  
+      - `type` → component map: `text`, `dish_card`, `dish_carousel`, `quick_replies`, `order_summary`.  
+      - Fallback component prints “Unsupported content”.
+- [ ] **components/blocks/DishCardBlock.tsx**  
+      - Accepts `{ id, name, price, image }`.  
+      - Mirrors `ItemCard` look; includes **Add ➕** which dispatches `cart.addItem(id)`.
+- [ ] **components/blocks/QuickReplies.tsx** – horizontal chip list; tap sends user message.
+
+#### 14.4 WebSocket Networking
+- [ ] **services/socket.ts**  
+      ```ts
+      import { io } from 'socket.io-client';
+
+      export const socket = io(process.env.EXPO_PUBLIC_API_URL, {
+        transports: ['websocket'],
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+      });
+
+      socket.on('connect', () => console.log('WS connected', socket.id));
+
+      export function askAglio(payload) {
+        // payload = { sessionId, text, cartSnapshot, dishContext? }
+        socket.emit('askAglio', payload);
+      }
+
+      export function onAssistant(callback) {
+        socket.on('assistant', callback); // { blocks: [...] }
+      }
+
+      export function closeSocket() {
+        socket.disconnect();
+      }
+      ```
+      - Include `sessionId` from store in every payload.
+      - Handle `socket.on('disconnect')` to show offline toast.
+      - Reconnect automatically (see options above).
+
+#### 14.5 Integration
+- [ ] **Hook ChatFAB** into `screens/Menu.js` (and any future screens needing help).  
+- [ ] **Subscribe** to `onAssistant` in `ChatSheet`; append incoming messages to GiftedChat.
+- [ ] Provide `cartSnapshot` + optional `dishContext` to `askAglio()` on send.  
+- [ ] Auto‑scroll GiftedChat after new assistant message.
+
+#### 14.6 Analytics
+- [ ] Fire events via `lib/analytics.js`: `fab_opened`, `message_sent`, `add_from_chat`.
+
+#### 14.7 Accessibility & QA
+- [ ] `aria-label="Chat with Aglio"` on FAB; `role="dialog"` on sheet.  
+- [ ] `aria-live="polite"` on assistant bubbles.  
+- [ ] Manual QA on iPhone 14 Safari, Pixel 7 Chrome, 320 px viewport.
+
+#### 14.8 Performance & Lazy‑loading
+- [ ] Code‑split chat bundle with `React.lazy` + Suspense fallback loader.  
+- [ ] Verify Lighthouse JS delta ≤ 250 kB (gzip).
+
+---

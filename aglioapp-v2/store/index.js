@@ -4,6 +4,7 @@ import { getOrCreateSessionId, setSessionIdCookie, getFiltersCookie, setFiltersC
 const useStore = create((set) => ({
   sessionId: getOrCreateSessionId(),
   cart: [],
+  wishlist: [],
   filters: getFiltersCookie(),
   user: null,
   currentOrder: [],
@@ -37,6 +38,15 @@ const useStore = create((set) => ({
   setUser: (user) => set({ user }),
   // promote current cart to currentOrder and clear cart in one action
   setCurrentOrder: () => set((state) => ({ currentOrder: state.cart, cart: [] })),
+  // wishlist management
+  addToWishlist: (item) => set((state) => ({ wishlist: [...state.wishlist, item] })),
+  removeFromWishlist: (itemId) => set((state) => ({ wishlist: state.wishlist.filter((i) => i.id !== itemId) })),
+  toggleWishlist: (item) => set((state) => {
+    const exists = state.wishlist.find((i) => i.id === item.id);
+    return exists
+      ? { wishlist: state.wishlist.filter((i) => i.id !== item.id) }
+      : { wishlist: [...state.wishlist, item] };
+  }),
 }));
 
 export default useStore;

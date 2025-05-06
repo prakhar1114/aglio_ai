@@ -1,11 +1,10 @@
 import React from 'react';
 import { Modal, View, Text, Image, TouchableOpacity, StyleSheet, Pressable } from 'react-native';
 import useStore from '../store';
-import useCartStore from '../store/cart';
 
 export default function ItemPreviewModal({ visible, item, onClose }) {
   const addItem = useStore((state) => state.addToCart);
-  const toggleWish = useCartStore((state) => state.toggleWish);
+  const toggleWishlist = useStore((state) => state.toggleWishlist);
 
   if (!item) return null;
 
@@ -36,7 +35,7 @@ export default function ItemPreviewModal({ visible, item, onClose }) {
           <Text style={styles.desc}>{item.description}</Text>
         </View>
         <View style={styles.bottomBar}>
-          <TouchableOpacity style={[styles.wishBtn, styles.outlineBtn]} onPress={() => toggleWish(item)}>
+          <TouchableOpacity style={[styles.wishBtn, styles.outlineBtn]} onPress={() => toggleWishlist(item)}>
             <Text style={{ color: '#3B82F6', fontWeight: 'bold' }}>Wishlist</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.addBtn} onPress={() => { addItem(item); onClose(); }}>
