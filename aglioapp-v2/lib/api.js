@@ -18,3 +18,8 @@ api.interceptors.request.use((config) => {
 });
 
 export default api;
+
+export const generateImageUrl = (path) => {
+    if (path) return `${baseURL.replace(/\/$/, '')}/${path.replace(/^\//, '')}`
+    return null;
+}

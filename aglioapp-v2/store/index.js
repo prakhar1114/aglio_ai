@@ -1,17 +1,23 @@
 import { create } from 'zustand';
-import { getOrCreateSessionId, setSessionIdCookie, getFiltersCookie, setFiltersCookie } from '../lib/session';
+import { getSessionId, getFiltersCookie, setFiltersCookie, getUserCookie } from '../lib/session';
+import { GiftedChat } from 'react-native-gifted-chat';
+
+// Generate a unique thread ID on app load
+const generateThreadId = () => `${Date.now().toString(36)}_${Math.random().toString(36).substring(2)}`;
 
 const useStore = create((set) => ({
-  sessionId: getOrCreateSessionId(),
+  sessionId: getSessionId(),
+  threadId: generateThreadId(),
   cart: [],
   wishlist: [],
   filters: getFiltersCookie(),
-  user: null,
+  user: getUserCookie(),
   currentOrder: [],
+  messages: [],
+  socket: null,
 
-  setSessionId: (id) => {
-    setSessionIdCookie(id);
-    set({ sessionId: id });
+  setSessionId: () => {
+    set({ sessionId: getSessionId() });
   },
   addToCart: (item) => set((state) => {
     const exists = state.cart.find(i => i.id === item.id);
@@ -47,6 +53,8 @@ const useStore = create((set) => ({
       ? { wishlist: state.wishlist.filter((i) => i.id !== item.id) }
       : { wishlist: [...state.wishlist, item] };
   }),
+  addMessage: (msg) => set((state) => ({ messages: GiftedChat.append(state.messages, [msg]) })),
+  setSocket: (socket) => set({ socket }),
 }));
 
 export default useStore;

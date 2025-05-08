@@ -1,5 +1,3 @@
-
-
 # Ask Aglio 🍝 – Front‑End Implementation Specification  
 *(Expo‑web, mobile browser)*
 
@@ -110,7 +108,8 @@ All blocks: `rounded-2xl`, `shadow-lg`, consistent padding.
 ## 5 Message Flow
 
 1. **Tap FAB** → `ChatSheet` opens at 75 % height.  
-2. **User sends text** → `socket.emit('askAglio', { sessionID, text, cartSnapshot, dishContext? })`.  
+2. **User sends text** → `socket.emit('askAglio', { sessionID, text, cart, filters, dishContext? })`  
+   where **`cart`** and **`filters`** are read directly from the Redux/Zustand store at send‑time.  
 3. **Backend returns blocks** → parsed & appended to GiftedChat.  
 4. **User taps “Add ➕”** → dispatch `cart.addItem(id)` → cart badge updates.  
 5. **Auto‑scroll** to latest after each render.  
@@ -159,6 +158,10 @@ All blocks: `rounded-2xl`, `shadow-lg`, consistent padding.
    import { io } from 'socket.io-client';
    export const socket = io(process.env.EXPO_PUBLIC_API_URL, { transports: ['websocket'] });
 
+   /** 
+    * payload = { sessionId, text, cart, filters, dishContext? } 
+    * cart & filters should be pulled from the store before calling.
+    */
    export function askAglio(payload) {
      socket.emit('askAglio', payload);
    }

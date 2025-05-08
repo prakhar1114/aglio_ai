@@ -2,20 +2,30 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import useStore from '../store';
+import { initializeSocket } from '../lib/socket';
+import { createSession, setUserCookie } from '../lib/session';
 
 const Auth = () => {
   const navigation = useNavigation();
   const setUser = useStore((state) => state.setUser);
+  const setSessionId = useStore((state) => state.setSessionId);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
 
   const handleSubmit = () => {
+    createSession();
+    setSessionId();
+    setUserCookie({ name, phone, email });
     setUser({ name, phone, email });
+    initializeSocket();
     navigation.navigate('Filters');
   };
 
   const handleSkip = () => {
+    createSession();
+    setSessionId();
+    initializeSocket();
     navigation.navigate('Filters');
   };
 

@@ -1,20 +1,20 @@
 import Cookies from 'js-cookie';
 import uuid from 'react-native-uuid';
 
-export function getOrCreateSessionId() {
+export function getSessionId() {
   let sid = null;
   if (typeof window !== 'undefined') {
     sid = Cookies.get('sessionId');
-    if (!sid) {
-      sid = uuid.v4();
-      Cookies.set('sessionId', sid, { expires: 30 });
-    }
-    return sid;
-  } else {
-    // fallback for native
-    return uuid.v4();
-  }
+  } 
+  return sid;
 }
+
+export function createSession() {
+  const sid = uuid.v4();
+  setSessionIdCookie(sid);
+  return sid;
+}
+
 
 export function setSessionIdCookie(id) {
   if (typeof window !== 'undefined') {
@@ -40,4 +40,25 @@ export function setFiltersCookie(filters) {
   if (typeof window !== 'undefined') {
     Cookies.set('filters', JSON.stringify(filters), { expires: 30 });
   }
+}
+
+// set user details cookie
+export function setUserCookie(user) {
+  if (typeof window !== 'undefined') {
+    Cookies.set('user', JSON.stringify(user), { expires: 30 });
+  }
+}
+
+export function getUserCookie() {
+  if (typeof window !== 'undefined') {
+    const raw = Cookies.get('user');
+    if (raw) {
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return null;
+      }
+    }
+  }
+  return null
 }

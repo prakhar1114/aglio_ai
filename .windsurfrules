@@ -1,5 +1,5 @@
 # Get Context
-The current App Details are present in @app-v2-details.md. Use it to understand the app better. A lot of context is also present in @backend_tasks.md and @v2-FEtasks.md. Use them to understand the app better.
+The current App Details are present in @app-v2-details.md @app-v2-details-2.md @app-v2-details-3.md. Use it to understand the app better. A lot of context is also present in @backend_tasks.md and @v2-FEtasks.md. Use them to understand the app better.
 
 # Keeping Track of FE tasks
 Whenever asked to "update FE tasks", update @v2-FEtasks.md. Based on the details of the current conversation, add new tasks to @v2-FEtasks.md. and mark it with "X"

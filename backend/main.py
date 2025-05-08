@@ -1,37 +1,34 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import numpy as np, redis, qdrant_client, random
+import numpy as np
 import uvicorn
 from config import rdb, qd, qd_collection_name, root_dir
+from urls.filtered_recommendations import router as filtered_router
+from urls.menu import router as menu_router
+from urls.chat import router as chat_router
+from urls.categories import router as categories_router
 
+# Create the FastAPI app
 app = FastAPI()
-
-# --- Enable CORS ---
-from fastapi.middleware.cors import CORSMiddleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Consider restricting this in production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 app.mount(
     "/image_data",
     StaticFiles(directory=root_dir / "raw_data"),
     name="image_data",
 )
-
-from urls.categories import router as categories_router
 app.include_router(categories_router, prefix="/categories", tags=["categories"])
-
-from urls.menu import router as menu_router
 app.include_router(menu_router, prefix="/menu", tags=["menu"])
-
-from urls.filtered_recommendations import router as filtered_router
 app.include_router(filtered_router, prefix="/filtered_recommendations", tags=["recommendations"])
+app.include_router(chat_router)
 
+app.add_middleware(
+    CORSMiddleware, 
+    allow_origins=["*"],  # Consider restricting this in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 DIM = 1280
 EPS  = 0.1     # ε-greedy rate
@@ -140,5 +137,4 @@ def history(session_id: str):
     }
 
 if __name__ == "__main__":
-    # Use import string for reload to work
     uvicorn.run("main:app", host="0.0.0.0", port=8005, reload=True)

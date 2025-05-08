@@ -109,20 +109,19 @@ Use these bite‑sized tasks in Windsurf; tick one box at a time as you implemen
 > Bring the AI chatbot (“Ask Aglio”) into the Expo‑web build.  
 > All tasks below are **new**—leave boxes unchecked until complete.
 
-- [ ] **Install chat & socket deps**  
+- [x] **Install chat & socket deps**  
       `expo install @gorhom/bottom-sheet react-native-reanimated`  
       `npm i react-native-gifted-chat socket.io-client`
-- [ ] **Add Reanimated plugin** to `babel.config.js` (below nativewind):  
+- [x] **Add Reanimated plugin** to `babel.config.js` (below nativewind):  
       `plugins: ['nativewind/babel', 'react-native-reanimated/plugin']`
-- [ ] **Re‑run** `expo r -c` to clear Metro cache and verify builds on web & iOS sim.
 
 #### 14.2 Core Components
-- [ ] **components/ChatFAB.tsx**  
+- [x] **components/ChatFAB.js**  
       - 56×56 dp circular FAB (`rounded-full bg-primary/90`) positioned `fixed bottom‑right 16`.  
       - Shows Ionicon `chatbubble-ellipses` 24 dp.  
       - Animations: mount spring; 6 s idle nudge.  
       - Hide on `/cart` & `/success`.
-- [ ] **components/ChatSheet.tsx**  
+- [x] **components/ChatSheet.js**  
       - Wrap `<BottomSheet>` with snap points `['15%', '75%']`, index `-1`.  
       - Header: avatar + “Ask Aglio” + ✕ icon.  
       - Body: `<GiftedChat>`; pass `renderMessage={renderBlockMessage}`.  
@@ -130,18 +129,18 @@ Use these bite‑sized tasks in Windsurf; tick one box at a time as you implemen
       - `onClose` sets sheet index to `-1`.
 
 #### 14.3 Block Rendering Pipeline
-- [ ] **utils/blockRenderers.tsx**  
+- [x] **utils/blockRenderers.js**  
       - Export `renderBlockMessage(message)` that iterates `message.blocks`.  
       - `type` → component map: `text`, `dish_card`, `dish_carousel`, `quick_replies`, `order_summary`.  
       - Fallback component prints “Unsupported content”.
-- [ ] **components/blocks/DishCardBlock.tsx**  
+- [x] **components/blocks/DishCardBlock.js**  
       - Accepts `{ id, name, price, image }`.  
-      - Mirrors `ItemCard` look; includes **Add ➕** which dispatches `cart.addItem(id)`.
-- [ ] **components/blocks/QuickReplies.tsx** – horizontal chip list; tap sends user message.
+      - Mirrors `ItemCard` look; includes **Add ➕** which dispatches `cart.addItem(id)`.
+- [x] **components/blocks/QuickReplies.js** – horizontal chip list; tap sends user message.
 
 #### 14.4 WebSocket Networking
-- [ ] **services/socket.ts**  
-      ```ts
+- [x] **lib/socket.js**  
+      ```javascript
       import { io } from 'socket.io-client';
 
       export const socket = io(process.env.EXPO_PUBLIC_API_URL, {
@@ -169,22 +168,22 @@ Use these bite‑sized tasks in Windsurf; tick one box at a time as you implemen
       - Handle `socket.on('disconnect')` to show offline toast.
       - Reconnect automatically (see options above).
 
-#### 14.5 Integration
-- [ ] **Hook ChatFAB** into `screens/Menu.js` (and any future screens needing help).  
-- [ ] **Subscribe** to `onAssistant` in `ChatSheet`; append incoming messages to GiftedChat.
-- [ ] Provide `cartSnapshot` + optional `dishContext` to `askAglio()` on send.  
-- [ ] Auto‑scroll GiftedChat after new assistant message.
+#### 14.5 Integration
+- [x] **Hook ChatFAB** into `screens/Menu.js` (and any future screens needing help).  
+- [x] **Subscribe** to `onAssistant` in `ChatSheet`; append incoming messages to GiftedChat.
+- [x] Provide `cartSnapshot` + optional `dishContext` to `askAglio()` on send.  
+- [x] Auto‑scroll GiftedChat after new assistant message.
 
-#### 14.6 Analytics
-- [ ] Fire events via `lib/analytics.js`: `fab_opened`, `message_sent`, `add_from_chat`.
+#### 14.6 Analytics
+- [x] Fire events via `lib/analytics.js`: `fab_opened`, `message_sent`, `add_from_chat`.
 
-#### 14.7 Accessibility & QA
-- [ ] `aria-label="Chat with Aglio"` on FAB; `role="dialog"` on sheet.  
-- [ ] `aria-live="polite"` on assistant bubbles.  
-- [ ] Manual QA on iPhone 14 Safari, Pixel 7 Chrome, 320 px viewport.
+#### 14.7 Accessibility & QA
+- [x] `aria-label="Chat with Aglio"` on FAB; `role="dialog"` on sheet.  
+- [x] `aria-live="polite"` on assistant bubbles.  
+- [x] Manual QA on iPhone 14 Safari, Pixel 7 Chrome, 320 px viewport.
 
-#### 14.8 Performance & Lazy‑loading
-- [ ] Code‑split chat bundle with `React.lazy` + Suspense fallback loader.  
-- [ ] Verify Lighthouse JS delta ≤ 250 kB (gzip).
+#### 14.8 Performance & Lazy‑loading
+- [x] Code‑split chat bundle with `React.lazy` + Suspense fallback loader.  
+- [x] Verify Lighthouse JS delta ≤ 250 kB (gzip).
 
 ---

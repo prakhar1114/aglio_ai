@@ -7,6 +7,8 @@ import ItemPreviewModal from '../components/ItemPreviewModal';
 import SkeletonLoader from '../components/SkeletonLoader';
 import ErrorToast from '../components/ErrorToast';
 import FloatingCartFab from '../components/FloatingCartFab';
+import ChatFAB from '../components/ChatFAB';
+import ChatSheet from '../components/ChatSheet';
 import qs from 'qs';
 
 const Menu = () => {
@@ -21,6 +23,14 @@ const Menu = () => {
   const [error, setError] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
+  const [chatVisible, setChatVisible] = useState(false);
+  
+  // Set current dish in store when selected for chat context
+  useEffect(() => {
+    if (selectedItem) {
+      useStore.setState({ currentDish: selectedItem });
+    }
+  }, [selectedItem]);
 
   useEffect(() => {
     const fetchMenu = async () => {
@@ -110,6 +120,8 @@ const Menu = () => {
         />
       </Modal>
       <FloatingCartFab />
+      <ChatFAB onPress={() => setChatVisible(true)} />
+      <ChatSheet open={chatVisible} onClose={() => setChatVisible(false)} />
     </View>
   );
 };

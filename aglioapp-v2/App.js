@@ -1,8 +1,10 @@
 import { StatusBar } from 'expo-status-bar';
+import React, { useEffect } from 'react';
+import useStore from '@/store';
 import "@/global.css";
 import { GluestackUIProvider } from "@/components/ui/gluestack-ui-provider";
 import { StyleSheet, Text, View } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { config } from '@gluestack-ui/config';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Welcome from '@/screens/Welcome';
@@ -13,6 +15,9 @@ import Menu from '@/screens/Menu';
 import OrderPreview from '@/screens/OrderPreview';
 import Success from '@/screens/Success';
 import * as Linking from 'expo-linking';
+import { initializeSocket } from '@/lib/socket';
+
+const navigationRef = createNavigationContainerRef();
 
 const linking = {
   prefixes: [Linking.createURL('/')],
@@ -21,9 +26,19 @@ const linking = {
 const Stack = createNativeStackNavigator();
 
 export default function App() {
+  const sessionId = useStore(state => state.sessionId);
+  useEffect(() => {
+    if (sessionId) {
+      initializeSocket();
+    }
+    if (!sessionId && navigationRef.isReady()) {
+      navigationRef.navigate('Welcome');
+    }
+  }, [sessionId]);
+
   return (
     <GluestackUIProvider mode="light">
-      <NavigationContainer linking={linking} fallback={<Text>Loading...</Text>}>
+      <NavigationContainer ref={navigationRef} linking={linking} fallback={<Text>Loading...</Text>}>
         <Stack.Navigator initialRouteName="Welcome" screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Welcome" component={Welcome} />
           <Stack.Screen name="Auth" component={Auth} />
