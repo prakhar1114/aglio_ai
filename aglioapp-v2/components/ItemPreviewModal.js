@@ -1,12 +1,45 @@
-import React from 'react';
-import { Modal, View, Text, Image, TouchableOpacity, StyleSheet, Pressable } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { Modal, View, Text, Image, TouchableOpacity, StyleSheet, Pressable, ScrollView, Dimensions } from 'react-native';
 import useStore from '../store';
+import { sendMessage } from '../lib/socket';
+import InlineChatSheet from './InlineChatSheet';
 
 export default function ItemPreviewModal({ visible, item, onClose }) {
   const addItem = useStore((state) => state.addToCart);
-  const toggleWishlist = useStore((state) => state.toggleWishlist);
+  const messages = useStore((state) => state.messages);
+  const [showChatsheet, setShowChatsheet] = useState(false);
+  const scrollViewRef = useRef(null);
+  // const toggleWishlist = useStore((state) => state.toggleWishlist);
+
+  const handleAIbuttonPress = () => {
+    sendMessage({
+      _id: Math.round(Math.random() * 1000000),
+      text: `Tell me about ${item.name} dishID-${item.id}`,
+      createdAt: new Date(),
+      user: { _id: 'user' },
+    });
+    setShowChatsheet(true);
+  };
+
+  // Function to scroll to the bottom of the modal
+  const scrollToBottom = () => {
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollToEnd({ animated: true });
+    }
+  };
+  
+  // Effect to scroll to bottom when chat is opened or messages change
+  useEffect(() => {
+    if (showChatsheet) {
+      // Single timeout to scroll after render
+      setTimeout(scrollToBottom, 100);
+    }
+  }, [showChatsheet, messages]);
 
   if (!item) return null;
+
+  const windowHeight = Dimensions.get('window').height;
+  const maxHeight = windowHeight * 0.8; // 80% of screen height
 
   return (
     <Modal
@@ -16,33 +49,52 @@ export default function ItemPreviewModal({ visible, item, onClose }) {
       onRequestClose={onClose}
     >
       <Pressable style={styles.overlay} onPress={onClose} />
-      <View style={styles.modalContent}>
-        {item.image_url ? (
-          <Image source={{ uri: item.image_url }} style={styles.heroImage} resizeMode="cover" />
-        ) : (
-          <View style={[styles.heroImage, styles.placeholderImage]}>
-            <Text style={styles.placeholderText}>No Image</Text>
-          </View>
-        )}
-        <TouchableOpacity style={styles.closeBtn} onPress={onClose} accessibilityLabel="Close">
-          <Text style={{ fontSize: 20 }}>×</Text>
-        </TouchableOpacity>
-        <View style={styles.infoSection}>
-          <View style={styles.row}>
-            <Text style={styles.name}>{item.name}</Text>
-            <Text style={styles.price}>₹{item.price}</Text>
-          </View>
-          <Text style={styles.desc}>{item.description}</Text>
-        </View>
-        <View style={styles.bottomBar}>
-          <TouchableOpacity style={[styles.wishBtn, styles.outlineBtn]} onPress={() => toggleWishlist(item)}>
-            <Text style={{ color: '#3B82F6', fontWeight: 'bold' }}>Wishlist</Text>
+      <ScrollView 
+        ref={scrollViewRef}
+        style={[styles.modalContainer, { maxHeight }]}
+        contentContainerStyle={{ flexGrow: 1 }}
+        bounces={false}
+      >
+        <View style={styles.modalContent}>
+          {item.image_url ? (
+            <Image source={{ uri: item.image_url }} style={styles.heroImage} resizeMode="cover" />
+          ) : (
+            <View style={[styles.heroImage, styles.placeholderImage]}>
+              <Text style={styles.placeholderText}>No Image</Text>
+            </View>
+          )}
+          <TouchableOpacity style={styles.closeBtn} onPress={onClose} accessibilityLabel="Close">
+            <Text style={{ fontSize: 20 }}>×</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.addBtn} onPress={() => { addItem(item); onClose(); }}>
-            <Text style={{ color: '#fff', fontWeight: 'bold' }}>Add to Cart</Text>
-          </TouchableOpacity>
+          <View style={styles.infoSection}>
+            <View style={styles.row}>
+              <Text style={styles.name}>{item.name}</Text>
+              <Text style={styles.price}>₹{item.price}</Text>
+            </View>
+            <Text style={styles.desc}>{item.description}</Text>
+          </View>
+          <View style={styles.bottomBar}>
+            {/* <TouchableOpacity style={[styles.wishBtn, styles.outlineBtn]} onPress={() => toggleWishlist(item)}>
+              <Text style={{ color: '#3B82F6', fontWeight: 'bold' }}>Wishlist</Text>
+            </TouchableOpacity> */}
+            <TouchableOpacity 
+              style={[styles.wishBtn, styles.outlineBtn]} 
+              onPress={handleAIbuttonPress}
+            >
+              <Text style={{ color: '#3B82F6', fontWeight: 'bold' }}>Ask AI</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.addBtn} 
+              onPress={() => { addItem(item); onClose(); }}
+            >
+              <Text style={{ color: '#fff', fontWeight: 'bold' }}>Add to Cart</Text>
+            </TouchableOpacity>
+          </View>
+          {showChatsheet && (
+            <InlineChatSheet visible={showChatsheet} onClose={() => setShowChatsheet(false)} />
+          )}
         </View>
-      </View>
+      </ScrollView>
     </Modal>
   );
 }
@@ -52,17 +104,20 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.3)',
   },
-  modalContent: {
+  modalContainer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
+    width: '100%',
+  },
+  modalContent: {
     backgroundColor: '#fff',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     flexDirection: 'column',
     overflow: 'hidden',
-    maxHeight: '90%',
+    width: '100%',
   },
   heroImage: {
     width: '100%',

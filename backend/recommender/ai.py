@@ -8,6 +8,7 @@ ai.py  – High‑level orchestration layer for the Ask Aglio chatbot.
 """
 
 import os, json
+import time
 from types import NoneType
 from loguru import logger
 from typing import List, Dict, Any
@@ -83,15 +84,18 @@ def generate_blocks(payload: Dict[str, Any], thread_id: str) -> Blocks:
 
     counter = iter(range(0, 5))
     while True:
-        print("iteration:", next(counter))
+        logger.debug("iteration:", next(counter))
+        t1 = time.time()
         response = client.responses.parse(
             model="gpt-4.1",
             input=msgs,
             previous_response_id=prev_id,
             tools=openai_tools,
             tool_choice="auto",
-            text_format=Blocks
+            text_format=Blocks,
+            timeout=60,
         )
+        logger.debug("Model Response took ", time.time() - t1)
         msgs = []
         # Persist context id for next turn
         prev_id = response.id

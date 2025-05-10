@@ -32,14 +32,14 @@ export default function App() {
       initializeSocket();
     }
     if (!sessionId && navigationRef.isReady()) {
-      navigationRef.navigate('Welcome');
+      navigationRef.navigate('Auth');
     }
   }, [sessionId]);
 
   return (
     <GluestackUIProvider mode="light">
       <NavigationContainer ref={navigationRef} linking={linking} fallback={<Text>Loading...</Text>}>
-        <Stack.Navigator initialRouteName="Welcome" screenOptions={{ headerShown: false }}>
+        <Stack.Navigator initialRouteName="Auth" screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Welcome" component={Welcome} />
           <Stack.Screen name="Auth" component={Auth} />
           <Stack.Screen name="Filters" component={Filters} />

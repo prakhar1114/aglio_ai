@@ -41,7 +41,7 @@ const ChatSheet = ({ open, onClose, height = '80%' }) => {
       <View style={styles.overlay}>
         <View style={[styles.sheet, { height }]}>
           <View style={styles.header}>
-            <Text style={styles.headerText}>Ask Aglio</Text>
+            <Text style={styles.headerText}>Ask AI</Text>
             <TouchableOpacity onPress={onClose} accessibilityLabel="Close chat" accessibilityRole="button">
               <Ionicons name="close" size={24} color="#000" />
             </TouchableOpacity>
@@ -62,7 +62,7 @@ const ChatSheet = ({ open, onClose, height = '80%' }) => {
                 <Text>Thinking...</Text>
               </View>
             )}
-            accessibilityLabel="Chat with Aglio AI"
+            accessibilityLabel="Chat with AI"
             accessibilityLiveRegion="polite"
           />
         </View>
