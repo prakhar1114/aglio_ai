@@ -84,7 +84,7 @@ def generate_blocks(payload: Dict[str, Any], thread_id: str) -> Blocks:
 
     counter = iter(range(0, 5))
     while True:
-        logger.debug("iteration:", next(counter))
+        logger.debug(f"iteration: {next(counter)}")
         t1 = time.time()
         response = client.responses.parse(
             model="gpt-4.1",
@@ -95,7 +95,7 @@ def generate_blocks(payload: Dict[str, Any], thread_id: str) -> Blocks:
             text_format=Blocks,
             timeout=60,
         )
-        logger.debug("Model Response took ", time.time() - t1)
+        logger.debug(f"Model Response took {time.time() - t1}")
         msgs = []
         # Persist context id for next turn
         prev_id = response.id
@@ -111,6 +111,7 @@ def generate_blocks(payload: Dict[str, Any], thread_id: str) -> Blocks:
                 fn_name   = tool_call.name
                 fn_args   = json.loads(tool_call.arguments)
                 call_id = tool_call.call_id
+                logger.debug("Calling function %s with args", fn_name)
 
                 if fn_name not in _TOOL_MAP:
                     logger.error("Unknown tool call requested: %s", fn_name)

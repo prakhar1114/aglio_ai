@@ -9,10 +9,10 @@ const Home = () => {
       <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('Menu')}>
         <Text style={styles.cardText}>Menu</Text>
       </TouchableOpacity>
-      {/* <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('AI')}>
-        <Text style={styles.cardText}>AI Recommendations</Text>
+      <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('AI')}>
+        <Text style={styles.cardText}>Home</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('Success')}>
+      {/* <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('Success')}>
         <Text style={styles.cardText}>Our Recs</Text>
       </TouchableOpacity> */}
     </View>

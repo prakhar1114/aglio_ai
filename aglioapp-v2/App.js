@@ -1,4 +1,3 @@
-import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
 import useStore from '@/store';
 import "@/global.css";
@@ -14,6 +13,7 @@ import Home from '@/screens/Home';
 import Menu from '@/screens/Menu';
 import OrderPreview from '@/screens/OrderPreview';
 import Success from '@/screens/Success';
+import AiHomescreen from '@/screens/AiHomescreen';
 import * as Linking from 'expo-linking';
 import { initializeSocket } from '@/lib/socket';
 
@@ -47,6 +47,7 @@ export default function App() {
           <Stack.Screen name="Menu" component={Menu} />
           <Stack.Screen name="Cart" component={OrderPreview} />
           <Stack.Screen name="Success" component={Success} />
+          <Stack.Screen name="AI" component={AiHomescreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </GluestackUIProvider>

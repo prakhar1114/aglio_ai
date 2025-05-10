@@ -40,7 +40,7 @@ export function renderBlockMessage({ currentMessage }) {
                     fontSize: 16,
                     color: '#000',
                     marginVertical: 10,
-                    marginHorizontal: 12,
+                    marginHorizontal: 5,
                   },
                   text: {
                     fontSize: 16,
