@@ -18,10 +18,12 @@ import { renderBlockMessage } from '../utils/blockRenderers';
 import { sendMessage } from '../lib/socket';
 import useStore from '../store';
 import analytics from '../lib/analytics';
+import FloatingCartFab from '../components/FloatingCartFab';
 
 const AiHomescreen = () => {
   const navigation = useNavigation();
   const messages = useStore(state => state.messages);
+  const cart = useStore(state => state.cart);
   const [loading, setLoading] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const sidebarAnimation = useRef(new Animated.Value(0)).current;
@@ -63,7 +65,7 @@ const AiHomescreen = () => {
     const newVisibility = forceClose ? false : !sidebarVisible;
     const toValue = newVisibility ? 1 : 0;
     
-    console.log("New visibility:", newVisibility, "toValue:", toValue);
+    // console.log("New visibility:", newVisibility, "toValue:", toValue);
     
     Animated.timing(sidebarAnimation, {
       toValue,
@@ -222,7 +224,7 @@ const AiHomescreen = () => {
       
       {/* Chat Area */}
       <TouchableWithoutFeedback onPress={() => toggleSidebar(true)}>
-        <View style={styles.chatContainer}>
+        <View style={[styles.chatContainer, cart.length > 0 && { paddingBottom: 145 }]}>
           <MemoizedGiftedChat
             messages={messages}
             user={{ _id: 1 }}
@@ -243,9 +245,12 @@ const AiHomescreen = () => {
       </TouchableWithoutFeedback>
       
       {/* Custom Input Toolbar Fixed at Bottom */}
-      <View style={styles.fixedInputToolbarContainer}>
+      <View style={[styles.fixedInputToolbarContainer, cart.length > 0 && styles.inputToolbarWithCart]}>
         {customInputToolbar()}
       </View>
+      
+      {/* Floating Cart FAB */}
+      <FloatingCartFab />
     </SafeAreaView>
   );
 };
@@ -405,6 +410,9 @@ const styles = StyleSheet.create({
     elevation: 10,
     zIndex: 100,
     paddingBottom: 10, // Add bottom padding for better visibility
+  },
+  inputToolbarWithCart: {
+    bottom: 60, // Move up to make room for the FloatingCartFab
   },
 });
 

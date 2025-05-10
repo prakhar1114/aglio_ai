@@ -3,6 +3,7 @@ import { Modal, View, Text, Image, TouchableOpacity, StyleSheet, Pressable, Scro
 import useStore from '../store';
 import { sendMessage } from '../lib/socket';
 import InlineChatSheet from './InlineChatSheet';
+import AddToCartButton from './ui/AddToCartButton';
 
 export default function ItemPreviewModal({ visible, item, onClose }) {
   const addItem = useStore((state) => state.addToCart);
@@ -14,7 +15,7 @@ export default function ItemPreviewModal({ visible, item, onClose }) {
   const handleAIbuttonPress = () => {
     sendMessage({
       _id: Math.round(Math.random() * 1000000),
-      text: `Tell me about ${item.name} dishID-${item.id}`,
+      text: `Tell me about ${item.name} dish-${item.id}`,
       createdAt: new Date(),
       user: { _id: 'user' },
     });
@@ -78,17 +79,21 @@ export default function ItemPreviewModal({ visible, item, onClose }) {
               <Text style={{ color: '#3B82F6', fontWeight: 'bold' }}>Wishlist</Text>
             </TouchableOpacity> */}
             <TouchableOpacity 
-              style={[styles.wishBtn, styles.outlineBtn]} 
+              style={[styles.actionBtn, styles.outlineBtn]} 
               onPress={handleAIbuttonPress}
             >
-              <Text style={{ color: '#3B82F6', fontWeight: 'bold' }}>Ask AI</Text>
+              <Text style={[styles.actionBtnText, { color: '#3B82F6' }]}>Ask AI</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.addBtn} 
-              onPress={() => { addItem(item); onClose(); }}
-            >
-              <Text style={{ color: '#fff', fontWeight: 'bold' }}>Add to Cart</Text>
-            </TouchableOpacity>
+            <View style={[styles.actionBtn, styles.addBtn]}>
+              <AddToCartButton 
+                itemId={item.id}
+                itemData={item}
+                style={styles.innerAddBtn}
+                // onAdd={() => onClose()} // Close modal after adding to cart
+                useIcon={false}
+                buttonText="Add to Cart"
+              />
+            </View>
           </View>
           {showChatsheet && (
             <InlineChatSheet visible={showChatsheet} onClose={() => setShowChatsheet(false)} />
@@ -184,12 +189,25 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     backgroundColor: '#fff',
   },
-  wishBtn: {
+  actionBtn: {
     flex: 1,
-    marginRight: 8,
-    paddingVertical: 12,
+    height: 44,
+    marginHorizontal: 4,
     alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: 12,
+    flexDirection: 'row',
+    overflow: 'hidden',
+    backgroundColor: '#fff', // default, override for addBtn
+    minWidth: 0,
+  },
+  actionBtnText: {
+    fontWeight: 'bold',
+    fontSize: 17,
+    textAlign: 'center',
+  },
+  wishBtn: {
+    // Deprecated: use actionBtn instead
   },
   outlineBtn: {
     borderWidth: 2,
@@ -197,10 +215,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   addBtn: {
-    flex: 1,
-    paddingVertical: 12,
     backgroundColor: '#3B82F6',
-    borderRadius: 12,
+    marginRight: 0,
+    marginLeft: 0,
+  },
+  innerAddBtn: {
+    backgroundColor: 'transparent', // Make the inner button transparent
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center', // Center the button horizontally
+    textAlign: 'center', // Center text within the button
   },
 });

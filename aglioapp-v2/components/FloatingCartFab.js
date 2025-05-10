@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Platform, Animated } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import useStore from '../store';
 
@@ -7,7 +7,23 @@ export default function FloatingCartFab() {
   const navigation = useNavigation();
   const route = useRoute();
   const cart = useStore((state) => state.cart);
-  const cartCount = cart.length;
+  const cartCount = cart.reduce((sum, item) => sum + (item.qty || 1), 0);
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.sequence([
+      Animated.timing(scaleAnim, {
+        toValue: 1.2,
+        duration: 100,
+        useNativeDriver: true
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true
+      })
+    ]).start();
+  }, [cartCount]);
 
   // Hide FAB on /cart or /success
   if (cartCount === 0 || ['Cart', 'Success'].includes(route.name)) return null;
@@ -21,7 +37,9 @@ export default function FloatingCartFab() {
         accessibilityLabel="View Cart"
       >
         <Text style={styles.fabText}>View Cart</Text>
-        <Text style={styles.countText}>{cartCount} {cartCount === 1 ? 'item' : 'items'}</Text>
+        <Animated.Text style={[styles.countText, { transform: [{ scale: scaleAnim }] }]}>
+          {cartCount} {cartCount === 1 ? 'item' : 'items'}
+        </Animated.Text>
         <Text style={styles.arrow}>→</Text>
       </TouchableOpacity>
     </View>

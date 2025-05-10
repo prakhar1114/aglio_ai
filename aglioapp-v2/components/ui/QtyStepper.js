@@ -61,7 +61,8 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     paddingHorizontal: 6,
     height: 36,
-    alignSelf: 'flex-start',
+    alignSelf: 'center', // Changed from flex-start to center
+    justifyContent: 'center', // Added to ensure content is centered
   },
   containerVertical: {
     flexDirection: 'column',
