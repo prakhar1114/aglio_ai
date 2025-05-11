@@ -44,7 +44,7 @@ const Filters = () => {
 
   const handleNext = () => {
     setFilters({ veg, categories: selectedCategories, category_brief: selectedCategoryBriefs });
-    navigation.navigate('Home');
+    navigation.navigate('AI');
   };
 
   return (

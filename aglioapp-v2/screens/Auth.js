@@ -72,7 +72,7 @@ const Auth = () => {
       await addBrowseMenuButton();
       initializeSocket();
       
-      navigation.navigate('AI');
+      navigation.navigate('Filters');
     }
   };
 
@@ -91,7 +91,7 @@ const Auth = () => {
     await addBrowseMenuButton();
     initializeSocket();
     
-    navigation.navigate('AI');
+    navigation.navigate('Filters');
   };
 
   return (

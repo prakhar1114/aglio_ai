@@ -19,6 +19,8 @@ import { sendMessage } from '../lib/socket';
 import useStore from '../store';
 import analytics from '../lib/analytics';
 import FloatingCartFab from '../components/FloatingCartFab';
+import Topbar from '../components/Topbar';
+import Sidebar from '../components/Sidebar';
 
 const AiHomescreen = () => {
   const navigation = useNavigation();
@@ -61,32 +63,33 @@ const AiHomescreen = () => {
   
   // Toggle or close sidebar
   const toggleSidebar = (forceClose = false) => {
-    console.log("Attempting toggle", sidebarVisible);
+  
+    // If forceClose is true, always close the sidebar
+    // Otherwise, toggle between open and closed
     const newVisibility = forceClose ? false : !sidebarVisible;
     const toValue = newVisibility ? 1 : 0;
-    
-    // console.log("New visibility:", newVisibility, "toValue:", toValue);
-    
+  
+  
     Animated.timing(sidebarAnimation, {
       toValue,
       duration: 300,
       useNativeDriver: false,
     }).start();
-    
+  
     setSidebarVisible(newVisibility);
   };
 
-  // Calculate sidebar position based on animation value
-  const sidebarLeft = sidebarAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [-sidebarWidth, 0],
-  });
+  // // Calculate sidebar position based on animation value
+  // const sidebarLeft = sidebarAnimation.interpolate({
+  //   inputRange: [0, 1],
+  //   outputRange: [-sidebarWidth, 0],
+  // });
   
-  // Calculate overlay opacity based on animation value
-  const overlayOpacity = sidebarAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 0.5],
-  });
+  // // Calculate overlay opacity based on animation value
+  // const overlayOpacity = sidebarAnimation.interpolate({
+  //   inputRange: [0, 1],
+  //   outputRange: [0, 0.5],
+  // });
   
   // Handle sending messages directly from custom input
   const handleSendPress = () => {
@@ -156,83 +159,17 @@ const AiHomescreen = () => {
   
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar backgroundColor="#fff" barStyle="dark-content" />
       
-      {/* Top Header */}
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.menuButton} 
-          onPress={() => toggleSidebar()}
-        >
-          <Ionicons name="menu" size={24} color="#000" />
-        </TouchableOpacity>
-        
-        <Text style={styles.headerTitle}>AI Food Assistant</Text>
-        
-        <TouchableOpacity style={styles.refreshButton}>
-          <Ionicons name="refresh-outline" size={24} color="#000" />
-        </TouchableOpacity>
-      </View>
+      {/* Header */}
+      <Topbar heading="AI Food Assistant" onMenuPress={toggleSidebar} />
       
-      {/* Sidebar Overlay */}
-      {sidebarVisible && (
-        <TouchableWithoutFeedback onPress={() => toggleSidebar(true)}>
-          <Animated.View 
-            style={[styles.overlay, { opacity: overlayOpacity }]}
-          />
-        </TouchableWithoutFeedback>
-      )}
-      
-      {/* Sidebar with menu items */}
-      <Animated.View style={[styles.sidebar, { width: sidebarWidth, transform: [{ translateX: sidebarLeft }] }]}>
-        <View style={styles.sidebarHeader}>
-          <Text style={styles.sidebarTitle}>Menu</Text>
-        </View>
-        
-        <TouchableOpacity 
-          style={styles.sidebarItem}
-          onPress={() => {
-            toggleSidebar(true); // Close sidebar
-            navigation.navigate('AI');
-          }}
-        >
-          <Ionicons name="home-outline" size={24} color="#000" />
-          <Text style={styles.sidebarItemText}>Home</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.sidebarItem}
-          onPress={() => {
-            toggleSidebar(true); // Close sidebar
-            navigation.navigate('Menu');
-          }}
-        >
-          <Ionicons name="book-outline" size={24} color="#000" />
-          <Text style={styles.sidebarItemText}>Menu</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.sidebarItem}
-          onPress={() => {
-            toggleSidebar(true); // Close sidebar
-            navigation.navigate('Filters');
-          }}
-        >
-          <Ionicons name="options-outline" size={24} color="#000" />
-          <Text style={styles.sidebarItemText}>Filters</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.sidebarItem}>
-          <Ionicons name="restaurant-outline" size={24} color="#000" />
-          <Text style={styles.sidebarItemText}>Our Recommendation</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.sidebarItem}>
-          <Ionicons name="time-outline" size={24} color="#000" />
-          <Text style={styles.sidebarItemText}>Previously Ordered</Text>
-        </TouchableOpacity>
-
-      </Animated.View>
+      {/* Sidebar */}
+      <Sidebar 
+        isVisible={sidebarVisible} 
+        sidebarAnimation={sidebarAnimation} 
+        toggleSidebar={toggleSidebar}
+      />  
       
       {/* Chat Area */}
       <TouchableWithoutFeedback onPress={() => toggleSidebar(true)}>
@@ -280,26 +217,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-    zIndex: 50,
-  },
-  menuButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  refreshButton: {
-    padding: 8,
-  },
+
   chatContainer: {
     flex: 1,
     backgroundColor: '#fff',
@@ -321,50 +239,7 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     maxHeight: 44,
   },
-  overlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#000',
-    zIndex: 10,
-  },
-  sidebar: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    backgroundColor: '#fff',
-    zIndex: 30, // Increased zIndex to ensure it's above overlay
-    paddingTop: 50,
-    shadowColor: '#000',
-    shadowOffset: { width: 2, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 10,
-  },
-  sidebarHeader: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  sidebarTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  sidebarItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  sidebarItemText: {
-    fontSize: 16,
-    marginLeft: 16,
-  },
+
   inputToolbar: {
     backgroundColor: '#fff',
     borderTopWidth: 1,

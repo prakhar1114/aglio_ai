@@ -42,7 +42,7 @@ export function renderBlockMessage({ currentMessage }) {
                     ...styles.botMessageText,
                     maxWidth: '100%',
                     marginHorizontal: 0,
-                    paddingHorizontal: 5,
+                    paddingHorizontal: 10,
                   },
                   paragraph: {
                     fontSize: 16,
