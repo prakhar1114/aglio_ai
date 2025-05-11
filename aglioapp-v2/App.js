@@ -16,7 +16,7 @@ import Success from '@/screens/Success';
 import AiHomescreen from '@/screens/AiHomescreen';
 import * as Linking from 'expo-linking';
 import { initializeSocket } from '@/lib/socket';
-import { fetchFeaturedDishes, fetchPreviousOrders } from '@/lib/api';
+import { fetchFeaturedDishes, fetchPreviousOrders, addBrowseMenuButton } from '@/lib/api';
 
 const navigationRef = createNavigationContainerRef();
 
@@ -34,6 +34,7 @@ export default function App() {
       const loadInitialData = async () => {
         await fetchFeaturedDishes();
         await fetchPreviousOrders();
+        await addBrowseMenuButton();
         initializeSocket();
       };
       
@@ -42,7 +43,7 @@ export default function App() {
     if (!sessionId && navigationRef.isReady()) {
       navigationRef.navigate('Auth');
     }
-  }, [sessionId]);
+  }, []);
 
   return (
     <GluestackUIProvider mode="light">

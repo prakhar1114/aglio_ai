@@ -79,3 +79,15 @@ export function sendMessage(msg) {
   console.log('Sending message', fullMsg);
   socket.send(JSON.stringify(fullMsg));
 }
+
+/**
+ * Disconnect WebSocket connection and clean up
+ */
+export function disconnectSocket() {
+  const { socket, setSocket } = useStore.getState();
+  if (socket) {
+    console.log('Disconnecting WebSocket');
+    socket.close();
+    setSocket(null);
+  }
+}

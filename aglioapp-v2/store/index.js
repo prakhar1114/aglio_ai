@@ -55,6 +55,18 @@ const useStore = create((set) => ({
   }),
   addMessage: (msg) => set((state) => ({ messages: GiftedChat.append(state.messages, [msg]) })),
   setSocket: (socket) => set({ socket }),
+  
+  // Reset store to initial state (except for sessionId and threadId which are regenerated)
+  resetStore: () => set({
+    cart: [],
+    wishlist: [],
+    filters: {},
+    user: null,
+    currentOrder: [],
+    messages: [],
+    socket: null,
+    threadId: generateThreadId(),
+  }),
 }));
 
 export default useStore;

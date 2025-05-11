@@ -65,3 +65,28 @@ export const fetchPreviousOrders = async () => {
     console.error('Error fetching previous orders:', error);
   }
 };
+
+/**
+ * Add a Browse Menu button to navigate to the Menu screen
+ */
+export const addBrowseMenuButton = async () => {
+  try {
+    const msg = {
+      _id: Math.round(Math.random() * 1000000),
+      blocks: [
+        {
+          type: 'button_group',
+          title: 'Quick Actions',
+          options: [
+            { text: 'Browse Menu', path: 'Menu' }
+          ]
+        }
+      ],
+      createdAt: new Date(),
+      user: { _id: 'assistant', name: 'Aglio AI', avatar: 'https://cdn.aglio.app/avatar.png' },
+    };
+    useStore.getState().addMessage(msg);
+  } catch (error) {
+    console.error('Error adding browse menu button:', error);
+  }
+};

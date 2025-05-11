@@ -2,14 +2,15 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import useStore from '../store';
-import { initializeSocket } from '../lib/socket';
-import { createSession, setUserCookie } from '../lib/session';
-import { fetchFeaturedDishes, fetchPreviousOrders } from '../lib/api';
+import { initializeSocket, disconnectSocket } from '../lib/socket';
+import { createSession, setUserCookie, clearCookies } from '../lib/session';
+import { fetchFeaturedDishes, fetchPreviousOrders, addBrowseMenuButton } from '../lib/api';
 
 const Auth = () => {
   const navigation = useNavigation();
   const setUser = useStore((state) => state.setUser);
   const setSessionId = useStore((state) => state.setSessionId);
+  const resetStore = useStore((state) => state.resetStore);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -54,6 +55,12 @@ const Auth = () => {
 
   const handleSubmit = async () => {
     if (validateForm()) {
+      // Disconnect websocket, clear all cookies and reset store before creating a new session
+      disconnectSocket();
+      clearCookies();
+      resetStore();
+      
+      // Create new session and set user data
       createSession();
       setSessionId();
       setUserCookie({ name, phone, email });
@@ -62,21 +69,29 @@ const Auth = () => {
       // Fetch featured dishes and previous orders before initializing socket
       await fetchFeaturedDishes();
       await fetchPreviousOrders();
+      await addBrowseMenuButton();
       initializeSocket();
       
-      navigation.navigate('Filters');
+      navigation.navigate('AI');
     }
   };
 
   const handleSkip = async () => {
+    // Disconnect websocket, clear all cookies and reset store before creating a new session
+    disconnectSocket();
+    clearCookies();
+    resetStore();
+    
+    // Create new session
     createSession();
     setSessionId();
     
     // Fetch featured dishes and previous orders before initializing socket
     await fetchFeaturedDishes();
+    await addBrowseMenuButton();
     initializeSocket();
     
-    navigation.navigate('Filters');
+    navigation.navigate('AI');
   };
 
   return (

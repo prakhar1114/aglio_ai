@@ -5,6 +5,7 @@ import DishCardBlock from '../components/blocks/DishCardBlock';
 import QuickReplies from '../components/blocks/QuickReplies';
 import StoryCarousal from '../components/blocks/StoryCarousal';
 import ThumbnailRow from '../components/blocks/ThumbnailRow';
+import ButtonGroup from '../components/blocks/ButtonGroup';
 
 export function renderBlockMessage({ currentMessage }) {
   
@@ -96,6 +97,8 @@ export function renderBlockMessage({ currentMessage }) {
             return <StoryCarousal key={idx} stories={block.options} title={block.title || "Featured Stories"} />;
           case 'thumbnail_row':
             return <ThumbnailRow key={idx} options={block.options} title={block.title || "Your Previous Orders"} />;
+          case 'button_group':
+            return <ButtonGroup key={idx} options={block.options} title={block.title || "Actions"} />;
           case 'order_summary':
             return (
               <Text key={idx} style={styles.text}>

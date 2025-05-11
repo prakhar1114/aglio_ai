@@ -189,14 +189,15 @@ const AiHomescreen = () => {
           <Text style={styles.sidebarTitle}>Menu</Text>
         </View>
         
-        <TouchableOpacity style={styles.sidebarItem}>
-          <Ionicons name="restaurant-outline" size={24} color="#000" />
-          <Text style={styles.sidebarItemText}>Recommendation</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.sidebarItem}>
-          <Ionicons name="time-outline" size={24} color="#000" />
-          <Text style={styles.sidebarItemText}>Previously Ordered</Text>
+        <TouchableOpacity 
+          style={styles.sidebarItem}
+          onPress={() => {
+            toggleSidebar(true); // Close sidebar
+            navigation.navigate('AI');
+          }}
+        >
+          <Ionicons name="home-outline" size={24} color="#000" />
+          <Text style={styles.sidebarItemText}>Home</Text>
         </TouchableOpacity>
         
         <TouchableOpacity 
@@ -220,6 +221,17 @@ const AiHomescreen = () => {
           <Ionicons name="options-outline" size={24} color="#000" />
           <Text style={styles.sidebarItemText}>Filters</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity style={styles.sidebarItem}>
+          <Ionicons name="restaurant-outline" size={24} color="#000" />
+          <Text style={styles.sidebarItemText}>Our Recommendation</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.sidebarItem}>
+          <Ionicons name="time-outline" size={24} color="#000" />
+          <Text style={styles.sidebarItemText}>Previously Ordered</Text>
+        </TouchableOpacity>
+
       </Animated.View>
       
       {/* Chat Area */}

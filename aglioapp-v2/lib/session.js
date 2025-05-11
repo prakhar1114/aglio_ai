@@ -62,3 +62,14 @@ export function getUserCookie() {
   }
   return null
 }
+
+/**
+ * Clear all cookies (sessionId, filters, user)
+ */
+export function clearCookies() {
+  if (typeof window !== 'undefined') {
+    Cookies.remove('sessionId');
+    Cookies.remove('filters');
+    Cookies.remove('user');
+  }
+}
