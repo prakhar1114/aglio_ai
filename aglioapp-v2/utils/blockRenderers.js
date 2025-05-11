@@ -4,6 +4,7 @@ import Markdown from 'react-native-markdown-display';
 import DishCardBlock from '../components/blocks/DishCardBlock';
 import QuickReplies from '../components/blocks/QuickReplies';
 import StoryCarousal from '../components/blocks/StoryCarousal';
+import ThumbnailRow from '../components/blocks/ThumbnailRow';
 
 export function renderBlockMessage({ currentMessage }) {
   
@@ -36,7 +37,12 @@ export function renderBlockMessage({ currentMessage }) {
               <Markdown 
                 key={idx} 
                 style={{
-                  body: styles.botMessageText,
+                  body: {
+                    ...styles.botMessageText,
+                    maxWidth: '100%',
+                    marginHorizontal: 0,
+                    paddingHorizontal: 5,
+                  },
                   paragraph: {
                     fontSize: 16,
                     color: '#000',
@@ -87,7 +93,9 @@ export function renderBlockMessage({ currentMessage }) {
           case 'quick_replies':
             return <QuickReplies key={idx} options={block.options} />;
           case 'story_carousal':
-            return <StoryCarousal key={idx} stories={block.options} />;
+            return <StoryCarousal key={idx} stories={block.options} title={block.title || "Featured Stories"} />;
+          case 'thumbnail_row':
+            return <ThumbnailRow key={idx} options={block.options} title={block.title || "Your Previous Orders"} />;
           case 'order_summary':
             return (
               <Text key={idx} style={styles.text}>

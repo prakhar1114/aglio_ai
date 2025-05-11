@@ -19,9 +19,9 @@ async def websocket_endpoint(websocket: WebSocket):
     logger.info(f"WebSocket connection opened for session: {session_id}")
     await websocket.accept()
     if name:
-        await websocket.send_json({"message": f"👋 Welcome {name}! How can I help you today?"})
+        await websocket.send_json({"blocks": [{"type": "text", "markdown": f"👋 Welcome **{name}**! How can I help you today?"}]})
     else:
-        await websocket.send_json({"message": "👋 Welcome to Chianti! How can I help you today?"})
+        await websocket.send_json({"blocks": [{"type": "text", "markdown": "👋 Welcome to **Chianti**! How can I help you today?"}]})
 
     await websocket.send_json({
         "blocks": [

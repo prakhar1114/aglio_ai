@@ -44,20 +44,23 @@ def read_prev_orders(
         )
         for p in points
     ]
-    
+
+    blocks = []    
     # Create intro text block
-    intro_text = TextBlock(
-        type="text",
-        markdown="## Your Previous Orders"
-    )
+    # intro_text = TextBlock(
+    #     type="text",
+    #     markdown="## Your Previous Orders"
+    # )
+    # blocks.append(intro_text)
     
     # Create dish carousel block
     carousel_block = ResponseDishCarouselBlock(
-        type="dish_carousal",
+        type="thumbnail_row",
         options=dish_cards
     )
+    blocks.append(carousel_block)
     
     # Construct the final blocks response
-    response = ResponseBlocks(blocks=[intro_text, carousel_block])
+    response = ResponseBlocks(blocks=blocks)
     
     return response.model_dump()

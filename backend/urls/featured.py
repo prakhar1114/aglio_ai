@@ -55,19 +55,14 @@ def read_featured(
         for p in all_points
     ]
     
-    # Create intro text block
-    intro_text = TextBlock(
-        type="text",
-        markdown="## Featured Dishes you'll love:"
-    )
-    
     # Create dish carousel block
     carousel_block = ResponseDishCarouselBlock(
         type="story_carousal",
+        title="Featured Dishes you'll love:",
         options=dish_cards
     )
     
     # Construct the final blocks response
-    response = ResponseBlocks(blocks=[intro_text, carousel_block])
+    response = ResponseBlocks(blocks=[carousel_block])
     
     return response.model_dump()

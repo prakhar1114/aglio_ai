@@ -15,7 +15,7 @@ import { generateImageUrl } from '../../lib/api';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-export default function StoryCarousal({ stories = [], options = [], type = 'story_carousal' }) {
+export default function StoryCarousal({ stories = [], options = [], title = 'Featured Stories', type = 'story_carousal' }) {
   // Use options prop if provided (from blockRenderers), otherwise use stories prop
   const storyItems = options.length > 0 ? options : stories;
   const [modalVisible, setModalVisible] = useState(false);
@@ -163,19 +163,25 @@ export default function StoryCarousal({ stories = [], options = [], type = 'stor
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={storyItems}
-        renderItem={renderStoryItem}
-        keyExtractor={(item) => item.id.toString()}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.storyList}
-      />
+      <View style={styles.sectionContainer}>
+        <View style={styles.headerRow}>
+          <Text style={styles.sectionTitle}>{title}</Text>
+        </View>
+        
+        <FlatList
+          data={storyItems}
+          horizontal
+          renderItem={renderStoryItem}
+          keyExtractor={(item) => item.id.toString()}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.storyList}
+        />
+      </View>
       
       <Modal
-        animationType="fade"
-        transparent={false}
         visible={modalVisible}
+        transparent
+        animationType="slide"
         onRequestClose={closeStoryModal}
       >
         {renderFullScreenStory()}
@@ -185,9 +191,31 @@ export default function StoryCarousal({ stories = [], options = [], type = 'stor
 }
 
 const styles = StyleSheet.create({
+  sectionContainer: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    padding: 10,
+    marginHorizontal: 0,
+    marginVertical: 6,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  viewAll: {
+    fontSize: 14,
+    color: '#3B82F6',
+    fontWeight: '600',
+  },
   storyItemSquare: {
     alignItems: 'center',
-    marginHorizontal: 10,
+    marginHorizontal: 6,
     width: 120,
     height: 170,
     justifyContent: 'flex-start',
@@ -230,7 +258,7 @@ const styles = StyleSheet.create({
     marginVertical: 10,
   },
   storyList: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 6,
   },
   storyItem: {
     alignItems: 'center',

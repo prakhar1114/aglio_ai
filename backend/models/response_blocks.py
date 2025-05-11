@@ -15,7 +15,8 @@ class ResponseDishCard(DishCard):
 # Extended DishCarouselBlock that uses ResponseDishCard
 class ResponseDishCarouselBlock(BaseModel):
     """Extended DishCarouselBlock model that uses ResponseDishCard"""
-    type: Literal["dish_carousal", "story_carousal"]
+    title: Optional[str] = ""
+    type: Literal["dish_carousal", "story_carousal", "thumbnail_row"]
     options: List[ResponseDishCard]
 
 class ResponseBlocks(BaseModel):
