@@ -3,6 +3,7 @@ import { View, FlatList, Text, StyleSheet } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import DishCardBlock from '../components/blocks/DishCardBlock';
 import QuickReplies from '../components/blocks/QuickReplies';
+import StoryCarousal from '../components/blocks/StoryCarousal';
 
 export function renderBlockMessage({ currentMessage }) {
   
@@ -45,7 +46,28 @@ export function renderBlockMessage({ currentMessage }) {
                   text: {
                     fontSize: 16,
                     color: '#000',
-                  }
+                  },
+                  heading1: {
+                    fontSize: 26,
+                    fontWeight: 'bold',
+                    color: '#22223b',
+                    marginTop: 20,
+                    marginBottom: 8,
+                  },
+                  heading2: {
+                    fontSize: 22,
+                    fontWeight: 'bold',
+                    color: '#22223b',
+                    marginTop: 18,
+                    marginBottom: 7,
+                  },
+                  heading3: {
+                    fontSize: 18,
+                    fontWeight: 'bold',
+                    color: '#22223b',
+                    marginTop: 16,
+                    marginBottom: 6,
+                  },
                 }}>
                 {block.markdown}
               </Markdown>
@@ -64,6 +86,8 @@ export function renderBlockMessage({ currentMessage }) {
             );
           case 'quick_replies':
             return <QuickReplies key={idx} options={block.options} />;
+          case 'story_carousal':
+            return <StoryCarousal key={idx} stories={block.options} />;
           case 'order_summary':
             return (
               <Text key={idx} style={styles.text}>

@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import useStore from '../store';
 import { initializeSocket } from '../lib/socket';
 import { createSession, setUserCookie } from '../lib/session';
+import { fetchFeaturedDishes, fetchPreviousOrders } from '../lib/api';
 
 const Auth = () => {
   const navigation = useNavigation();
@@ -51,21 +52,30 @@ const Auth = () => {
     return isValid;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (validateForm()) {
       createSession();
       setSessionId();
       setUserCookie({ name, phone, email });
       setUser({ name, phone, email });
+      
+      // Fetch featured dishes and previous orders before initializing socket
+      await fetchFeaturedDishes();
+      await fetchPreviousOrders();
       initializeSocket();
+      
       navigation.navigate('Filters');
     }
   };
 
-  const handleSkip = () => {
+  const handleSkip = async () => {
     createSession();
     setSessionId();
+    
+    // Fetch featured dishes and previous orders before initializing socket
+    await fetchFeaturedDishes();
     initializeSocket();
+    
     navigation.navigate('Filters');
   };
 

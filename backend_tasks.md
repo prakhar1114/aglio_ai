@@ -17,6 +17,12 @@ urls/: all new routes defined here, files to be created when needed so that the 
       *Logic:* vectorless filter query against Qdrant; returns `list[MenuItem]`.
 - [ ] **Add `/filtered_recommendations` route** – supersedes old `/recommend`; requires `session_id` and supports optional `is_veg`, `price_cap`, `group_category` filters.
 - [ ] **Update inline docs & tests** for all new endpoints (including `/filtered_recommendations`).
+- [X] **Add `GET /featured` route**  
+      *Params:* `session_id` (str, required)  
+      *Logic:* Query Qdrant for dishes with `"featured": True` and return the complete dish payload in response.
+- [X] **Add `GET /prev_orders` route**  
+      *Params:* `session_id` (str, required)  
+      *Logic:* Return complete dish payload for dish_id in [1, 6, 38].
 - 
 
 ---

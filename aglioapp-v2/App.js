@@ -16,6 +16,7 @@ import Success from '@/screens/Success';
 import AiHomescreen from '@/screens/AiHomescreen';
 import * as Linking from 'expo-linking';
 import { initializeSocket } from '@/lib/socket';
+import { fetchFeaturedDishes, fetchPreviousOrders } from '@/lib/api';
 
 const navigationRef = createNavigationContainerRef();
 
@@ -29,7 +30,14 @@ export default function App() {
   const sessionId = useStore(state => state.sessionId);
   useEffect(() => {
     if (sessionId) {
-      initializeSocket();
+      // Fetch featured dishes and previous orders before initializing socket
+      const loadInitialData = async () => {
+        await fetchFeaturedDishes();
+        await fetchPreviousOrders();
+        initializeSocket();
+      };
+      
+      loadInitialData();
     }
     if (!sessionId && navigationRef.isReady()) {
       navigationRef.navigate('Auth');

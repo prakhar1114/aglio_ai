@@ -9,6 +9,8 @@ from urls.filtered_recommendations import router as filtered_router
 from urls.menu import router as menu_router
 from urls.chat import router as chat_router
 from urls.categories import router as categories_router
+from urls.featured import router as featured_router
+from urls.prev_orders import router as prev_orders_router
 
 # Create the FastAPI app
 app = FastAPI()
@@ -20,6 +22,8 @@ app.mount(
 app.include_router(categories_router, prefix="/categories", tags=["categories"])
 app.include_router(menu_router, prefix="/menu", tags=["menu"])
 app.include_router(filtered_router, prefix="/filtered_recommendations", tags=["recommendations"])
+app.include_router(featured_router, prefix="/featured", tags=["featured"])
+app.include_router(prev_orders_router, prefix="/prev_orders", tags=["orders"])
 app.include_router(chat_router)
 
 app.add_middleware(
