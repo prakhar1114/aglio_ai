@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,22 +9,35 @@ import {
   Modal,
   Dimensions,
   FlatList,
-  Platform
+  Platform,
+  ActivityIndicator
 } from 'react-native';
 import { generateImageUrl } from '../../lib/api';
+import Constants from 'expo-constants';
+
+// Only import WebView for native platforms
+let WebView = null;
+if (Platform.OS !== 'web') {
+  WebView = require('react-native-webview').WebView;
+}
+const isWeb = Platform.OS === 'web';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function StoryCarousal({ stories = [], options = [], title = 'Featured Stories', type = 'story_carousal' }) {
+  // Get Instagram token from environment variables
+  const INSTAGRAM_TOKEN = Constants.expoConfig?.extra?.EXPO_PUBLIC_INSTAGRAM_TOKEN || process.env.EXPO_PUBLIC_INSTAGRAM_TOKEN;
   // Use options prop if provided (from blockRenderers), otherwise use stories prop
   const storyItems = options.length > 0 ? options : stories;
   const [modalVisible, setModalVisible] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [viewedStories, setViewedStories] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
 
   // Navigation functions for story viewer
   const goToNextStory = () => {
     if (currentIndex < storyItems.length - 1) {
+      setIsLoading(true);
       setCurrentIndex(currentIndex + 1);
     } else {
       closeStoryModal();
@@ -33,11 +46,13 @@ export default function StoryCarousal({ stories = [], options = [], title = 'Fea
 
   const goToPreviousStory = () => {
     if (currentIndex > 0) {
+      setIsLoading(true);
       setCurrentIndex(currentIndex - 1);
     }
   };
 
   const openStoryModal = (index) => {
+    setIsLoading(true);
     setCurrentIndex(index);
     setModalVisible(true);
     
@@ -88,7 +103,13 @@ export default function StoryCarousal({ stories = [], options = [], title = 'Fea
     if (!storyItems.length || currentIndex >= storyItems.length) return null;
     
     const currentStory = storyItems[currentIndex];
-    const storyImage = currentStory.image_url ? generateImageUrl(currentStory.image_url) : null;
+    const hasInstagramContent = currentStory.insta_id && INSTAGRAM_TOKEN;
+    let storyImage = null;
+    
+    // Only set storyImage if we're not showing Instagram content
+    if (!hasInstagramContent && currentStory.image_url) {
+      storyImage = generateImageUrl(currentStory.image_url);
+    }
 
     return (
       <View style={styles.fullScreenStory}>
@@ -107,37 +128,144 @@ export default function StoryCarousal({ stories = [], options = [], title = 'Fea
           </View>
           <View style={styles.storyUserInfo}>
             <Text style={styles.storyUserName}>{currentStory.name || 'Story'}</Text>
+            {hasInstagramContent && (
+              <View style={styles.instagramIndicator}>
+                <Text style={styles.instagramIndicatorText}>Instagram</Text>
+              </View>
+            )}
           </View>
           <TouchableOpacity style={styles.closeButton} onPress={closeStoryModal}>
             <Text style={styles.closeButtonText}>×</Text>
           </TouchableOpacity>
         </View>
         
-        {storyImage ? (
+        <View style={styles.contentContainer}>
+          {hasInstagramContent ? (
+            // Render Instagram embed
+            <View style={styles.instagramContainer}>
+              {/* Create a touchable area for the center of the screen that doesn't interfere with nav buttons */}
+              <View style={styles.instagramContentArea}>
+                <View style={styles.instagramCardWrapper}>
+                  {Platform.OS !== 'web' && WebView ? (
+                    // Use WebView for native platforms
+                    <WebView
+                      source={{
+                        uri: currentStory.insta_id.includes('reel')
+                        ? `https://www.instagram.com/reel/${currentStory.insta_id.replace('reel/', '')}/embed/?autoplay=1&mute=1&hidecaption=1&cr=1&rd=1`
+                        : `https://www.instagram.com/p/${currentStory.insta_id.replace('p/', '')}/embed/?autoplay=1&mute=1&hidecaption=1`,
+                        headers: {
+                          'Authorization': `Bearer ${INSTAGRAM_TOKEN}`
+                        }
+                      }}
+                      style={styles.instagramWebView}
+                      startInLoadingState={true}
+                      javaScriptEnabled={true}
+                      domStorageEnabled={true}
+                      allowsFullscreenVideo={true}
+                      mediaPlaybackRequiresUserAction={false}
+                      onLoadEnd={() => setIsLoading(false)}
+                      renderLoading={() => (
+                        <View style={styles.loadingContainer}>
+                          <ActivityIndicator size="large" color="#ffffff" />
+                          <Text style={styles.loadingText}>Loading Instagram content...</Text>
+                        </View>
+                      )}
+                      onError={(syntheticEvent) => {
+                        const { nativeEvent } = syntheticEvent;
+                        console.error('WebView error:', nativeEvent);
+                        setIsLoading(false);
+                        return (
+                          <View style={styles.errorContainer}>
+                            <Text style={styles.errorText}>Failed to load Instagram content</Text>
+                          </View>
+                        );
+                      }}
+                      allowsInlineMediaPlayback={true}
+                      bounces={false}
+                    />
+                  ) : (
+                    // Use iframe for web platform
+                    <View style={styles.instagramWebView}>
+                      {Platform.OS === 'web' && (
+                        <iframe
+                          src={currentStory.insta_id.includes('reel') 
+                            ? `https://www.instagram.com/reel/${currentStory.insta_id.replace('reel/', '')}/embed/?autoplay=1&mute=1&hidecaption=1&cr=1&rd=1`
+                            : `https://www.instagram.com/p/${currentStory.insta_id.replace('p/', '')}/embed/?autoplay=1&mute=1&hidecaption=1`}
+                          width="100%"
+                          height="100%"
+                          frameBorder="0"
+                          scrolling="no"
+                          allowTransparency="true"
+                          allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                          style={{ border: 'none', overflow: 'hidden', borderRadius: '12px' }}
+                          onLoad={() => setIsLoading(false)}
+                        />
+                      )}
+                    </View>
+                  )}
+                </View>
+                
+                {/* Custom Instagram footer */}
+                <View style={styles.customInstagramFooter}>
+                  <View style={styles.instagramInteractionRow}>
+                    <View style={styles.instagramInteractionLeft}>
+                      <Text style={styles.instagramLikes}>46 likes</Text>
+                    </View>
+                    <View style={styles.instagramInteractionRight}>
+                      <TouchableOpacity style={styles.instagramButton} accessibilityLabel="View on Instagram">
+                        <Text style={styles.instagramButtonText}>View on Instagram</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            </View>
+          ) : storyImage ? (
+          // Render regular image
           <Image 
             source={{ uri: storyImage }} 
             style={styles.fullScreenImage}
             resizeMode="cover"
+            onLoad={() => setIsLoading(false)}
           />
-        ) : (
-          <View style={styles.fullScreenPlaceholder}>
-            <Text style={styles.placeholderText}>No Image</Text>
-          </View>
-        )}
+          ) : (
+            // Render placeholder
+            <View style={styles.fullScreenPlaceholder}>
+              <Text style={styles.placeholderText}>No Image</Text>
+            </View>
+          )}
+        </View>
         
-        {currentStory.description && (
+        {currentStory.description && !hasInstagramContent && (
           <View style={styles.storyCaption}>
             <Text style={styles.storyCaptionText}>{currentStory.description}</Text>
           </View>
         )}
         
-        {/* Navigation buttons for web compatibility */}
-        <View style={styles.navigationControls}>
+        {/* Loading indicator overlay */}
+      {isLoading && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#ffffff" />
+          <Text style={styles.loadingOverlayText}>Loading...</Text>
+        </View>
+      )}
+      
+      {/* Navigation buttons for web compatibility */}
+      {/* Navigation buttons positioned to avoid blocking Instagram content */}
+      <View 
+        style={[
+          styles.navigationControls,
+          hasInstagramContent ? styles.instagramNavigationControls : {}
+        ]}
+        pointerEvents="box-none"
+        >
           {currentIndex > 0 && (
             <TouchableOpacity 
               style={[styles.navButton, styles.prevButton]} 
               onPress={goToPreviousStory}
               accessibilityLabel="Previous story"
+              hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+              pointerEvents="auto"
             >
               <Text style={styles.navButtonText}>‹</Text>
             </TouchableOpacity>
@@ -148,6 +276,8 @@ export default function StoryCarousal({ stories = [], options = [], title = 'Fea
               style={[styles.navButton, styles.nextButton]} 
               onPress={goToNextStory}
               accessibilityLabel="Next story"
+              hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+              pointerEvents="auto"
             >
               <Text style={styles.navButtonText}>›</Text>
             </TouchableOpacity>
@@ -191,6 +321,174 @@ export default function StoryCarousal({ stories = [], options = [], title = 'Fea
 }
 
 const styles = StyleSheet.create({
+  instagramBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  instagramIcon: {
+    fontSize: 12,
+  },
+  contentContainer: {
+    flex: 1,
+    marginTop: 100, // Add space below the header
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT - 100, // Adjust height to account for header
+  },
+  instagramContainer: {
+    flex: 1,
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT - 100,
+    backgroundColor: '#fff',
+    zIndex: 20,
+  },
+  instagramContentArea: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+    paddingHorizontal: 60, // Reduced padding to give more space for the embed
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  instagramCardWrapper: {
+    width: '100%',
+    maxWidth: 600, // Increased from 500 to 600
+    height: '90%', // Increased from 80% to 90%
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  instagramWebView: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#fff',
+    zIndex: 20,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    overflow: 'hidden',
+  },
+  customInstagramFooter: {
+    width: '100%',
+    maxWidth: 500,
+    backgroundColor: '#fff',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  instagramInteractionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  instagramInteractionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  instagramLikes: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#262626',
+  },
+  instagramInteractionRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  instagramButton: {
+    backgroundColor: '#0095F6',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 4,
+  },
+  instagramButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f1f1f1',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8d7da',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#721c24',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 50,
+  },
+  loadingOverlayText: {
+    color: '#ffffff',
+    fontSize: 16,
+    marginTop: 10,
+    fontWeight: 'bold',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 50,
+  },
+  loadingOverlayText: {
+    color: '#ffffff',
+    fontSize: 16,
+    marginTop: 10,
+    fontWeight: 'bold',
+  },
+  instagramIndicator: {
+    marginLeft: 10,
+    backgroundColor: '#E1306C',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  instagramIndicatorText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
   sectionContainer: {
     backgroundColor: '#F3F4F6',
     borderRadius: 12,
@@ -328,13 +626,14 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 10,
     padding: 10,
+    paddingTop: Platform.OS === 'ios' ? 40 : 10, // Add extra padding for iOS status bar
     flexDirection: 'column',
   },
   storyProgressContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
-    paddingTop: 10,
+    marginBottom: 5, // Reduced from 8 to 5
+    paddingTop: 0, // Reduced from 10 to 0
   },
   storyProgressBar: {
     flex: 1,
@@ -358,7 +657,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    marginTop: 36,
+    marginTop: 10, // Reduced from 36 to 10
     marginLeft: 0,
     marginRight: 60,
     alignSelf: 'flex-start',
@@ -424,28 +723,45 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     pointerEvents: 'box-none',
+    zIndex: 50, // Higher than Instagram content
+  },
+  instagramNavigationControls: {
+    // Special style for when Instagram content is present
+    zIndex: 50, // Higher than Instagram content
+    pointerEvents: 'box-none',
   },
   navButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    width: 40, // Reduced from 50
+    height: 40, // Reduced from 50
+    borderRadius: 20, // Adjusted for new size
+    backgroundColor: 'rgba(0, 0, 0, 0.7)', // Slightly darker for better visibility
     justifyContent: 'center',
     alignItems: 'center',
-    margin: 20,
-    zIndex: 10,
+    margin: 10, // Reduced from 20
+    zIndex: 51, // Higher than the navigationControls container
+    elevation: 5, // For Android
+    shadowColor: '#000', // For iOS shadow
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.8,
+    shadowRadius: 2,
   },
   prevButton: {
     position: 'absolute',
     left: 0,
+    top: '50%',
+    transform: [{ translateY: -25 }], // Center vertically
   },
   nextButton: {
     position: 'absolute',
     right: 0,
+    top: '50%',
+    transform: [{ translateY: -25 }], // Center vertically
   },
   navButtonText: {
     color: '#FFFFFF',
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
+    textAlign: 'center',
+    lineHeight: 40, // Helps center the text vertically
   },
 });
