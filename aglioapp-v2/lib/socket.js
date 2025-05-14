@@ -14,9 +14,16 @@ export function initializeSocket() {
   if (old) {
     old.close();
   }
-  const scheme = baseURL.startsWith('https') ? 'wss' : 'ws';
-  const host = baseURL.replace(/^https?:\/\//, '');
-  const socket = new WebSocket(`${scheme}://${host}/chat?sessionId=${sessionId}&threadId=${threadId}&username=${useStore.getState().user?.name}`);
+  
+  // Determine WebSocket scheme based on the baseURL
+  // Use wss for https, ws for http
+  const scheme = baseURL && baseURL.startsWith('https') ? 'wss' : 'ws';
+  const host = baseURL ? baseURL.replace(/^https?:\/\//, '') : '';
+  
+  const socketUrl = `${scheme}://${host}/chat?sessionId=${sessionId}&threadId=${threadId}&username=${useStore.getState().user?.name}`;
+  console.log('Connecting to WebSocket at:', socketUrl, 'based on baseURL:', baseURL);
+  
+  const socket = new WebSocket(socketUrl);
 
   socket.onopen = () => console.log('WebSocket connected');
   socket.onclose = () => console.log('WebSocket disconnected');
