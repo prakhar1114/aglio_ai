@@ -12,6 +12,7 @@ import {
   Platform,
   ActivityIndicator
 } from 'react-native';
+import AddToCartButton from '../ui/AddToCartButton';
 import { generateImageUrl } from '../../lib/api';
 import Constants from 'expo-constants';
 
@@ -251,7 +252,7 @@ export default function StoryCarousal({ stories = [], options = [], title = 'Fea
       )}
       
       {/* Navigation buttons for web compatibility */}
-      {/* Navigation buttons positioned to avoid blocking Instagram content */}
+        {/* Navigation buttons positioned to avoid blocking Instagram content */}
       <View 
         style={[
           styles.navigationControls,
@@ -282,6 +283,23 @@ export default function StoryCarousal({ stories = [], options = [], title = 'Fea
               <Text style={styles.navButtonText}>›</Text>
             </TouchableOpacity>
           )}
+        </View>
+        
+        {/* Add to Cart Button */}
+        <View style={styles.addToCartContainer}>
+          <AddToCartButton
+            itemId={currentStory.id}
+            itemData={{
+              id: currentStory.id,
+              name: currentStory.name,
+              description: currentStory.description,
+              image_url: currentStory.image_url ? generateImageUrl(currentStory.image_url) : null,
+              price: currentStory.price || 0
+            }}
+            style={styles.addToCartButton}
+            useIcon={false}
+            buttonText="Add to Cart"
+          />
         </View>
       </View>
     );
@@ -354,13 +372,14 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     paddingHorizontal: 60, // Reduced padding to give more space for the embed
-    justifyContent: 'center',
+    justifyContent: 'center', // Changed back to center for vertical centering
     alignItems: 'center',
+    paddingTop: 0, // Removed top padding to allow true centering
   },
   instagramCardWrapper: {
     width: '100%',
     maxWidth: 600, // Increased from 500 to 600
-    height: '90%', // Increased from 80% to 90%
+    height: '60%', // Reduced from 90% to 60% to truncate vertically
     backgroundColor: '#fff',
     borderRadius: 16,
     overflow: 'hidden',
@@ -763,5 +782,36 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     lineHeight: 40, // Helps center the text vertically
+  },
+  addToCartContainer: {
+    backgroundColor: '#3B82F6',
+    position: 'absolute',
+    bottom: 20,
+    left: '25%',
+    right: '25%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 40,
+    width: '50%',
+    zIndex: 50,
+    borderRadius: 12,
+    marginLeft: 'auto',
+    marginRight: 'auto',
+  },
+  addToCartButton: {
+    // backgroundColor: '#3B82F6',
+    backgroundColor: 'transparent',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    minWidth: 160,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+    height: 40,
   },
 });
