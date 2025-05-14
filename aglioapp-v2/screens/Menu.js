@@ -124,7 +124,12 @@ const Menu = () => {
   return (
     <View style={styles.container}>
       {/* Topbar */}
-      <Topbar heading="Menu" onMenuPress={toggleSidebar} />
+      <Topbar 
+        heading="Menu" 
+        onMenuPress={toggleSidebar} 
+        buttonText="Home" 
+        buttonPath="AI" 
+      />
       
       {/* Sidebar */}
       <Sidebar 

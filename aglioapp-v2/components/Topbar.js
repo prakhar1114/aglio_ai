@@ -1,8 +1,16 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 
-const Topbar = ({ heading, onMenuPress }) => {
+const Topbar = ({ 
+  heading, 
+  onMenuPress, 
+  showMenuButton = true, 
+  buttonText = "Menu", 
+  buttonPath = "Menu" 
+}) => {
+  const navigation = useNavigation();
   const handleMenuPress = () => {
     onMenuPress && onMenuPress();
   };
@@ -18,7 +26,17 @@ const Topbar = ({ heading, onMenuPress }) => {
       
       <Text style={styles.headerTitle}>{heading}</Text>
       
-      <View style={styles.rightPlaceholder} />
+      {showMenuButton ? (
+        <TouchableOpacity 
+          style={styles.navButton} 
+          onPress={() => navigation.navigate(buttonPath)}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.navButtonText}>{buttonText}</Text>
+        </TouchableOpacity>
+      ) : (
+        <View style={styles.rightPlaceholder} />
+      )}
     </View>
   );
 };
@@ -44,6 +62,19 @@ const styles = StyleSheet.create({
   },
   rightPlaceholder: {
     width: 40, // To ensure the title stays centered
+  },
+  navButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  navButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });
 

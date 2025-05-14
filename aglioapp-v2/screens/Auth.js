@@ -69,7 +69,7 @@ const Auth = () => {
       // Fetch featured dishes and previous orders before initializing socket
       await fetchFeaturedDishes();
       await fetchPreviousOrders();
-      await addBrowseMenuButton();
+      // await addBrowseMenuButton();
       initializeSocket();
       
       navigation.navigate('Filters');
@@ -88,7 +88,7 @@ const Auth = () => {
     
     // Fetch featured dishes and previous orders before initializing socket
     await fetchFeaturedDishes();
-    await addBrowseMenuButton();
+    // await addBrowseMenuButton();
     initializeSocket();
     
     navigation.navigate('Filters');

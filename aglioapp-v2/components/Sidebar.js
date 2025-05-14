@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, Animated, Dimensions, TouchableWithoutFeedback, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { fetchFeaturedDishes, fetchPreviousOrders } from '../lib/api';
 
 const Sidebar = ({ isVisible, sidebarAnimation, toggleSidebar }) => {
   const navigation = useNavigation();
@@ -100,6 +101,30 @@ const Sidebar = ({ isVisible, sidebarAnimation, toggleSidebar }) => {
         >
           <Ionicons name="filter-outline" size={24} color="#333" />
           <Text style={styles.sidebarItemText}>Filters</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.sidebarItem}
+          onPress={async () => {
+            toggleSidebar(true); // Force close before navigation
+            await fetchFeaturedDishes();
+            navigation.navigate('AI');
+          }}
+        >
+          <Ionicons name="star-outline" size={24} color="#333" />
+          <Text style={styles.sidebarItemText}>Featured</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.sidebarItem}
+          onPress={async () => {
+            toggleSidebar(true); // Force close before navigation
+            await fetchPreviousOrders();
+            navigation.navigate('AI');
+          }}
+        >
+          <Ionicons name="time-outline" size={24} color="#333" />
+          <Text style={styles.sidebarItemText}>Previous Orders</Text>
         </TouchableOpacity>
       </Animated.View>
     </>

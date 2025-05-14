@@ -34,7 +34,7 @@ export default function App() {
       const loadInitialData = async () => {
         await fetchFeaturedDishes();
         await fetchPreviousOrders();
-        await addBrowseMenuButton();
+        // await addBrowseMenuButton();
         initializeSocket();
       };
       

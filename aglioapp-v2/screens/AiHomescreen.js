@@ -162,7 +162,12 @@ const AiHomescreen = () => {
       <StatusBar backgroundColor="#fff" barStyle="dark-content" />
       
       {/* Header */}
-      <Topbar heading="AI Food Assistant" onMenuPress={toggleSidebar} />
+      <Topbar 
+        heading="AI Food Assistant" 
+        onMenuPress={toggleSidebar} 
+        buttonText="Menu" 
+        buttonPath="Menu" 
+      />
       
       {/* Sidebar */}
       <Sidebar 

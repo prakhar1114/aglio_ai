@@ -41,10 +41,10 @@ def read_menu(
         filters.append({"key": "price", "range": {"lte": price_cap}})
 
     limit = 100
-    offset = 0
+    offset = None  # Start with None for the first request
     all_points = []
     while True:
-        points = qd.scroll(
+        points, next_offset = qd.scroll(
             collection_name=qd_collection_name,
             limit=limit,
             offset=offset,
@@ -52,10 +52,17 @@ def read_menu(
             with_vectors=False,
             scroll_filter={"must": filters} if filters else None,
         )
-        if not points or not points[0]:
+        
+        if not points:
             break
-        all_points.extend(points[0])
-        offset += limit
+            
+        all_points.extend(points)
+        
+        if next_offset is None:
+            # No more points to scroll
+            break
+            
+        offset = next_offset
     return [
         MenuItem(
             id=p.id,
