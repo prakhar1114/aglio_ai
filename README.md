@@ -18,3 +18,8 @@ Ngrok tunnel:
 ```bash
 ngrok http --url=urchin-creative-supposedly.ngrok-free.app 8005
 ```
+
+First setup docker
+Setup redis container
+Run scripts
+then run main.py
