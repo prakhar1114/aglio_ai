@@ -9,5 +9,9 @@
         "source": "/:path*",
         "destination": "/"
       }
-    ]
+    ],
+    "env": {
+      "EXPO_PUBLIC_API": "https://api.aglioapp.com",
+      "EXPO_PUBLIC_INSTAGRAM_TOKEN": "646536808384622|227049aef99ea3f19dab790d912d440c"
+    }
   }

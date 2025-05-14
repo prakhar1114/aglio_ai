@@ -19,7 +19,11 @@ Ngrok tunnel:
 ngrok http --url=urchin-creative-supposedly.ngrok-free.app 8005
 ```
 
+install docker
+install miniconda
+install redis
 First setup docker
 Setup redis container
+copy image files and vector files to data folders
 Run scripts
 then run main.py
