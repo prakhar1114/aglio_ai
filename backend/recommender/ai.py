@@ -101,8 +101,6 @@ def generate_blocks(payload: Dict[str, Any], thread_id: str) -> Blocks:
         prev_id = response.id
         rdb.set(RESP_KEY(thread_id), prev_id)
 
-        # print(response.model_dump())
-
         check_tools_calls = any([output.type == "function_call" for output in response.output])
 
         # 2️⃣  If the model wants to call a function

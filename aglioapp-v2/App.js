@@ -14,6 +14,7 @@ import Menu from '@/screens/Menu';
 import OrderPreview from '@/screens/OrderPreview';
 import Success from '@/screens/Success';
 import AiHomescreen from '@/screens/AiHomescreen';
+import OrderHistory from '@/screens/OrderHistory';
 import * as Linking from 'expo-linking';
 import { initializeSocket } from '@/lib/socket';
 import { fetchFeaturedDishes, fetchPreviousOrders, addBrowseMenuButton } from '@/lib/api';
@@ -32,8 +33,8 @@ export default function App() {
     if (sessionId) {
       // Fetch featured dishes and previous orders before initializing socket
       const loadInitialData = async () => {
-        await fetchFeaturedDishes();
-        await fetchPreviousOrders();
+        // await fetchFeaturedDishes();
+        // await fetchPreviousOrders();
         // await addBrowseMenuButton();
         initializeSocket();
       };
@@ -57,6 +58,7 @@ export default function App() {
           <Stack.Screen name="Cart" component={OrderPreview} />
           <Stack.Screen name="Success" component={Success} />
           <Stack.Screen name="AI" component={AiHomescreen} />
+          <Stack.Screen name="OrderHistory" component={OrderHistory} />
         </Stack.Navigator>
       </NavigationContainer>
     </GluestackUIProvider>

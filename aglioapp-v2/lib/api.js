@@ -31,13 +31,13 @@ export const fetchFeaturedDishes = async () => {
   try {
     const response = await api.get('/featured');
     if (response.data && response.data.blocks) {
-      const msg = {
-        _id: Math.round(Math.random() * 1000000),
-        blocks: response.data.blocks,
-        createdAt: new Date(),
-        user: { _id: 'assistant', name: 'Aglio AI', avatar: 'https://cdn.aglio.app/avatar.png' },
-      };
-      useStore.getState().addMessage(msg);
+      // const msg = {
+      //   _id: Math.round(Math.random() * 1000000),
+      //   blocks: response.data.blocks,
+      //   createdAt: new Date(),
+      //   user: { _id: 'assistant', name: 'Aglio AI', avatar: 'https://cdn.aglio.app/avatar.png' },
+      // };
+      // useStore.getState().addMessage(msg);
       return response.data;
     }
   } catch (error) {
@@ -52,13 +52,13 @@ export const fetchPreviousOrders = async () => {
   try {
     const response = await api.get('/prev_orders');
     if (response.data && response.data.blocks) {
-      const msg = {
-        _id: Math.round(Math.random() * 1000000),
-        blocks: response.data.blocks,
-        createdAt: new Date(),
-        user: { _id: 'assistant', name: 'Aglio AI', avatar: 'https://cdn.aglio.app/avatar.png' },
-      };
-      useStore.getState().addMessage(msg);
+      // const msg = {
+      //   _id: Math.round(Math.random() * 1000000),
+      //   blocks: response.data.blocks,
+      //   createdAt: new Date(),
+      //   user: { _id: 'assistant', name: 'Aglio AI', avatar: 'https://cdn.aglio.app/avatar.png' },
+      // };
+      // useStore.getState().addMessage(msg);
       return response.data;
     }
   } catch (error) {

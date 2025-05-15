@@ -52,11 +52,22 @@ const Sidebar = ({ isVisible, sidebarAnimation, toggleSidebar }) => {
           style={styles.sidebarItem}
           onPress={() => {
             toggleSidebar(true); // Force close before navigation
-            navigation.navigate('AI');
+            navigation.navigate('Home');
           }}
         >
           <Ionicons name="home" size={24} color="#333" />
           <Text style={styles.sidebarItemText}>Home</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.sidebarItem}
+          onPress={() => {
+            toggleSidebar(true); // Force close before navigation
+            navigation.navigate('AI');
+          }}
+        >
+          <Ionicons name="chatbubble-ellipses-outline" size={24} color="#333" />
+          <Text style={styles.sidebarItemText}>Ask AI</Text>
         </TouchableOpacity>
         
         <TouchableOpacity 
@@ -117,14 +128,13 @@ const Sidebar = ({ isVisible, sidebarAnimation, toggleSidebar }) => {
 
         <TouchableOpacity 
           style={styles.sidebarItem}
-          onPress={async () => {
+          onPress={() => {
             toggleSidebar(true); // Force close before navigation
-            await fetchPreviousOrders();
-            navigation.navigate('AI');
+            navigation.navigate('OrderHistory');
           }}
         >
           <Ionicons name="time-outline" size={24} color="#333" />
-          <Text style={styles.sidebarItemText}>Previous Orders</Text>
+          <Text style={styles.sidebarItemText}>Order History</Text>
         </TouchableOpacity>
       </Animated.View>
     </>

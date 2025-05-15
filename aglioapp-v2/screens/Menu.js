@@ -128,7 +128,7 @@ const Menu = () => {
         heading="Menu" 
         onMenuPress={toggleSidebar} 
         buttonText="Home" 
-        buttonPath="AI" 
+        buttonPath="Home" 
       />
       
       {/* Sidebar */}

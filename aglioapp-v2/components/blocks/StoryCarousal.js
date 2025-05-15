@@ -513,7 +513,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 10,
     marginHorizontal: 0,
-    marginVertical: 6,
+    marginVertical: 0,
   },
   headerRow: {
     flexDirection: 'row',
@@ -572,7 +572,8 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
   },
   container: {
-    marginVertical: 10,
+    backgroundColor: '#F3F4F6',
+    marginVertical: 0,
   },
   storyList: {
     paddingHorizontal: 6,

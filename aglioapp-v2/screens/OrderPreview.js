@@ -1,9 +1,26 @@
-import React from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, Animated } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import useStore from '../store';
 import ItemCard from '../components/ItemCard';
+import Topbar from '../components/Topbar';
+import Sidebar from '../components/Sidebar';
 
 export default function OrderPreview({ navigation }) {
+  const [isSidebarVisible, setIsSidebarVisible] = useState(false);
+  const sidebarAnimation = useRef(new Animated.Value(0)).current;
+  
+  const toggleSidebar = (forceClose = false) => {
+    const toValue = forceClose ? 0 : isSidebarVisible ? 0 : 1;
+    
+    Animated.timing(sidebarAnimation, {
+      toValue,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+    
+    setIsSidebarVisible(!isSidebarVisible && !forceClose);
+  };
   const cart = useStore((state) => state.cart);
   const addToCart = useStore((state) => state.addToCart);
   const removeFromCart = useStore((state) => state.removeFromCart);
@@ -17,7 +34,20 @@ export default function OrderPreview({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <FlatList
+      <Topbar 
+        heading="Cart" 
+        onMenuPress={toggleSidebar}
+        showMenuButton={true}
+        buttonText="Home"
+        buttonPath="Home"
+      />
+      <Sidebar 
+        isVisible={isSidebarVisible}
+        sidebarAnimation={sidebarAnimation}
+        toggleSidebar={toggleSidebar}
+      />
+      <View style={styles.contentContainer}>
+        <FlatList
         data={cart}
         keyExtractor={item => item.id.toString()}
         renderItem={({ item }) => (
@@ -51,12 +81,17 @@ export default function OrderPreview({ navigation }) {
       >
         <Text style={styles.orderBtnText}>{isCartEmpty ? "Back to Menu" : "Place Order"}</Text>
       </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  contentContainer: {
     flex: 1,
     backgroundColor: '#fff',
     padding: 20,

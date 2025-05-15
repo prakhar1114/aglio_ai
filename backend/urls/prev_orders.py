@@ -1,27 +1,43 @@
 from fastapi import APIRouter, Header
 from pydantic import BaseModel
 from typing import List, Optional, Literal
+from datetime import date
 
 from config import qd, qd_collection_name
 from recommender import TextBlock
-from models import ResponseBlocks, ResponseDishCard, ResponseDishCarouselBlock
+from models import ResponseBlocks, ResponseDishCard, PreviousOrderBlock, PreviousOrdersResponse
 
 router = APIRouter()
 
-@router.get("/", response_model=ResponseBlocks, summary="Get previous orders", response_description="Previous orders in dish_carousal format")
+@router.get("/", response_model=PreviousOrdersResponse, summary="Get previous orders", response_description="Previous orders in dish_carousal format")
 def read_prev_orders(
     session_id: str = Header(..., alias="x-session-id"),
-) -> ResponseBlocks:
+) -> PreviousOrdersResponse:
     """
-    Retrieve dishes from previous orders with specific IDs.
+    Retrieve previous orders for the current user.
     
     - **session_id**: Required session identifier
-    - **Returns**: List of complete dish payloads for dish_id in [1, 6, 38]
+    - **Returns**: List of previous orders, each as a block containing a date and a carousel of dish cards for that order.
     """
-    # Specific dish IDs for previous orders
-    dish_ids = [1, 6, 38]
+    # in descending order of dates
+    blocks = []    
+
+    # Create dish carousel block
+    carousel_block_2 = create_prev_order_block(date="2025-05-15", dish_ids=[2, 7, 39])
+    blocks.append(carousel_block_2)
+
+    # Create dish carousel block
+    carousel_block_1 = create_prev_order_block(date="2025-03-01", dish_ids=[1, 6, 38])
+    blocks.append(carousel_block_1)
+
+    # Construct the final blocks response
+    response = PreviousOrdersResponse(blocks=blocks)
     
-    # Retrieve dishes by IDs
+    return response.model_dump()
+
+
+def create_prev_order_block(date: date, dish_ids: list[int]) -> PreviousOrderBlock:
+        # Retrieve dishes by IDs
     points = qd.retrieve(
         collection_name=qd_collection_name,
         ids=dish_ids,
@@ -45,22 +61,11 @@ def read_prev_orders(
         for p in points
     ]
 
-    blocks = []    
-    # Create intro text block
-    # intro_text = TextBlock(
-    #     type="text",
-    #     markdown="## Your Previous Orders"
-    # )
-    # blocks.append(intro_text)
-    
-    # Create dish carousel block
-    carousel_block = ResponseDishCarouselBlock(
+    block = PreviousOrderBlock(
         type="thumbnail_row",
-        options=dish_cards
+        options=dish_cards,
+        date=date
     )
-    blocks.append(carousel_block)
-    
-    # Construct the final blocks response
-    response = ResponseBlocks(blocks=blocks)
-    
-    return response.model_dump()
+    return block
+
+        

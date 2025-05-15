@@ -165,8 +165,8 @@ const AiHomescreen = () => {
       <Topbar 
         heading="AI Food Assistant" 
         onMenuPress={toggleSidebar} 
-        buttonText="Menu" 
-        buttonPath="Menu" 
+        buttonText="Home" 
+        buttonPath="Home" 
       />
       
       {/* Sidebar */}

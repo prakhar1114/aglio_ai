@@ -43,8 +43,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 "type": "quick_replies",
                 "options": [
                     "Chef Specials",
-                    "Pair with My Cart",
-                    "Most Popular"
+                    "Best Sellers",
+                    "What is Fettucine Pasta?"
                 ]
             }
         ]

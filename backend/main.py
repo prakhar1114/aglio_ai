@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import numpy as np
 import uvicorn
-from config import rdb, qd, qd_collection_name, root_dir
+from config import rdb, qd, qd_collection_name, root_dir, DEBUG_MODE
 from urls.filtered_recommendations import router as filtered_router
 from urls.menu import router as menu_router
 from urls.chat import router as chat_router
@@ -145,5 +145,5 @@ if __name__ == "__main__":
         "main:app",
         host="0.0.0.0",
         port=8005,
-        # reload=True
+        reload=DEBUG_MODE
     )

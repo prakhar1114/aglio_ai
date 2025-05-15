@@ -67,8 +67,8 @@ const Auth = () => {
       setUser({ name, phone, email });
       
       // Fetch featured dishes and previous orders before initializing socket
-      await fetchFeaturedDishes();
-      await fetchPreviousOrders();
+      // await fetchFeaturedDishes();
+      // await fetchPreviousOrders();
       // await addBrowseMenuButton();
       initializeSocket();
       
@@ -87,7 +87,7 @@ const Auth = () => {
     setSessionId();
     
     // Fetch featured dishes and previous orders before initializing socket
-    await fetchFeaturedDishes();
+    // await fetchFeaturedDishes();
     // await addBrowseMenuButton();
     initializeSocket();
     
