@@ -62,9 +62,9 @@ const Home = () => {
   // Sample quick reply questions
   const quickReplyOptions = [
     'Tell me the chef specials?',
+    'Recommend me the creamiest pasta',
     'What is Ravioli?',
     "Best Sellers?",
-    'Recommend me the creamiest pasta'
   ];
   
   return (
@@ -147,17 +147,17 @@ const styles = StyleSheet.create({
   },
   aiAssistantSection: {
     backgroundColor: '#F0F4F8',
-    paddingTop: 16,
-    paddingBottom: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
   },
   aiAssistantHeader: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 0,
     marginBottom: 8,
   },
   aiAssistantTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
+    fontWeight: 'bold',
+    color: '#1F2937',
     marginBottom: 8,
   },
   openChatButton: {

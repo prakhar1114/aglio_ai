@@ -46,8 +46,8 @@ const QuickRepliesPreview = ({ options }) => {
 
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingVertical: 0,
+    paddingHorizontal: 0,
   },
   pillsContainer: {
     flexDirection: 'row',
