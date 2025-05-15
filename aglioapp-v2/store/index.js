@@ -15,6 +15,7 @@ const useStore = create((set) => ({
   currentOrder: [],
   messages: [],
   socket: null,
+  featuredDishes: null,
 
   setSessionId: () => {
     set({ sessionId: getSessionId() });
@@ -56,6 +57,9 @@ const useStore = create((set) => ({
   addMessage: (msg) => set((state) => ({ messages: GiftedChat.append(state.messages, [msg]) })),
   setSocket: (socket) => set({ socket }),
   
+  // Featured dishes management
+  setFeaturedDishes: (data) => set({ featuredDishes: data }),
+  
   // Reset store to initial state (except for sessionId and threadId which are regenerated)
   resetStore: () => set({
     cart: [],
@@ -66,6 +70,7 @@ const useStore = create((set) => ({
     messages: [],
     socket: null,
     threadId: generateThreadId(),
+    featuredDishes: null,
   }),
 }));
 

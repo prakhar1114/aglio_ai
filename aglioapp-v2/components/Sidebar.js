@@ -3,6 +3,9 @@ import { View, Text, TouchableOpacity, Animated, Dimensions, TouchableWithoutFee
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { fetchFeaturedDishes, fetchPreviousOrders } from '../lib/api';
+import { disconnectSocket } from '../lib/socket';
+import { clearCookies } from '../lib/session';
+import useStore from '../store';
 
 const Sidebar = ({ isVisible, sidebarAnimation, toggleSidebar }) => {
   const navigation = useNavigation();
@@ -114,7 +117,7 @@ const Sidebar = ({ isVisible, sidebarAnimation, toggleSidebar }) => {
           <Text style={styles.sidebarItemText}>Filters</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        {/* <TouchableOpacity 
           style={styles.sidebarItem}
           onPress={async () => {
             toggleSidebar(true); // Force close before navigation
@@ -124,7 +127,7 @@ const Sidebar = ({ isVisible, sidebarAnimation, toggleSidebar }) => {
         >
           <Ionicons name="star-outline" size={24} color="#333" />
           <Text style={styles.sidebarItemText}>Featured</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         <TouchableOpacity 
           style={styles.sidebarItem}
@@ -135,6 +138,23 @@ const Sidebar = ({ isVisible, sidebarAnimation, toggleSidebar }) => {
         >
           <Ionicons name="time-outline" size={24} color="#333" />
           <Text style={styles.sidebarItemText}>Order History</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.sidebarItem, styles.logoutItem]}
+          onPress={() => {
+            toggleSidebar(true); // Force close before navigation
+            // Perform logout operations
+            disconnectSocket();
+            clearCookies();
+            useStore.getState().resetStore();
+            
+            // Navigate to Auth screen
+            navigation.navigate('Auth');
+          }}
+        >
+          <Ionicons name="log-out-outline" size={24} color="#D32F2F" />
+          <Text style={[styles.sidebarItemText, styles.logoutText]}>Logout</Text>
         </TouchableOpacity>
       </Animated.View>
     </>
@@ -185,6 +205,15 @@ const styles = StyleSheet.create({
   sidebarItemText: {
     fontSize: 16,
     marginLeft: 16,
+  },
+  logoutItem: {
+    marginTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+  },
+  logoutText: {
+    color: '#D32F2F',
+    fontWeight: '500',
   },
 });
 

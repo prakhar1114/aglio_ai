@@ -9,6 +9,7 @@ import ButtonGroup from '../components/blocks/ButtonGroup';
 import FloatingCartFab from '../components/FloatingCartFab';
 import QuickRepliesPreview from '../components/QuickRepliesPreview';
 import { fetchFeaturedDishes } from '../lib/api';
+import useStore from '../store';
 
 const Home = () => {
   const navigation = useNavigation();
@@ -17,8 +18,9 @@ const Home = () => {
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const sidebarAnimation = useRef(new Animated.Value(0)).current;
   
-  // Featured dishes state
-  const [featuredDishes, setFeaturedDishes] = useState(null);
+  // Get featured dishes from Zustand store
+  const featuredDishes = useStore((state) => state.featuredDishes);
+  const setFeaturedDishes = useStore((state) => state.setFeaturedDishes);
   const [loading, setLoading] = useState(true);
   
   // Toggle sidebar function
@@ -35,9 +37,16 @@ const Home = () => {
     setSidebarVisible(newVisibility);
   }, [sidebarVisible, sidebarAnimation]);
   
-  // Fetch featured dishes on component mount
+  // Fetch featured dishes only if not already loaded
   useEffect(() => {
     const loadFeaturedDishes = async () => {
+      // Check if we have data in the store
+      if (featuredDishes) {
+        setLoading(false);
+        return;
+      }
+      
+      // Otherwise fetch the data
       setLoading(true);
       try {
         const data = await fetchFeaturedDishes();
