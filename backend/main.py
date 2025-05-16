@@ -28,7 +28,7 @@ app.include_router(chat_router)
 
 app.add_middleware(
     CORSMiddleware, 
-    allow_origins=["*"],  # Consider restricting this in production
+    allow_origins=["*" if DEBUG_MODE else "https://agliomenu.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
