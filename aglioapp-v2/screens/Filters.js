@@ -13,15 +13,21 @@ const Filters = () => {
   const [veg, setVeg] = useState(currentFilters.veg || false);
   const [selectedCategories, setSelectedCategories] = useState(currentFilters.categories || []);
   const [selectedCategoryBriefs, setSelectedCategoryBriefs] = useState(currentFilters.category_brief || []);
+  const [itemCount, setItemCount] = useState(0);
 
   useEffect(() => {
     api.get('/categories')
       .then(res => {
         if (Array.isArray(res.data)) {
-          // Group by group_category
+          // Group by group_category with count information
           const grouped = res.data.reduce((acc, item) => {
             if (!acc[item.group_category]) acc[item.group_category] = [];
-            acc[item.group_category].push(item.category_brief);
+            acc[item.group_category].push({
+              name: item.category_brief,
+              totalCount: item.total_count,
+              vegCount: item.veg_count,
+              nonVegCount: item.total_count - item.veg_count
+            });
             return acc;
           }, {});
           setCategories(grouped);
@@ -32,13 +38,38 @@ const Filters = () => {
       .catch(err => console.error(err));
   }, []);
 
-  const toggleCategory = (cat) => {
-    if (selectedCategories.includes(cat)) {
-      setSelectedCategories(selectedCategories.filter(c => c !== cat));
-      setSelectedCategoryBriefs(selectedCategoryBriefs.filter(c => c !== cat));
+  // Calculate total item count based on current filters
+  useEffect(() => {
+    // If no categories object yet, return
+    if (Object.keys(categories).length === 0) return;
+    
+    let count = 0;
+    
+    // If no categories selected, count all items
+    if (selectedCategories.length === 0) {
+      // Sum up all items (either all or just veg based on filter)
+      count = Object.values(categories)
+        .flat()
+        .reduce((sum, cat) => sum + (veg ? cat.vegCount : cat.totalCount), 0);
     } else {
-      setSelectedCategories([...selectedCategories, cat]);
-      setSelectedCategoryBriefs([...selectedCategoryBriefs, cat]);
+      // Sum up only selected categories
+      count = Object.values(categories)
+        .flat()
+        .filter(cat => selectedCategories.includes(cat.name))
+        .reduce((sum, cat) => sum + (veg ? cat.vegCount : cat.totalCount), 0);
+    }
+    
+    setItemCount(count);
+  }, [categories, selectedCategories, veg]);
+
+  const toggleCategory = (cat) => {
+    const catName = cat.name;
+    if (selectedCategories.includes(catName)) {
+      setSelectedCategories(selectedCategories.filter(c => c !== catName));
+      setSelectedCategoryBriefs(selectedCategoryBriefs.filter(c => c !== catName));
+    } else {
+      setSelectedCategories([...selectedCategories, catName]);
+      setSelectedCategoryBriefs([...selectedCategoryBriefs, catName]);
     }
   };
 
@@ -61,14 +92,14 @@ const Filters = () => {
           <View key={group} style={styles.categorySection}>
             <Text style={styles.groupHeading}>{group}</Text>
             <View style={styles.categoryRow}>
-              {briefs.map(cat => (
+              {briefs.filter(cat => !veg || cat.vegCount > 0).map(cat => (
                 <TouchableOpacity
-                  key={cat}
+                  key={cat.name}
                   onPress={() => toggleCategory(cat)}
-                  style={[styles.categoryChip, selectedCategories.includes(cat) && styles.categoryChipActive]}
+                  style={[styles.categoryChip, selectedCategories.includes(cat.name) && styles.categoryChipActive]}
                 >
-                  <Text style={[styles.categoryChipText, selectedCategories.includes(cat) && styles.categoryChipTextActive]}>
-                    {cat}
+                  <Text style={[styles.categoryChipText, selectedCategories.includes(cat.name) && styles.categoryChipTextActive]}>
+                    {cat.name} ({veg ? cat.vegCount : cat.totalCount})
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -78,6 +109,11 @@ const Filters = () => {
       </ScrollView>
       
       <View style={styles.fixedButtonContainer}>
+        <View style={styles.countSummary}>
+          <Text style={styles.countText}>
+            Show {itemCount} items
+          </Text>
+        </View>
         <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
           <Text style={styles.nextText}>Next</Text>
         </TouchableOpacity>
@@ -169,6 +205,18 @@ const styles = StyleSheet.create({
     right: 16,
     bottom: 20,
     alignItems: 'center',
+  },
+  countSummary: {
+    marginBottom: 10,
+    paddingHorizontal: 5,
+    width: '100%',
+    alignItems: 'center',
+  },
+  countText: {
+    fontSize: 15,
+    color: '#555',
+    fontWeight: '500',
+    marginBottom: 5,
   },
   nextButton: {
     backgroundColor: '#a52a2a',
