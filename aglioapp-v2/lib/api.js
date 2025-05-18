@@ -90,3 +90,35 @@ export const addBrowseMenuButton = async () => {
     console.error('Error adding browse menu button:', error);
   }
 };
+
+/**
+ * Fetch upsell recommendations based on cart and filters from the store
+ * @returns {Promise<Object>} - The upsell recommendations response
+ */
+export const fetchUpsellRecommendations = async () => {
+  try {
+    // Get sessionId, cart, and filters from the store
+    const cart = useStore.getState().cart;
+    const filters = useStore.getState().filters;
+    
+    // Extract specific filter properties that the backend expects as query params
+    const { veg } = filters || {};
+    
+    // Simplify cart to only include item_ids and quantities
+    const simplifiedCart = cart.map(item => ({
+      id: item.id,
+      qty: item.qty || 1
+    }));
+    
+    const response = await api.get('/upsell', {
+      params: {
+        cart: JSON.stringify(simplifiedCart),
+        is_veg: veg
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching upsell recommendations:', error);
+    return { error: 'Failed to fetch upsell recommendations' };
+  }
+};

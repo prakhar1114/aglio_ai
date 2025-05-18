@@ -1,10 +1,8 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from loguru import logger
-import asyncio
 import json
 from recommender.ai import generate_blocks
-from config import qd, qd_collection_name
-from recommender import Blocks
+from common.utils import enrich_blocks
 
 router = APIRouter()
 
@@ -73,24 +71,3 @@ async def websocket_endpoint(websocket: WebSocket):
             
     except WebSocketDisconnect:
         logger.info(f"WebSocket disconnected for session: {session_id}")
-
-def enrich_blocks(blocks: Blocks) -> dict:
-    blocks = blocks.model_dump()
-    for block in blocks["blocks"]:
-        if block["type"] == "dish_carousal":
-            for option in block["options"]:
-                ## fetch dish from Qdrant
-                dish = qd.retrieve(qd_collection_name, ids=[option["id"]], with_payload=True, with_vectors=False)[0]
-                option["image_url"] = dish.payload["image_path"]
-                option["name"] = dish.payload["name"]
-                option["price"] = dish.payload["price"]
-                option["description"] = dish.payload["description"]
-        
-        if block["type"] == "dish_card":
-            dish = qd.retrieve(qd_collection_name, ids=[block["id"]], with_payload=True, with_vectors=False)[0]
-            block["image_url"] = dish.payload["image_path"]
-            block["name"] = dish.payload["name"]
-            block["price"] = dish.payload["price"]
-            block["description"] = dish.payload["description"]
-
-    return blocks

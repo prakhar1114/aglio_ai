@@ -45,6 +45,11 @@ Use these bite‑sized tasks in Windsurf; tick one box at a time as you implemen
 ### 6. Polish
 - [x] **Add skeleton loaders** (`expo-content-loader`) for Menu & AI. Use iconography from common e‑commerce sets (FontAwesome / MaterialIcons) for familiarity.
 - [x] **Implement error toasts** (`gluestack-ui` alert) for network failures.
+- [x] **Implement Upsell Recommendations**
+      - Create API endpoint in backend (`GET /upsell`) that receives sessionId, cart, and filters
+      - Create frontend API function to fetch upsell recommendations from the store data
+      - Add modal in OrderPreview screen that shows after 5 seconds or when placing an order
+      - Display recommendation details and provide user action options
 
 - [x] **Menu grouping & ItemCard UI polish**
     - Group menu items by `category_brief` in Menu screen and display using `SectionList` with concise section headers.

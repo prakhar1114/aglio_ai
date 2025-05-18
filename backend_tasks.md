@@ -23,6 +23,9 @@ urls/: all new routes defined here, files to be created when needed so that the 
 - [X] **Add `GET /prev_orders` route**  
       *Params:* `session_id` (str, required)  
       *Logic:* Return complete dish payload for dish_id in [1, 6, 38].
+- [X] **Add `GET /upsell` route**  
+      *Params:* `session_id` (str, required), `cart` (str, JSON of cart items), `is_veg` (bool, optional), `price_cap` (int, optional), `category` (str, optional)  
+      *Logic:* Analyze cart and provide relevant upsell recommendations based on applied filters.
 - 
 
 ---
