@@ -1,17 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Animated, Modal } from 'react-native';
 import useStore from '../store';
 import ItemCard from '../components/ItemCard';
 import Topbar from '../components/Topbar';
 import Sidebar from '../components/Sidebar';
 import UpsellModal from '../components/UpsellModal';
-
+import ItemPreviewModal from '../components/ItemPreviewModal';
 
 
 export default function OrderPreview({ navigation }) {
   const [isSidebarVisible, setIsSidebarVisible] = useState(false);
   const [showUpsellModal, setShowUpsellModal] = useState(false);
   const [hasSeenUpsell, setHasSeenUpsell] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
   const sidebarAnimation = useRef(new Animated.Value(0)).current;
   
   // Zustand store access
@@ -61,6 +63,10 @@ export default function OrderPreview({ navigation }) {
           <ItemCard
             item={item}
             cartQty={item.qty || 1}
+            onPress={() => {
+              setSelectedItem(item);
+              setModalVisible(true);
+            }}
             onAdd={addToCart}
             onRemove={removeFromCart}
             onQtyChange={updateQty}
@@ -112,13 +118,26 @@ export default function OrderPreview({ navigation }) {
             navigation.navigate('Success');
           }}
           autoShow={!hasSeenUpsell} // Only auto-show if hasn't seen it yet
-          initialDelay={5000}
+          initialDelay={4000}
           onShow={() => {
             setShowUpsellModal(true);
             setHasSeenUpsell(true);
           }}
         />
       )}
+      
+      {/* Item Preview Modal */}
+      <Modal
+        visible={modalVisible}
+        transparent={true}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <ItemPreviewModal
+          visible={modalVisible}
+          item={selectedItem}
+          onClose={() => setModalVisible(false)}
+        />
+      </Modal>
     </View>
   );
 }

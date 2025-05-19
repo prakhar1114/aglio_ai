@@ -10,7 +10,6 @@ const UpsellModal = ({
   visible, 
   onClose, 
   onNoThanks, 
-  navigation,
   initialDelay = 5000, // Default delay of 5 seconds
   autoShow = true,    // Whether to automatically show after delay
   onShow            // Callback to show the modal from parent
@@ -27,19 +26,25 @@ const UpsellModal = ({
   // Setup auto-show timer
   useEffect(() => {
     // Only setup timer if auto-show is enabled and we haven't shown yet
-    if (autoShow && initialDelay > 0 && onShow && !isCartEmpty && !hasFetched) {
+    if (autoShow && initialDelay > 0 && onShow && !isCartEmpty && !visible) {
+      console.log('Setting up auto-show timer for', initialDelay, 'ms');
       const timer = setTimeout(() => {
+        console.log('Timer triggered, showing modal');
         onShow();
       }, initialDelay);
       
-      return () => clearTimeout(timer);
+      return () => {
+        console.log('Clearing timer');
+        clearTimeout(timer);
+      };
     }
-  }, [autoShow, initialDelay, onShow, isCartEmpty, hasFetched]);
+  }, [autoShow, initialDelay, onShow, isCartEmpty, visible]);
   
   // Fetch upsell recommendations
   useEffect(() => {
     // Only fetch if we haven't already and cart is not empty
     if (!hasFetched && !isCartEmpty && (visible || autoShow)) {
+      console.log('Fetching upsell recommendations');
       const fetchData = async () => {
         try {
           setIsLoading(true);
@@ -55,7 +60,7 @@ const UpsellModal = ({
       
       fetchData();
     }
-  }, [autoShow, isCartEmpty, hasFetched]); // No need for visible in dependencies
+  }, [visible, autoShow, isCartEmpty, hasFetched]); // Added visible to dependencies
 
   // Helper function to render blocks
   const renderBlocks = (blocks) => {

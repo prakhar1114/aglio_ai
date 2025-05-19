@@ -97,9 +97,9 @@ const Auth = () => {
   return (
     <View style={styles.container}>
       <View style={styles.logoContainer}>
-        {/* <Image source={require('../assets/aglio.png')} style={styles.logo} /> */}
-        <Image source={require('../assets/chianti.jpeg')} style={styles.logo} />
-        <Text style={styles.restaurantName}>Welcome to Chianti Ristorante</Text>
+        <Image source={require('../assets/aglio.png')} style={styles.logo} />
+        {/* <Image source={require('../assets/chianti.jpeg')} style={styles.logo} /> */}
+        <Text style={styles.restaurantName}>Welcome to Aglio Restaurant</Text>
         <Text style={styles.subtitle}>Experience Simply Authentic Italian Cuisine</Text>
       </View>
       
