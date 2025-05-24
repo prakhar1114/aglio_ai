@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aglio Restaurant - Menu</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Desktop Warning Overlay -->
+    <div class="desktop-warning" id="desktopWarning">
+        <div class="desktop-warning-content">
+            <div class="warning-icon">
+                <i class="fas fa-mobile-alt"></i>
+            </div>
+            <h2>Mobile Experience Recommended</h2>
+            <p>This app is designed for the best experience on mobile devices. Please open this link on your smartphone for optimal viewing.</p>
+            <div class="warning-actions">
+                <button class="continue-btn" id="continueDesktop">Continue on Desktop</button>
+                <button class="share-btn" id="shareToMobile">
+                    <i class="fas fa-share"></i>
+                    Share to Mobile
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Header (for preview mode) -->
+    <header class="header header-top" id="topHeader">
+        <div class="header-content">
+            <button class="back-btn" id="backBtn">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <h1 class="logo">Aglio Restaurant</h1>
+            <div class="header-actions">
+                <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+                    <i class="fas fa-sun"></i>
+                </button>
+                <i class="fas fa-search search-icon"></i>
+                <i class="fas fa-shopping-cart cart-icon">
+                    <span class="cart-count">0</span>
+                </i>
+            </div>
+        </div>
+    </header>
+
+    <!-- Bottom Header (for thumbnail mode) -->
+    <header class="header header-bottom" id="bottomHeader">
+        <div class="header-content">
+            <h1 class="logo">Aglio Restaurant</h1>
+            <div class="header-actions">
+                <button class="theme-toggle" id="themeToggleBottom" aria-label="Toggle theme">
+                    <i class="fas fa-sun"></i>
+                </button>
+                <i class="fas fa-search search-icon"></i>
+                <i class="fas fa-shopping-cart cart-icon">
+                    <span class="cart-count">0</span>
+                </i>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Feed Page -->
+    <main class="feed-container" id="feedPage">
+        <div class="masonry-grid" id="menuGrid">
+            <!-- Menu items will be dynamically loaded here -->
+        </div>
+    </main>
+
+    <!-- Preview Page (Preview + Thumbnails Combined) -->
+    <div class="preview-page" id="previewPage">
+        <!-- Persistent Back Button in Preview Mode -->
+        <button class="preview-back-btn" id="previewBackBtn">
+            <i class="fas fa-arrow-left"></i>
+        </button>
+
+        <!-- Preview Content Section -->
+        <div class="preview-content" id="previewContent">
+            <div class="preview-slider" id="previewSlider">
+                <!-- Previous Slide -->
+                <div class="preview-slide" id="previousSlide">
+                    <div class="preview-image-container">
+                        <img id="previousImage" src="" alt="" class="preview-image">
+                    </div>
+                    <div class="preview-info">
+                        <h2 id="previousTitle" class="preview-title"></h2>
+                        <p id="previousDescription" class="preview-description">
+                            <span class="description-text"></span>
+                            <span class="description-price"></span>
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- Current Slide (Active) -->
+                <div class="preview-slide active" id="currentSlide">
+                    <div class="preview-image-container">
+                        <img id="previewImage" src="" alt="" class="preview-image">
+                    </div>
+                    
+                    <div class="preview-info">
+                        <h2 id="previewTitle" class="preview-title"></h2>
+                        <p id="previewDescription" class="preview-description">
+                            <span class="description-text"></span>
+                            <span class="description-price"></span>
+                        </p>
+                        
+                        <div class="action-buttons">
+                            <button class="btn btn-like" id="previewLikeBtn">
+                                <i class="far fa-heart"></i>
+                                <span>Like</span>
+                            </button>
+                            <button class="btn btn-cart" id="previewAddToCartBtn">
+                                <i class="fas fa-plus"></i>
+                                <span>Add to Cart</span>
+                            </button>
+                            <button class="btn btn-share" id="previewShareBtn">
+                                <i class="fas fa-share"></i>
+                                <span>Share</span>
+                            </button>
+                        </div>
+                        
+                        <div class="quantity-container">
+                            <label>Quantity:</label>
+                            <div class="quantity-controls">
+                                <button class="qty-btn" id="decreaseQty">-</button>
+                                <span id="quantity">1</span>
+                                <button class="qty-btn" id="increaseQty">+</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Next Slide -->
+                <div class="preview-slide" id="nextSlide">
+                    <div class="preview-image-container">
+                        <img id="nextImage" src="" alt="" class="preview-image">
+                    </div>
+                    <div class="preview-info">
+                        <h2 id="nextTitle" class="preview-title"></h2>
+                        <p id="nextDescription" class="preview-description">
+                            <span class="description-text"></span>
+                            <span class="description-price"></span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Thumbnails Section in Preview Mode (No Section Divider) -->
+        <div class="preview-thumbnails" id="previewThumbnails">
+            <div class="masonry-grid" id="previewMenuGrid">
+                <!-- Menu items will be duplicated here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Scroll to Top Button -->
+    <button class="scroll-to-top" id="scrollToTopBtn">
+        <i class="fas fa-arrow-up"></i>
+        <span>Back to Top</span>
+    </button>
+
+    <!-- Loading indicator -->
+    <div class="loading-indicator" id="loadingIndicator">
+        <div class="spinner"></div>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html> 
