@@ -122,6 +122,14 @@ const loadMenuItems = async () => {
         },
         {
             id: 8,
+            name: "Season Special Wine",
+            type: "ireel",
+            description: "Watch our head chef create culinary magic in this behind-the-scenes reel.",
+            instagramUrl: "https://www.instagram.com/reel/DD4dMuISn-C/",
+
+        },
+        {
+            id: 9,
             name: "Behind the Scenes at Chianti",
             type: "ipost",
             description: "See how our chefs prepare your favorite dishes with love and passion.",
@@ -129,7 +137,7 @@ const loadMenuItems = async () => {
 
         },
         {
-            id: 9,
+            id: 10,
             name: "Cooking in Action - Chef's Special",
             type: "ireel",
             description: "Watch our head chef create culinary magic in this behind-the-scenes reel.",
@@ -386,7 +394,7 @@ const updateSlideContent = (slideId, item) => {
             </div>
         `;
         // Set max height for Instagram embed containers
-        imageContainer.style.maxHeight = '700px';
+        imageContainer.style.maxHeight = '900px';
         imageContainer.style.height = 'auto';
         title.textContent = item.name;
         descriptionText.textContent = ''; // Hide description for Instagram items
