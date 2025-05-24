@@ -14,6 +14,22 @@ let currentSlideIndex = 0;
 let isBackToTopClicked = false; // Track when back to top was clicked
 let isDarkMode = false; // Track current theme mode
 
+// Generate Instagram embed HTML dynamically
+const generateInstagramEmbed = (instagramUrl) => {
+    if (!instagramUrl) return '';
+    
+    // Ensure the URL has the proper embed parameters
+    let embedUrl = instagramUrl;
+    if (!embedUrl.includes('utm_source=ig_embed')) {
+        const separator = embedUrl.includes('?') ? '&' : '?';
+        embedUrl += `${separator}utm_source=ig_embed&utm_campaign=loading`;
+    }
+    
+    return `<blockquote class="instagram-media" data-instgrm-permalink="${embedUrl}" data-instgrm-version="14">
+        <a href="${embedUrl}" target="_blank">View this ${instagramUrl.includes('/reel/') ? 'reel' : 'post'} on Instagram</a>
+    </blockquote>`;
+};
+
 // Theme functionality
 const toggleTheme = () => {
     isDarkMode = !isDarkMode;
@@ -103,6 +119,22 @@ const loadMenuItems = async () => {
             price: "$16.99",
             description: "A colorful array of grilled Mediterranean vegetables with hummus, olives, and fresh herbs.",
             image: "images/Veg_Platter.png"
+        },
+        {
+            id: 8,
+            name: "Behind the Scenes at Chianti",
+            type: "ipost",
+            description: "See how our chefs prepare your favorite dishes with love and passion.",
+            instagramUrl: "https://www.instagram.com/p/DIgX-MjSKaU/",
+
+        },
+        {
+            id: 9,
+            name: "Cooking in Action - Chef's Special",
+            type: "ireel",
+            description: "Watch our head chef create culinary magic in this behind-the-scenes reel.",
+            instagramUrl: "https://www.instagram.com/reel/DFNWZQ1Srds/",
+
         }
     ];
 
@@ -115,30 +147,63 @@ const renderMenuItems = () => {
     const grid = document.getElementById('menuGrid');
     const previewGrid = document.getElementById('previewMenuGrid');
     
-    const itemsHTML = menuItems.map(item => `
-        <div class="menu-item" data-id="${item.id}">
-            <img src="${item.image}" alt="${item.name}" class="menu-item-image" loading="lazy">
-            <div class="menu-item-info">
-                <h3 class="dish-name">${item.name}</h3>
-            </div>
-            <div class="quick-actions">
-                <button class="quick-action-btn like-btn" data-id="${item.id}">
-                    <i class="${likedItems.has(item.id) ? 'fas' : 'far'} fa-heart"></i>
-                </button>
-                <button class="quick-action-btn cart-btn" data-id="${item.id}">
-                    <i class="fas fa-shopping-cart"></i>
-                </button>
-            </div>
-        </div>
-    `).join('');
+    const itemsHTML = menuItems.map(item => {
+        if (item.type === 'ipost' || item.type === 'ireel') {
+            // Render Instagram item - only embed in thumbnail view
+            const embedHtml = generateInstagramEmbed(item.instagramUrl);
+            return `
+                <div class="menu-item instagram-item" data-id="${item.id}" data-type="${item.type}">
+                    <div class="instagram-embed-container">
+                        ${embedHtml}
+                    </div>
+                    <div class="quick-actions">
+                        <button class="quick-action-btn like-btn" data-id="${item.id}">
+                            <i class="${likedItems.has(item.id) ? 'fas' : 'far'} fa-heart"></i>
+                        </button>
+                        <button class="quick-action-btn share-btn" data-id="${item.id}">
+                            <i class="fas fa-share"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        } else {
+            // Render regular menu item
+            return `
+                <div class="menu-item" data-id="${item.id}">
+                    <img src="${item.image}" alt="${item.name}" class="menu-item-image" loading="lazy">
+                    <div class="menu-item-info">
+                        <h3 class="dish-name">${item.name}</h3>
+                    </div>
+                    <div class="quick-actions">
+                        <button class="quick-action-btn like-btn" data-id="${item.id}">
+                            <i class="${likedItems.has(item.id) ? 'fas' : 'far'} fa-heart"></i>
+                        </button>
+                        <button class="quick-action-btn cart-btn" data-id="${item.id}">
+                            <i class="fas fa-shopping-cart"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+    }).join('');
     
     grid.innerHTML = itemsHTML;
     previewGrid.innerHTML = itemsHTML;
+    
+    // Load Instagram embed script
+    loadInstagramScript();
     
     // Add event listeners
     addMenuItemEventListeners(grid);
     addMenuItemEventListeners(previewGrid);
     updateCartCount();
+    
+    // Periodic check for Instagram embed scaling
+    setInterval(() => {
+        if (document.querySelectorAll('.instagram-media-rendered').length > 0) {
+            scaleInstagramEmbeds();
+        }
+    }, 3000);
 };
 
 // Add event listeners to menu items with debugging
@@ -174,6 +239,17 @@ const addMenuItemEventListeners = (container) => {
             addToCart(itemId);
         });
     });
+    
+    container.querySelectorAll('.share-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const itemId = parseInt(btn.dataset.id);
+            const item = menuItems.find(i => i.id === itemId);
+            if (item) {
+                shareItem(item);
+            }
+        });
+    });
 };
 
 // Preload images for smooth swiping
@@ -194,20 +270,145 @@ const preloadImages = (centerIndex) => {
     });
 };
 
+// Load Instagram embed script
+const loadInstagramScript = () => {
+    if (!document.querySelector('script[src*="instagram.com/embed.js"]')) {
+        const script = document.createElement('script');
+        script.src = '//www.instagram.com/embed.js';
+        script.async = true;
+        script.onload = handleInstagramLoad;
+        document.body.appendChild(script);
+    } else if (window.instgrm) {
+        // Process existing embeds
+        window.instgrm.Embeds.process();
+        // Set up observer for new embeds
+        setTimeout(handleInstagramLoad, 1000);
+    }
+};
+
+// Handle Instagram content after it loads
+const handleInstagramLoad = () => {
+    if (window.instgrm && window.instgrm.Embeds) {
+        window.instgrm.Embeds.process();
+        
+        // Set up observer to handle when Instagram embeds are fully rendered
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'childList') {
+                    mutation.addedNodes.forEach((node) => {
+                        if (node.nodeType === 1 && (node.classList?.contains('instagram-media-rendered') || 
+                            node.querySelector?.('.instagram-media-rendered'))) {
+                            // Delay scaling to ensure content is fully loaded
+                            setTimeout(scaleInstagramEmbeds, 500);
+                        }
+                    });
+                }
+                
+                // Also watch for attribute changes (like style changes)
+                if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                    const target = mutation.target;
+                    if (target.classList?.contains('instagram-media-rendered') || 
+                        target.closest('.instagram-embed-container')) {
+                        setTimeout(scaleInstagramEmbeds, 100);
+                    }
+                }
+            });
+        });
+        
+        // Observe all Instagram containers
+        document.querySelectorAll('.instagram-embed-container').forEach(container => {
+            observer.observe(container, { 
+                childList: true, 
+                subtree: true, 
+                attributes: true, 
+                attributeFilter: ['style', 'class'] 
+            });
+        });
+        
+        // Initial scaling
+        setTimeout(scaleInstagramEmbeds, 2000);
+    }
+};
+
+// Scale Instagram embeds to fit containers
+const scaleInstagramEmbeds = () => {
+    document.querySelectorAll('.instagram-embed-container').forEach(container => {
+        const instagramMedia = container.querySelector('.instagram-media-rendered') || 
+                              container.querySelector('.instagram-media');
+        
+        if (instagramMedia) {
+            // Get container dimensions
+            const containerWidth = container.clientWidth;
+            const containerHeight = container.clientHeight;
+            
+            // Get original embed dimensions
+            const embedWidth = instagramMedia.offsetWidth || instagramMedia.scrollWidth;
+            const embedHeight = instagramMedia.offsetHeight || instagramMedia.scrollHeight;
+            
+            if (embedWidth > 0 && embedHeight > 0) {
+                // Calculate scale factors for both width and height
+                const scaleX = containerWidth / embedWidth;
+                const scaleY = containerHeight / embedHeight;
+                
+                // Use the smaller scale to ensure entire content is visible
+                const scale = Math.min(scaleX, scaleY, 1);
+                
+                // Apply the scaling
+                instagramMedia.style.transform = `scale(${scale})`;
+                instagramMedia.style.transformOrigin = 'center center';
+                
+                // Handle iframe inside the embed
+                const iframe = instagramMedia.querySelector('iframe');
+                if (iframe) {
+                    iframe.style.transform = 'none'; // Reset iframe transform to avoid double scaling
+                }
+            }
+        }
+    });
+};
+
 // Update specific slide content
 const updateSlideContent = (slideId, item) => {
     if (!item) return;
     
     const slide = document.getElementById(slideId);
-    const image = slide.querySelector('img');
     const title = slide.querySelector('.preview-title');
     const descriptionText = slide.querySelector('.description-text');
     const descriptionPrice = slide.querySelector('.description-price');
     
-    image.src = item.image;
-    title.textContent = item.name;
-    descriptionText.textContent = item.description;
-    descriptionPrice.textContent = item.price;
+    if (item.type === 'ipost' || item.type === 'ireel') {
+        // Handle Instagram item
+        const imageContainer = slide.querySelector('.preview-image-container');
+        const embedHtml = generateInstagramEmbed(item.instagramUrl);
+        imageContainer.innerHTML = `
+            <div class="instagram-embed-preview">
+                ${embedHtml}
+            </div>
+        `;
+        // Set max height for Instagram embed containers
+        imageContainer.style.maxHeight = '700px';
+        imageContainer.style.height = 'auto';
+        title.textContent = item.name;
+        descriptionText.textContent = ''; // Hide description for Instagram items
+        descriptionText.style.display = 'none'; // Hide the description element
+        // descriptionPrice.textContent = item.type === 'ipost' ? 'Instagram Post' : 'Instagram Reel';
+        descriptionPrice.textContent = '';
+        descriptionPrice.style.display = 'none';
+        
+        // Process Instagram embeds
+        if (window.instgrm) {
+            setTimeout(() => window.instgrm.Embeds.process(), 100);
+        }
+    } else {
+        // Handle regular menu item
+        const imageContainer = slide.querySelector('.preview-image-container');
+        imageContainer.innerHTML = `<img src="${item.image}" alt="${item.name}" class="preview-image">`;
+        title.textContent = item.name;
+        descriptionText.textContent = item.description;
+        descriptionText.style.display = 'block'; // Show description for regular items
+        descriptionPrice.textContent = item.price;
+        descriptionPrice.style.display = 'block';
+    }
 };
 
 // Update all three slides (previous, current, next)
@@ -231,8 +432,26 @@ const updateAllSlides = () => {
         likeIcon.className = 'far fa-heart';
     }
     
-    // Reset quantity
-    document.getElementById('quantity').textContent = '1';
+    // Reset quantity for regular items
+    if (currentPreviewItem.type !== 'ipost' && currentPreviewItem.type !== 'ireel') {
+        document.getElementById('quantity').textContent = '1';
+    }
+};
+
+// Update preview action buttons based on item type
+const updatePreviewActions = () => {
+    const addToCartBtn = document.getElementById('previewAddToCartBtn');
+    const quantityContainer = document.querySelector('.quantity-container');
+    
+    if (currentPreviewItem && (currentPreviewItem.type === 'ipost' || currentPreviewItem.type === 'ireel')) {
+        // Hide cart and quantity controls for Instagram items
+        addToCartBtn.style.display = 'none';
+        quantityContainer.style.display = 'none';
+    } else {
+        // Show cart and quantity controls for regular items
+        addToCartBtn.style.display = 'flex';
+        quantityContainer.style.display = 'flex';
+    }
 };
 
 // Navigate to next item
@@ -255,26 +474,29 @@ const showNextItem = () => {
     slider.style.transform = 'translateX(-66.666%)';
     
     setTimeout(() => {
-        // Update all slides with new content
-        updateAllSlides();
+            // Update all slides with new content
+    updateAllSlides();
+    
+    // Reset position to center without animation
+    slider.style.transition = 'none';
+    slider.style.transform = 'translateX(-33.333%)';
+    
+    // Re-enable animation
+    setTimeout(() => {
+        slider.style.transition = 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+        isAnimating = false;
         
-        // Reset position to center without animation
-        slider.style.transition = 'none';
-        slider.style.transform = 'translateX(-33.333%)';
-        
-        // Re-enable animation
-        setTimeout(() => {
-            slider.style.transition = 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-            isAnimating = false;
-            
-            // Scroll to top after swipe completes
-            window.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-            });
-        }, 50);
-        
-        preloadImages(nextIndex);
+        // Scroll to top after swipe completes
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+    }, 50);
+    
+    preloadImages(nextIndex);
+    
+    // Update action buttons visibility
+    updatePreviewActions();
     }, 300);
 };
 
@@ -317,8 +539,11 @@ const showPreviousItem = () => {
             });
         }, 50);
         
-        preloadImages(prevIndex);
-    }, 300);
+            preloadImages(prevIndex);
+    
+    // Update action buttons visibility
+    updatePreviewActions();
+}, 300);
 };
 
 // Handle touch events for smooth dragging
@@ -408,6 +633,9 @@ const showPreview = (itemId) => {
     
     // Update all slides
     updateAllSlides();
+    
+    // Update action buttons for current item type
+    updatePreviewActions();
     
     // Show preview page and hide feed
     document.getElementById('feedPage').style.display = 'none';
@@ -613,6 +841,12 @@ const addToCart = (itemId, quantity = 1) => {
     const item = menuItems.find(i => i.id === itemId);
     if (!item) return;
     
+    // Instagram items cannot be added to cart
+    if (item.type === 'ipost' || item.type === 'ireel') {
+        showToast('Instagram content cannot be added to cart');
+        return;
+    }
+    
     const existingItem = cartItems.find(cartItem => cartItem.id === itemId);
     
     if (existingItem) {
@@ -715,11 +949,24 @@ const initDesktopWarning = () => {
 
 // Share functionality
 const shareItem = async (item) => {
-    const shareData = {
-        title: item.name,
-        text: `Check out this delicious ${item.name} at Aglio Restaurant!`,
-        url: window.location.href
-    };
+    let shareData;
+    
+    if (item.type === 'ipost' || item.type === 'ireel') {
+        // For Instagram items, use the direct Instagram URL
+        const instagramUrl = item.instagramUrl || window.location.href;
+        
+        shareData = {
+            title: item.name,
+            text: `Check out this ${item.type === 'ipost' ? 'Instagram post' : 'Instagram reel'} from Aglio Restaurant!`,
+            url: instagramUrl
+        };
+    } else {
+        shareData = {
+            title: item.name,
+            text: `Check out this delicious ${item.name} at Aglio Restaurant!`,
+            url: window.location.href
+        };
+    }
     
     try {
         if (navigator.share) {
@@ -762,7 +1009,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     document.getElementById('previewAddToCartBtn').addEventListener('click', () => {
-        if (currentPreviewItem) {
+        if (currentPreviewItem && currentPreviewItem.type !== 'ipost' && currentPreviewItem.type !== 'ireel') {
             const quantity = parseInt(document.getElementById('quantity').textContent);
             addToCart(currentPreviewItem.id, quantity);
         }
@@ -793,4 +1040,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Set up initial feed scroll listener
     setupFeedScrollListener();
+    
+    // Handle window resize for Instagram scaling
+    window.addEventListener('resize', () => {
+        setTimeout(scaleInstagramEmbeds, 300);
+    });
 }); 
