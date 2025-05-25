@@ -214,6 +214,27 @@ let currentFilters = {
     vegOnly: false
 };
 
+// Category FAB state
+let isCategoryFabOpen = false;
+let currentActiveCategory = null;
+let availableCategories = [];
+
+// Category icons mapping
+const categoryIcons = {
+    'Main Courses': 'fas fa-drumstick-bite',
+    'Vegetarian': 'fas fa-leaf',
+    'Pasta': 'fas fa-utensils',
+    'Featured': 'fas fa-star',
+    'Appetizers': 'fas fa-cheese',
+    'Desserts': 'fas fa-ice-cream',
+    'Beverages': 'fas fa-coffee',
+    'Salads': 'fas fa-seedling',
+    'Soups': 'fas fa-bowl-hot',
+    'Pizza': 'fas fa-pizza-slice',
+    'Seafood': 'fas fa-fish',
+    'Other': 'fas fa-utensils'
+};
+
 // Generate Instagram embed HTML dynamically
 const generateInstagramEmbed = (instagramUrl) => {
     if (!instagramUrl) return '';
@@ -325,27 +346,174 @@ const applyFilters = () => {
     showToast(`Showing ${itemCount} item${itemCount !== 1 ? 's' : ''}`);
 };
 
+// Category FAB Functions
+const updateAvailableCategories = () => {
+    // Get categories from filtered items
+    const categories = [...new Set(filteredMenuItems.map(item => item.category || 'Other'))];
+    availableCategories = categories.sort();
+    
+    console.log('Available categories updated:', availableCategories);
+    renderCategoryFab();
+};
+
+const renderCategoryFab = () => {
+    const categoryFabItems = document.getElementById('categoryFabItems');
+    
+    if (availableCategories.length === 0) {
+        categoryFabItems.innerHTML = '<div class="no-categories">No categories available</div>';
+        return;
+    }
+    
+    // Count items per category
+    const categoryCounts = {};
+    filteredMenuItems.forEach(item => {
+        const category = item.category || 'Other';
+        categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+    });
+    
+    const categoryItemsHTML = availableCategories.map(category => {
+        const count = categoryCounts[category] || 0;
+        const isActive = currentActiveCategory === category;
+        
+        return `
+            <button class="category-fab-item ${isActive ? 'active' : ''}" data-category="${category}">
+                <span>${category}</span>
+                <span class="item-count">${count}</span>
+            </button>
+        `;
+    }).join('');
+    
+    categoryFabItems.innerHTML = categoryItemsHTML;
+    
+    // Add event listeners to category items
+    categoryFabItems.querySelectorAll('.category-fab-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const category = item.dataset.category;
+            navigateToCategory(category);
+        });
+    });
+};
+
+const toggleCategoryFab = () => {
+    isCategoryFabOpen = !isCategoryFabOpen;
+    const fabToggle = document.getElementById('categoryFabToggle');
+    const fabMenu = document.getElementById('categoryFabMenu');
+    
+    if (isCategoryFabOpen) {
+        fabToggle.classList.add('active');
+        fabMenu.classList.add('active');
+        updateAvailableCategories(); // Refresh categories when opening
+    } else {
+        fabToggle.classList.remove('active');
+        fabMenu.classList.remove('active');
+    }
+};
+
+const closeCategoryFab = () => {
+    if (isCategoryFabOpen) {
+        isCategoryFabOpen = false;
+        document.getElementById('categoryFabToggle').classList.remove('active');
+        document.getElementById('categoryFabMenu').classList.remove('active');
+    }
+};
+
+const navigateToCategory = (category) => {
+    console.log('Navigating to category:', category);
+    
+    // Update active category
+    currentActiveCategory = category;
+    
+    // Update FAB item states
+    document.querySelectorAll('.category-fab-item').forEach(item => {
+        if (item.dataset.category === category) {
+            item.classList.add('active');
+        } else {
+            item.classList.remove('active');
+        }
+    });
+    
+    // Find the category header in the main grid
+    const categoryHeader = document.querySelector(`[data-category="${category}"]`);
+    
+    if (categoryHeader) {
+        // Close the FAB menu
+        closeCategoryFab();
+        
+        // Calculate scroll position with offset for better visibility
+        const headerRect = categoryHeader.getBoundingClientRect();
+        const currentScrollY = window.scrollY;
+        const targetScrollY = currentScrollY + headerRect.top - 80; // 80px offset from top
+        
+        // Smooth scroll to category
+        window.scrollTo({
+            top: Math.max(0, targetScrollY),
+            behavior: 'smooth'
+        });
+        
+        // Show toast notification
+        showToast(`Scrolled to ${category}`);
+        
+        // Highlight the category briefly
+        categoryHeader.style.transition = 'background-color 0.3s ease';
+        categoryHeader.style.backgroundColor = 'var(--color-accent)';
+        categoryHeader.style.color = 'white';
+        
+        setTimeout(() => {
+            categoryHeader.style.backgroundColor = '';
+            categoryHeader.style.color = '';
+        }, 1500);
+    } else {
+        showToast(`Category "${category}" not found`);
+    }
+};
+
+const setupCategoryFabListeners = () => {
+    const fabToggle = document.getElementById('categoryFabToggle');
+    const fabMenu = document.getElementById('categoryFabMenu');
+    
+    // Toggle FAB on button click
+    fabToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleCategoryFab();
+    });
+    
+    // Prevent menu from closing when clicking inside it
+    fabMenu.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+    
+    // Close FAB when clicking outside
+    document.addEventListener('click', (e) => {
+        if (isCategoryFabOpen && !e.target.closest('.category-fab')) {
+            closeCategoryFab();
+        }
+    });
+    
+    // Close FAB on escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && isCategoryFabOpen) {
+            closeCategoryFab();
+        }
+    });
+};
+
 const renderFilteredMenuItems = () => {
     const grid = document.getElementById('menuGrid');
-    const previewGrid = document.getElementById('previewMenuGrid');
     
     // Clean up previous lazy loading observers
     lazyLoadManager.destroy();
     lazyLoadManager = new LazyLoadManager();
     
-    // Completely clear both grids first to ensure clean state
+    // Clear main grid
     grid.innerHTML = '';
-    previewGrid.innerHTML = '';
     
     // Force immediate reflow to clear any cached layout
     grid.offsetHeight;
-    previewGrid.offsetHeight;
     
     // Reset any masonry-related styles that might interfere
     grid.style.columnCount = '';
     grid.style.height = '';
-    previewGrid.style.columnCount = '';
-    previewGrid.style.height = '';
     
     // Initialize lazy loading with filtered items
     lazyLoadManager.initialize(filteredMenuItems);
@@ -439,35 +607,30 @@ const renderFilteredMenuItems = () => {
         }
     });
     
-    // Update both grids with new content
+    // Update main grid with new content
     grid.innerHTML = itemsHTML;
-    previewGrid.innerHTML = itemsHTML;
     
     // Enhanced masonry grid reflow function
     const forceCompleteReflow = () => {
-        // Reset all masonry-related styles
-        [grid, previewGrid].forEach(container => {
-            container.style.columnCount = '';
-            container.style.columnGap = '';
-            container.style.height = '';
-            container.style.transform = '';
-            
-            // Force layout recalculation
-            container.offsetHeight;
-            
-            // Temporarily set to single column to force complete reflow
-            container.style.columnCount = '1';
-            container.offsetHeight;
-            
-            // Reset to let CSS handle the columns
-            container.style.columnCount = '';
-        });
+        // Reset all masonry-related styles for main grid only
+        grid.style.columnCount = '';
+        grid.style.columnGap = '';
+        grid.style.height = '';
+        grid.style.transform = '';
+        
+        // Force layout recalculation
+        grid.offsetHeight;
+        
+        // Temporarily set to single column to force complete reflow
+        grid.style.columnCount = '1';
+        grid.offsetHeight;
+        
+        // Reset to let CSS handle the columns
+        grid.style.columnCount = '';
         
         // Force another layout pass
         setTimeout(() => {
-            [grid, previewGrid].forEach(container => {
-                container.offsetHeight;
-            });
+            grid.offsetHeight;
             
             // Trigger window resize to help with any remaining layout issues
             window.dispatchEvent(new Event('resize'));
@@ -480,18 +643,11 @@ const renderFilteredMenuItems = () => {
         lazyLoadManager.observeElement(item);
     });
     
-    // Setup lazy loading for preview grid too
-    const previewLazyItems = previewGrid.querySelectorAll('.menu-item-image-container[data-id]');
-    previewLazyItems.forEach(item => {
-        lazyLoadManager.observeElement(item);
-    });
-    
     // Load Instagram embed script
     loadInstagramScript();
     
     // Add event listeners
     addMenuItemEventListeners(grid);
-    addMenuItemEventListeners(previewGrid);
     updateCartCount();
     
     // Apply enhanced reflow with multiple passes for better stability
@@ -508,6 +664,9 @@ const renderFilteredMenuItems = () => {
     setTimeout(() => {
         forceCompleteReflow();
     }, 600);
+    
+    // Update category FAB with new filtered categories
+    updateAvailableCategories();
 };
 
 const updateFilterButtonState = () => {
@@ -722,7 +881,6 @@ const loadMenuItems = async () => {
 // Render menu items in masonry grid
 const renderMenuItems = () => {
     const grid = document.getElementById('menuGrid');
-    const previewGrid = document.getElementById('previewMenuGrid');
     
     // Clean up previous lazy loading observers
     lazyLoadManager.destroy();
@@ -815,17 +973,10 @@ const renderMenuItems = () => {
     });
     
     grid.innerHTML = itemsHTML;
-    previewGrid.innerHTML = itemsHTML;
     
     // Setup lazy loading for regular menu items
     const lazyItems = grid.querySelectorAll('.menu-item-image-container[data-id]');
     lazyItems.forEach(item => {
-        lazyLoadManager.observeElement(item);
-    });
-    
-    // Setup lazy loading for preview grid too
-    const previewLazyItems = previewGrid.querySelectorAll('.menu-item-image-container[data-id]');
-    previewLazyItems.forEach(item => {
         lazyLoadManager.observeElement(item);
     });
     
@@ -834,7 +985,6 @@ const renderMenuItems = () => {
     
     // Add event listeners
     addMenuItemEventListeners(grid);
-    addMenuItemEventListeners(previewGrid);
     updateCartCount();
     
     // Force masonry grid reflow for initial render
@@ -842,13 +992,10 @@ const renderMenuItems = () => {
         const forceReflow = () => {
             // Reset any inline styles that might interfere
             grid.style.columnCount = '';
-            previewGrid.style.columnCount = '';
             grid.style.height = '';
-            previewGrid.style.height = '';
             
             // Force a reflow by reading layout properties
             grid.offsetHeight;
-            previewGrid.offsetHeight;
             
             // Trigger a window resize event to help with any remaining layout issues
             window.dispatchEvent(new Event('resize'));
@@ -859,6 +1006,9 @@ const renderMenuItems = () => {
         // Additional reflow after a longer delay
         setTimeout(forceReflow, 100);
     }, 50);
+    
+    // Update category FAB with available categories
+    updateAvailableCategories();
     
     // Note: Removed the setInterval for Instagram scaling as it's heavy
     // Instagram embeds will auto-scale when they load
@@ -1137,6 +1287,9 @@ const showNextItem = () => {
             // Update all slides with new content
     updateAllSlides();
     
+    // Update thumbnails for the new item's category
+    renderPreviewThumbnails(nextItem);
+    
     // Reset position to center without animation
     slider.style.transition = 'none';
     slider.style.transform = 'translateX(-33.333%)';
@@ -1182,6 +1335,9 @@ const showPreviousItem = () => {
     setTimeout(() => {
         // Update all slides with new content
         updateAllSlides();
+        
+        // Update thumbnails for the new item's category
+        renderPreviewThumbnails(prevItem);
         
         // Reset position to center without animation
         slider.style.transition = 'none';
@@ -1278,6 +1434,97 @@ const setupSwipeListeners = () => {
     }
 };
 
+// Render preview thumbnails with category filtering and current item exclusion
+const renderPreviewThumbnails = (currentItem) => {
+    const previewGrid = document.getElementById('previewMenuGrid');
+    const categoryHeading = document.getElementById('previewCategoryHeading');
+    const categoryHeadingText = categoryHeading.querySelector('.category-heading-text');
+    
+    if (!currentItem) {
+        previewGrid.innerHTML = '';
+        categoryHeading.style.display = 'none';
+        return;
+    }
+    
+    // Update category heading
+    const categoryName = currentItem.category || 'Other';
+    categoryHeadingText.textContent = `Other ${categoryName}`;
+    categoryHeading.style.display = 'block';
+    
+    // Filter items: same category, exclude current item
+    const categoryItems = filteredMenuItems.filter(item => 
+        item.category === currentItem.category && item.id !== currentItem.id
+    );
+    
+    console.log(`Rendering preview thumbnails for category "${currentItem.category}": ${categoryItems.length} items (excluding current item)`);
+    
+    if (categoryItems.length === 0) {
+        previewGrid.innerHTML = '<div class="no-thumbnails-message"><p>No other items in this category</p></div>';
+        return;
+    }
+    
+    // Generate HTML for category items (no category headers in thumbnails)
+    const itemsHTML = categoryItems.map(item => {
+        if (item.type === 'ipost' || item.type === 'ireel') {
+            // Render Instagram item
+            const embedHtml = generateInstagramEmbed(item.instagramUrl);
+            return `
+                <div class="menu-item instagram-item" data-id="${item.id}" data-type="${item.type}" data-category="${item.category}">
+                    <div class="instagram-embed-container">
+                        ${embedHtml}
+                    </div>
+                    <div class="quick-actions">
+                        <button class="quick-action-btn like-btn" data-id="${item.id}">
+                            <i class="${likedItems.has(item.id) ? 'fas' : 'far'} fa-heart"></i>
+                        </button>
+                        <button class="quick-action-btn share-btn" data-id="${item.id}">
+                            <i class="fas fa-share"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        } else {
+            // Render regular menu item with immediate loading (no lazy loading for thumbnails)
+            return `
+                <div class="menu-item" data-category="${item.category}">
+                    <div class="menu-item-image-container" data-id="${item.id}">
+                        <img 
+                            class="menu-item-image" 
+                            src="${item.image}" 
+                            alt="${item.name}"
+                            loading="lazy"
+                        >
+                    </div>
+                    <div class="menu-item-info">
+                        <h3 class="dish-name">${item.name}</h3>
+                    </div>
+                    <div class="quick-actions">
+                        <button class="quick-action-btn like-btn" data-id="${item.id}">
+                            <i class="${likedItems.has(item.id) ? 'fas' : 'far'} fa-heart"></i>
+                        </button>
+                        <button class="quick-action-btn cart-btn" data-id="${item.id}">
+                            <i class="fas fa-shopping-cart"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+    }).join('');
+    
+    // Update preview grid with filtered content
+    previewGrid.innerHTML = itemsHTML;
+    
+    // Add event listeners to the new thumbnails
+    addMenuItemEventListeners(previewGrid);
+    
+    // Force masonry reflow for thumbnails
+    setTimeout(() => {
+        previewGrid.style.columnCount = '';
+        previewGrid.style.height = '';
+        previewGrid.offsetHeight;
+    }, 50);
+};
+
 // Show preview mode
 const showPreview = (itemId) => {
     const item = filteredMenuItems.find(i => i.id === itemId);
@@ -1297,6 +1544,9 @@ const showPreview = (itemId) => {
     // Update action buttons for current item type
     updatePreviewActions();
     
+    // Render filtered thumbnails for the same category (excluding current item)
+    renderPreviewThumbnails(item);
+    
     // Show preview page and hide feed
     document.getElementById('feedPage').style.display = 'none';
     document.getElementById('previewPage').classList.add('active');
@@ -1308,6 +1558,9 @@ const showPreview = (itemId) => {
     
     // Reset back to top flag to ensure clean state
     isBackToTopClicked = false;
+    
+    // Close category FAB when entering preview mode
+    closeCategoryFab();
     
     // Enable swipe functionality
     isSwipeEnabled = true;
@@ -1418,6 +1671,9 @@ const goBackToFeed = () => {
     
     // Hide scroll-to-top button
     document.getElementById('scrollToTopBtn').classList.remove('visible');
+    
+    // Close category FAB if open
+    closeCategoryFab();
 };
 
 // Scroll to top function
@@ -1712,6 +1968,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Set up initial feed scroll listener
     setupFeedScrollListener();
+    
+    // Initialize category FAB
+    setupCategoryFabListeners();
     
     // Handle window resize for Instagram scaling and masonry layout
     window.addEventListener('resize', () => {
