@@ -51,6 +51,9 @@
         <div class="header-content">
             <h1 class="logo">Aglio Restaurant</h1>
             <div class="header-actions">
+                <button class="filters-btn" id="filtersBtn" aria-label="Open filters">
+                    <i class="fas fa-filter"></i>
+                </button>
                 <button class="theme-toggle" id="themeToggleBottom" aria-label="Toggle theme">
                     <i class="fas fa-sun"></i>
                 </button>
@@ -167,6 +170,35 @@
         <div class="spinner"></div>
     </div>
 
+    <!-- Filter Modal -->
+    <div class="filter-modal" id="filterModal">
+        <div class="filter-modal-content">
+            <div class="filter-header">
+                <h3>Filters</h3>
+                <button class="close-filter-btn" id="closeFilterBtn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="filter-options">
+                <div class="filter-option">
+                    <label class="toggle-label">
+                        <span>Veg Only</span>
+                        <div class="toggle-switch">
+                            <input type="checkbox" id="vegOnlyToggle">
+                            <span class="toggle-slider"></span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="filter-actions">
+                <button class="btn btn-apply" id="applyFiltersBtn">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html> 
