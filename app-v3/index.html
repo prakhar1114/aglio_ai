@@ -38,7 +38,7 @@
                 <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
                     <i class="fas fa-sun"></i>
                 </button>
-                <i class="fas fa-search search-icon"></i>
+                <!-- <i class="fas fa-search search-icon"></i> -->
                 <i class="fas fa-shopping-cart cart-icon">
                     <span class="cart-count">0</span>
                 </i>
@@ -57,7 +57,7 @@
                 <button class="theme-toggle" id="themeToggleBottom" aria-label="Toggle theme">
                     <i class="fas fa-sun"></i>
                 </button>
-                <i class="fas fa-search search-icon"></i>
+                <!-- <i class="fas fa-search search-icon"></i> -->
                 <i class="fas fa-shopping-cart cart-icon">
                     <span class="cart-count">0</span>
                 </i>
@@ -118,19 +118,15 @@
                                 <i class="fas fa-plus"></i>
                                 <span>Add to Cart</span>
                             </button>
-                            <button class="btn btn-share" id="previewShareBtn">
-                                <i class="fas fa-share"></i>
-                                <span>Share</span>
-                            </button>
-                        </div>
-                        
-                        <div class="quantity-container">
-                            <label>Quantity:</label>
-                            <div class="quantity-controls">
+                            <div class="btn btn-quantity" id="previewQuantityBtn" style="display: none;">
                                 <button class="qty-btn" id="decreaseQty">-</button>
                                 <span id="quantity">1</span>
                                 <button class="qty-btn" id="increaseQty">+</button>
                             </div>
+                            <button class="btn btn-share" id="previewShareBtn">
+                                <i class="fas fa-share"></i>
+                                <span>Share</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -185,6 +181,80 @@
     <!-- Loading indicator -->
     <div class="loading-indicator" id="loadingIndicator">
         <div class="spinner"></div>
+    </div>
+
+    <!-- Cart Modal -->
+    <div class="cart-modal" id="cartModal">
+        <div class="cart-modal-content">
+            <div class="cart-header">
+                <h3>Your Cart</h3>
+                <button class="close-cart-btn" id="closeCartBtn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="cart-items" id="cartItemsList">
+                <!-- Cart items will be dynamically populated -->
+            </div>
+            
+            <div class="cart-empty" id="cartEmpty" style="display: none;">
+                <div class="empty-cart-icon">
+                    <i class="fas fa-shopping-cart"></i>
+                </div>
+                <h3>Your cart is empty</h3>
+                <p>Add some delicious items to get started!</p>
+            </div>
+            
+            <div class="cart-summary" id="cartSummary">
+                <div class="summary-row">
+                    <span>Subtotal:</span>
+                    <span id="cartSubtotal">₹0.00</span>
+                </div>
+                <div class="summary-row">
+                    <span>Tax (0%):</span>
+                    <span id="cartTax">₹0.00</span>
+                </div>
+                <div class="summary-row total-row">
+                    <span>Total:</span>
+                    <span id="cartTotal">₹0.00</span>
+                </div>
+            </div>
+            
+            <div class="cart-actions">
+                <button class="btn btn-place-order" id="placeOrderBtn">
+                    <i class="fas fa-check"></i>
+                    <span>Place Order</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Order Placed Modal -->
+    <div class="order-modal" id="orderModal">
+        <div class="order-modal-content">
+            <div class="order-success-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <h2>Order Placed Successfully!</h2>
+            <p>Thank you for your order. Please show this to the wait staff.</p>
+            
+            <div class="order-details" id="orderDetails">
+                <h3>Order Summary</h3>
+                <div class="order-items" id="orderItemsList">
+                    <!-- Order items will be populated here -->
+                </div>
+                <div class="order-total">
+                    <strong>Total: <span id="orderTotalAmount">₹0.00</span></strong>
+                </div>
+            </div>
+            
+            <div class="order-actions">
+                <button class="btn btn-back-to-menu" id="backToMenuBtn">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Back to Menu</span>
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- Filter Modal -->

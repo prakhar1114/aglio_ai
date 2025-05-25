@@ -586,16 +586,30 @@ const renderFilteredMenuItems = () => {
                                     alt="${item.name}" 
                                     style="display: none; opacity: 0;"
                                 >
+                                <!-- Quick add to cart button -->
+                                <div class="cart-badge-container" data-id="${item.id}">
+                                    <button class="cart-badge" data-id="${item.id}" title="Add to cart">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                    <div class="cart-stepper" data-id="${item.id}" style="display: none;">
+                                        <button class="stepper-btn decrease" data-id="${item.id}">-</button>
+                                        <span class="stepper-count">1</span>
+                                        <button class="stepper-btn increase" data-id="${item.id}">+</button>
+                                    </div>
+                                </div>
                             </div>
                             <div class="menu-item-info">
-                                <h3 class="dish-name">${item.name}</h3>
+                                <div class="dish-details">
+                                    <span class="dish-name">${item.name}</span>
+                                    ${item.price ? `<span class="dish-price">₹${item.price}</span>` : ''}
+                                </div>
                             </div>
                             <div class="quick-actions">
                                 <button class="quick-action-btn like-btn" data-id="${item.id}">
                                     <i class="${likedItems.has(item.id) ? 'fas' : 'far'} fa-heart"></i>
                                 </button>
-                                <button class="quick-action-btn cart-btn" data-id="${item.id}">
-                                    <i class="fas fa-shopping-cart"></i>
+                                <button class="quick-action-btn share-btn" data-id="${item.id}">
+                                    <i class="fas fa-share"></i>
                                 </button>
                             </div>
                         </div>
@@ -649,6 +663,7 @@ const renderFilteredMenuItems = () => {
     // Add event listeners
     addMenuItemEventListeners(grid);
     updateCartCount();
+    updateStepperStates();
     
     // Apply enhanced reflow with multiple passes for better stability
     setTimeout(() => {
@@ -719,7 +734,7 @@ const loadMenuItems = async () => {
             menuItems = apiMenuItems.map(item => ({
                 id: item.id,
                 name: item.name || 'Untitled Item',
-                price: item.price ? (typeof item.price === 'string' ? item.price : `₹${item.price}`) : '',
+                price: item.price ? (typeof item.price === 'string' ? item.price : `${item.price}`) : '',
                 description: item.description || '',
                 image: item.image_url || item.image || '',
                 category: item.category_brief || '',
@@ -951,16 +966,30 @@ const renderMenuItems = () => {
                                 alt="${item.name}" 
                                 style="display: none; opacity: 0;"
                             >
+                            <!-- Quick add to cart button -->
+                            <div class="cart-badge-container" data-id="${item.id}">
+                                <button class="cart-badge" data-id="${item.id}" title="Add to cart">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                                <div class="cart-stepper" data-id="${item.id}" style="display: none;">
+                                    <button class="stepper-btn decrease" data-id="${item.id}">-</button>
+                                    <span class="stepper-count">1</span>
+                                    <button class="stepper-btn increase" data-id="${item.id}">+</button>
+                                </div>
+                            </div>
                         </div>
                         <div class="menu-item-info">
-                            <h3 class="dish-name">${item.name}</h3>
+                            <div class="dish-details">
+                                <span class="dish-name">${item.name}</span>
+                                ${item.price ? `<span class="dish-price">₹${item.price}</span>` : ''}
+                            </div>
                         </div>
                         <div class="quick-actions">
                             <button class="quick-action-btn like-btn" data-id="${item.id}">
                                 <i class="${likedItems.has(item.id) ? 'fas' : 'far'} fa-heart"></i>
                             </button>
-                            <button class="quick-action-btn cart-btn" data-id="${item.id}">
-                                <i class="fas fa-shopping-cart"></i>
+                            <button class="quick-action-btn share-btn" data-id="${item.id}">
+                                <i class="fas fa-share"></i>
                             </button>
                         </div>
                     </div>
@@ -986,6 +1015,7 @@ const renderMenuItems = () => {
     // Add event listeners
     addMenuItemEventListeners(grid);
     updateCartCount();
+    updateStepperStates();
     
     // Force masonry grid reflow for initial render
     setTimeout(() => {
@@ -1042,11 +1072,29 @@ const addMenuItemEventListeners = (container) => {
         });
     });
     
-    container.querySelectorAll('.cart-btn').forEach(btn => {
+    // Cart badge event listeners
+    container.querySelectorAll('.cart-badge').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             const itemId = parseInt(btn.dataset.id);
-            addToCart(itemId);
+            handleCartBadgeClick(itemId);
+        });
+    });
+    
+    // Stepper event listeners
+    container.querySelectorAll('.stepper-btn.increase').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const itemId = parseInt(btn.dataset.id);
+            updateStepperQuantity(itemId, 1);
+        });
+    });
+    
+    container.querySelectorAll('.stepper-btn.decrease').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const itemId = parseInt(btn.dataset.id);
+            updateStepperQuantity(itemId, -1);
         });
     });
     
@@ -1242,25 +1290,78 @@ const updateAllSlides = () => {
         likeIcon.className = 'far fa-heart';
     }
     
-    // Reset quantity for regular items
-    if (currentPreviewItem.type !== 'ipost' && currentPreviewItem.type !== 'ireel') {
-        document.getElementById('quantity').textContent = '1';
-    }
+    // Ensure proper button visibility on slide update
+    const addToCartBtn = document.getElementById('previewAddToCartBtn');
+    const quantityBtn = document.getElementById('previewQuantityBtn');
+    
+    // Reset both buttons to default state first
+    addToCartBtn.style.display = 'flex';
+    quantityBtn.style.display = 'none';
+    
+    // Update preview cart controls based on current cart state
+    updatePreviewCartControls();
 };
 
 // Update preview action buttons based on item type
 const updatePreviewActions = () => {
     const addToCartBtn = document.getElementById('previewAddToCartBtn');
-    const quantityContainer = document.querySelector('.quantity-container');
+    const quantityBtn = document.getElementById('previewQuantityBtn');
     
     if (currentPreviewItem && (currentPreviewItem.type === 'ipost' || currentPreviewItem.type === 'ireel')) {
         // Hide cart and quantity controls for Instagram items
         addToCartBtn.style.display = 'none';
-        quantityContainer.style.display = 'none';
+        quantityBtn.style.display = 'none';
     } else {
-        // Show cart and quantity controls for regular items
-        addToCartBtn.style.display = 'flex';
-        quantityContainer.style.display = 'flex';
+        // Update cart controls based on current cart state
+        updatePreviewCartControls();
+    }
+};
+
+// Update preview mode cart controls based on cart state
+const updatePreviewCartControls = () => {
+    if (!currentPreviewItem || currentPreviewItem.type === 'ipost' || currentPreviewItem.type === 'ireel') {
+        return;
+    }
+    
+    const addToCartBtn = document.getElementById('previewAddToCartBtn');
+    const quantityBtn = document.getElementById('previewQuantityBtn');
+    const quantitySpan = document.getElementById('quantity');
+    const decreaseBtn = document.getElementById('decreaseQty');
+    const increaseBtn = document.getElementById('increaseQty');
+    
+    // Check if current item is in cart
+    const cartItem = cartItems.find(item => item.id === currentPreviewItem.id);
+    
+    console.log(`Preview cart controls update: Item ${currentPreviewItem.id}, In cart: ${!!cartItem}`);
+    
+    if (cartItem) {
+        // Item is in cart - show quantity controls, hide add to cart button
+        console.log('Showing quantity controls, hiding add to cart');
+        if (addToCartBtn) addToCartBtn.style.display = 'none';
+        if (quantityBtn) quantityBtn.style.display = 'flex';
+        if (quantitySpan) quantitySpan.textContent = cartItem.quantity;
+        
+        // Update button states based on quantity limits
+        if (decreaseBtn) {
+            decreaseBtn.disabled = cartItem.quantity <= 1;
+        }
+        if (increaseBtn) {
+            increaseBtn.disabled = cartItem.quantity >= 10;
+        }
+    } else {
+        // Item not in cart - show add to cart button, hide quantity controls
+        console.log('Showing add to cart, hiding quantity controls');
+        if (addToCartBtn) addToCartBtn.style.display = 'flex';
+        if (quantityBtn) quantityBtn.style.display = 'none';
+        if (quantitySpan) quantitySpan.textContent = '1'; // Reset to default
+        
+        // Reset button states
+        if (decreaseBtn) {
+            decreaseBtn.disabled = false;
+        }
+        if (increaseBtn) {
+            increaseBtn.disabled = false;
+        }
     }
 };
 
@@ -1494,16 +1595,30 @@ const renderPreviewThumbnails = (currentItem) => {
                             alt="${item.name}"
                             loading="lazy"
                         >
+                        <!-- Quick add to cart button -->
+                        <div class="cart-badge-container" data-id="${item.id}">
+                            <button class="cart-badge" data-id="${item.id}" title="Add to cart">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <div class="cart-stepper" data-id="${item.id}" style="display: none;">
+                                <button class="stepper-btn decrease" data-id="${item.id}">-</button>
+                                <span class="stepper-count">1</span>
+                                <button class="stepper-btn increase" data-id="${item.id}">+</button>
+                            </div>
+                        </div>
                     </div>
-                    <div class="menu-item-info">
-                        <h3 class="dish-name">${item.name}</h3>
-                    </div>
+                                            <div class="menu-item-info">
+                            <div class="dish-details">
+                                <span class="dish-name">${item.name}</span>
+                                ${item.price ? `<span class="dish-price">₹${item.price}</span>` : ''}
+                            </div>
+                        </div>
                     <div class="quick-actions">
                         <button class="quick-action-btn like-btn" data-id="${item.id}">
                             <i class="${likedItems.has(item.id) ? 'fas' : 'far'} fa-heart"></i>
                         </button>
-                        <button class="quick-action-btn cart-btn" data-id="${item.id}">
-                            <i class="fas fa-shopping-cart"></i>
+                        <button class="quick-action-btn share-btn" data-id="${item.id}">
+                            <i class="fas fa-share"></i>
                         </button>
                     </div>
                 </div>
@@ -1537,6 +1652,13 @@ const showPreview = (itemId) => {
     
     currentPreviewItem = item;
     currentPreviewIndex = filteredMenuItems.findIndex(i => i.id === itemId);
+    
+    // Ensure buttons are in default state before updating
+    const addToCartBtn = document.getElementById('previewAddToCartBtn');
+    const quantityBtn = document.getElementById('previewQuantityBtn');
+    
+    if (addToCartBtn) addToCartBtn.style.display = 'flex';
+    if (quantityBtn) quantityBtn.style.display = 'none';
     
     // Update all slides
     updateAllSlides();
@@ -1752,7 +1874,105 @@ const toggleLike = (itemId) => {
     showToast(likedItems.has(itemId) ? 'Added to favorites!' : 'Removed from favorites');
 };
 
-// Add to cart
+// Handle cart badge click (first click shows stepper, subsequent clicks add to cart)
+const handleCartBadgeClick = (itemId) => {
+    const item = menuItems.find(i => i.id === itemId);
+    if (!item) return;
+    
+    // Instagram items cannot be added to cart
+    if (item.type === 'ipost' || item.type === 'ireel') {
+        showToast('Instagram content cannot be added to cart');
+        return;
+    }
+    
+    const cartBadge = document.querySelector(`.cart-badge[data-id="${itemId}"]`);
+    const stepper = document.querySelector(`.cart-stepper[data-id="${itemId}"]`);
+    
+    // Add ripple effect and scale animation
+    cartBadge.classList.add('cart-badge-clicked');
+    setTimeout(() => {
+        cartBadge.classList.remove('cart-badge-clicked');
+    }, 300);
+    
+    // Check if item is already in cart
+    const existingItem = cartItems.find(cartItem => cartItem.id === itemId);
+    
+    if (!existingItem) {
+        // First click: Add to cart, hide badge, and show stepper
+        cartItems.push({
+            ...item,
+            quantity: 1
+        });
+        
+        // Hide cart badge and show stepper
+        if (cartBadge && stepper) {
+            cartBadge.style.display = 'none';
+            stepper.style.display = 'flex';
+            stepper.querySelector('.stepper-count').textContent = '1';
+        }
+        
+        updateCartCount();
+        updateStepperStates(); // Sync all cart buttons
+        saveUserPreferences();
+        showToast(`Added ${item.name} to cart!`);
+        
+        // Add micro-bounce to cart icon
+        addCartBounce();
+    } else {
+        // This shouldn't happen since badge should be hidden when item is in cart
+        // But handle it just in case
+        existingItem.quantity += 1;
+        
+        // Update stepper display
+        if (stepper) {
+            stepper.querySelector('.stepper-count').textContent = existingItem.quantity;
+        }
+        
+        updateCartCount();
+        updateStepperStates(); // Sync all cart buttons
+        saveUserPreferences();
+        showToast(`Added another ${item.name} to cart!`);
+        
+        // Add micro-bounce to cart icon
+        addCartBounce();
+    }
+};
+
+// Update stepper quantity
+const updateStepperQuantity = (itemId, change) => {
+    const existingItem = cartItems.find(cartItem => cartItem.id === itemId);
+    if (!existingItem) return;
+    
+    const newQuantity = existingItem.quantity + change;
+    const stepper = document.querySelector(`.cart-stepper[data-id="${itemId}"]`);
+    const cartBadge = document.querySelector(`.cart-badge[data-id="${itemId}"]`);
+    
+    if (newQuantity <= 0) {
+        // Remove from cart
+        cartItems = cartItems.filter(item => item.id !== itemId);
+        showToast('Item removed from cart');
+    } else {
+        // Update quantity
+        existingItem.quantity = newQuantity;
+    }
+    
+    updateCartCount();
+    updateStepperStates(); // Sync all cart buttons
+    saveUserPreferences();
+};
+
+// Add micro-bounce animation to cart icon
+const addCartBounce = () => {
+    const cartIcons = document.querySelectorAll('.cart-icon');
+    cartIcons.forEach(icon => {
+        icon.classList.add('cart-bounce');
+        setTimeout(() => {
+            icon.classList.remove('cart-bounce');
+        }, 400);
+    });
+};
+
+// Add to cart (legacy function for preview mode)
 const addToCart = (itemId, quantity = 1) => {
     const item = menuItems.find(i => i.id === itemId); // Use original menuItems for cart (not filtered)
     if (!item) return;
@@ -1775,8 +1995,12 @@ const addToCart = (itemId, quantity = 1) => {
     }
     
     updateCartCount();
+    updateStepperStates(); // Sync all cart buttons
     saveUserPreferences();
     showToast(`Added ${item.name} to cart!`);
+    
+    // Add micro-bounce to cart icon
+    addCartBounce();
 };
 
 // Update cart count
@@ -1827,6 +2051,34 @@ const loadUserPreferences = () => {
     }
     
     updateCartCount();
+    updateStepperStates();
+};
+
+// Update stepper states based on current cart
+const updateStepperStates = () => {
+    // First, reset all items to show cart badge and hide stepper
+    document.querySelectorAll('.cart-badge').forEach(badge => {
+        badge.style.display = 'flex';
+    });
+    document.querySelectorAll('.cart-stepper').forEach(stepper => {
+        stepper.style.display = 'none';
+    });
+    
+    // Then, for items in cart, hide badge and show stepper
+    cartItems.forEach(cartItem => {
+        // Update all instances of this item (main grid, preview grid)
+        document.querySelectorAll(`.cart-stepper[data-id="${cartItem.id}"]`).forEach(stepper => {
+            stepper.style.display = 'flex';
+            stepper.querySelector('.stepper-count').textContent = cartItem.quantity;
+        });
+        
+        document.querySelectorAll(`.cart-badge[data-id="${cartItem.id}"]`).forEach(badge => {
+            badge.style.display = 'none';
+        });
+    });
+    
+    // Update preview mode controls if current item is shown
+    updatePreviewCartControls();
 };
 
 // Desktop Warning Functions
@@ -1938,8 +2190,8 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('previewAddToCartBtn').addEventListener('click', () => {
         if (currentPreviewItem && currentPreviewItem.type !== 'ipost' && currentPreviewItem.type !== 'ireel') {
-            const quantity = parseInt(document.getElementById('quantity').textContent);
-            addToCart(currentPreviewItem.id, quantity);
+            // Use the same logic as cart badge click
+            handleCartBadgeClick(currentPreviewItem.id);
         }
     });
     
@@ -1951,18 +2203,14 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Quantity controls
     document.getElementById('decreaseQty').addEventListener('click', () => {
-        const qtyElement = document.getElementById('quantity');
-        const currentQty = parseInt(qtyElement.textContent);
-        if (currentQty > 1) {
-            qtyElement.textContent = currentQty - 1;
+        if (currentPreviewItem) {
+            updateStepperQuantity(currentPreviewItem.id, -1);
         }
     });
     
     document.getElementById('increaseQty').addEventListener('click', () => {
-        const qtyElement = document.getElementById('quantity');
-        const currentQty = parseInt(qtyElement.textContent);
-        if (currentQty < 10) {
-            qtyElement.textContent = currentQty + 1;
+        if (currentPreviewItem) {
+            updateStepperQuantity(currentPreviewItem.id, 1);
         }
     });
     
@@ -1971,6 +2219,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Initialize category FAB
     setupCategoryFabListeners();
+    
+    // Cart functionality
+    initCartFunctionality();
     
     // Handle window resize for Instagram scaling and masonry layout
     window.addEventListener('resize', () => {
@@ -1985,4 +2236,191 @@ document.addEventListener('DOMContentLoaded', () => {
             grid.offsetHeight;
         });
     });
-}); 
+});
+
+// Cart functionality
+const initCartFunctionality = () => {
+    // Cart icon click handlers
+    document.querySelectorAll('.cart-icon').forEach(cartIcon => {
+        cartIcon.addEventListener('click', openCartModal);
+    });
+    
+    // Cart modal event listeners
+    document.getElementById('closeCartBtn').addEventListener('click', closeCartModal);
+    document.getElementById('placeOrderBtn').addEventListener('click', placeOrder);
+    
+    // Order modal event listeners
+    document.getElementById('backToMenuBtn').addEventListener('click', backToMenu);
+    
+    // Close modals when clicking outside
+    document.getElementById('cartModal').addEventListener('click', (e) => {
+        if (e.target.id === 'cartModal') {
+            closeCartModal();
+        }
+    });
+    
+    document.getElementById('orderModal').addEventListener('click', (e) => {
+        if (e.target.id === 'orderModal') {
+            backToMenu();
+        }
+    });
+    
+    // Keyboard event listeners for modals
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            if (document.getElementById('cartModal').classList.contains('active')) {
+                closeCartModal();
+            } else if (document.getElementById('orderModal').classList.contains('active')) {
+                backToMenu();
+            }
+        }
+    });
+};
+
+// Open cart modal
+const openCartModal = () => {
+    renderCartItems();
+    updateCartSummary();
+    document.getElementById('cartModal').classList.add('active');
+    document.body.style.overflow = 'hidden';
+};
+
+// Close cart modal
+const closeCartModal = () => {
+    document.getElementById('cartModal').classList.remove('active');
+    document.body.style.overflow = '';
+};
+
+// Remove item from cart
+const removeFromCart = (itemId) => {
+    cartItems = cartItems.filter(item => item.id !== itemId);
+    updateCartCount();
+    updateStepperStates(); // Sync all cart buttons
+    saveUserPreferences();
+    renderCartItems();
+    updateCartSummary();
+    showToast('Item removed from cart');
+};
+
+// Update item quantity in cart
+const updateCartItemQuantity = (itemId, newQuantity) => {
+    const item = cartItems.find(item => item.id === itemId);
+    if (!item) return;
+    
+    if (newQuantity <= 0) {
+        removeFromCart(itemId);
+        return;
+    }
+    
+    item.quantity = newQuantity;
+    updateCartCount();
+    updateStepperStates(); // Sync all cart buttons
+    saveUserPreferences();
+    renderCartItems();
+    updateCartSummary();
+};
+
+// Render cart items
+const renderCartItems = () => {
+    const cartItemsList = document.getElementById('cartItemsList');
+    const cartEmpty = document.getElementById('cartEmpty');
+    const cartSummary = document.getElementById('cartSummary');
+    const placeOrderBtn = document.getElementById('placeOrderBtn');
+    
+    if (cartItems.length === 0) {
+        cartItemsList.style.display = 'none';
+        cartEmpty.style.display = 'block';
+        cartSummary.style.display = 'none';
+        placeOrderBtn.disabled = true;
+        return;
+    }
+    
+    cartItemsList.style.display = 'block';
+    cartEmpty.style.display = 'none';
+    cartSummary.style.display = 'block';
+    placeOrderBtn.disabled = false;
+    
+    cartItemsList.innerHTML = cartItems.map(item => `
+        <div class="cart-item">
+            <img src="${item.image || 'https://via.placeholder.com/60x60?text=No+Image'}" alt="${item.name}" class="cart-item-image">
+            <div class="cart-item-info">
+                <h4 class="cart-item-name">${item.name}</h4>
+                <p class="cart-item-price">₹${item.price || 0}</p>
+            </div>
+            <div class="cart-item-controls">
+                <div class="cart-qty-controls">
+                    <button class="cart-qty-btn" onclick="updateCartItemQuantity(${item.id}, ${item.quantity - 1})" ${item.quantity <= 1 ? 'disabled' : ''}>-</button>
+                    <span class="cart-quantity">${item.quantity}</span>
+                    <button class="cart-qty-btn" onclick="updateCartItemQuantity(${item.id}, ${item.quantity + 1})" ${item.quantity >= 10 ? 'disabled' : ''}>+</button>
+                </div>
+                <button class="remove-item-btn" onclick="removeFromCart(${item.id})" title="Remove item">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `).join('');
+};
+
+// Update cart summary
+const updateCartSummary = () => {
+    const subtotal = cartItems.reduce((total, item) => total + ((item.price || 0) * item.quantity), 0);
+    const tax = subtotal * 0; // 0% tax as shown in the design
+    const total = subtotal + tax;
+    
+    document.getElementById('cartSubtotal').textContent = `₹${subtotal.toFixed(2)}`;
+    document.getElementById('cartTax').textContent = `₹${tax.toFixed(2)}`;
+    document.getElementById('cartTotal').textContent = `₹${total.toFixed(2)}`;
+};
+
+// Place order
+const placeOrder = () => {
+    if (cartItems.length === 0) return;
+    
+    // Create order snapshot
+    const orderSnapshot = [...cartItems];
+    const orderTotal = cartItems.reduce((total, item) => total + ((item.price || 0) * item.quantity), 0);
+    
+    // Close cart modal
+    closeCartModal();
+    
+    // Show order modal
+    renderOrderDetails(orderSnapshot, orderTotal);
+    document.getElementById('orderModal').classList.add('active');
+    
+    // Clear cart
+    cartItems = [];
+    updateCartCount();
+    updateStepperStates(); // Sync all cart buttons
+    saveUserPreferences();
+    
+    // Show success message
+    showToast('Order placed successfully!');
+};
+
+// Render order details
+const renderOrderDetails = (orderItems, total) => {
+    const orderItemsList = document.getElementById('orderItemsList');
+    const orderTotalAmount = document.getElementById('orderTotalAmount');
+    
+    orderItemsList.innerHTML = orderItems.map(item => `
+        <div class="order-item">
+            <div class="order-item-info">
+                <div class="order-item-name">${item.name}</div>
+                <div class="order-item-details">Qty: ${item.quantity} × ₹${item.price || 0}</div>
+            </div>
+            <div class="order-item-total">₹${((item.price || 0) * item.quantity).toFixed(2)}</div>
+        </div>
+    `).join('');
+    
+    orderTotalAmount.textContent = `₹${total.toFixed(2)}`;
+};
+
+// Back to menu
+const backToMenu = () => {
+    document.getElementById('orderModal').classList.remove('active');
+    document.body.style.overflow = '';
+};
+
+// Make cart functions globally accessible for inline event handlers
+window.updateCartItemQuantity = updateCartItemQuantity;
+window.removeFromCart = removeFromCart;
