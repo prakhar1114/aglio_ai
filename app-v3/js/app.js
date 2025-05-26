@@ -315,6 +315,8 @@ const applyFilters = () => {
     
     console.log('Applying filters:', currentFilters);
     console.log('Total menu items before filtering:', menuItems.length);
+    console.log('User agent:', navigator.userAgent);
+    console.log('Window dimensions:', window.innerWidth, 'x', window.innerHeight);
     
     // Apply filters to menu items
     if (currentFilters.vegOnly) {
@@ -518,7 +520,8 @@ const renderFilteredMenuItems = () => {
     // Initialize lazy loading with filtered items
     lazyLoadManager.initialize(filteredMenuItems);
     
-    console.log('renderFilteredMenuItems: Processing', filteredMenuItems.length, 'items');
+    console.log('🔍 renderFilteredMenuItems: Processing', filteredMenuItems.length, 'items');
+    console.log('🔍 Filtered items details:', filteredMenuItems.map(item => ({id: item.id, name: item.name, category: item.category})));
     
     // Group filtered items by category
     const groupedItems = filteredMenuItems.reduce((groups, item) => {
@@ -530,7 +533,13 @@ const renderFilteredMenuItems = () => {
         return groups;
     }, {});
     
-    console.log('Grouped items by category:', groupedItems);
+    console.log('🔍 Grouped items by category:', groupedItems);
+    
+    // Debug: Log each category's item count
+    Object.keys(groupedItems).forEach(category => {
+        console.log(`🔍 Category "${category}": ${groupedItems[category].length} items`, 
+            groupedItems[category].map(item => item.name));
+    });
     
     // Generate HTML for each category (only show categories that have items)
     let itemsHTML = '';
@@ -624,16 +633,74 @@ const renderFilteredMenuItems = () => {
     // Update main grid with new content
     grid.innerHTML = itemsHTML;
     
-    // Enhanced masonry grid reflow function
+    // Mobile-specific debugging and fixes
+    const isMobileForDebugging = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+    
+    if (isMobileForDebugging) {
+        console.log('📱 Mobile device detected - applying mobile fixes');
+        
+        // Check if items are actually in the DOM
+        const renderedItems = grid.querySelectorAll('.menu-item');
+        console.log(`📱 Items rendered in DOM: ${renderedItems.length}`);
+        console.log(`📱 Expected items: ${filteredMenuItems.length}`);
+        
+        if (renderedItems.length !== filteredMenuItems.length) {
+            console.warn(`⚠️ MISMATCH: Expected ${filteredMenuItems.length} items, but only ${renderedItems.length} rendered!`);
+            
+            // Trigger emergency fallback if too many items are missing
+            const missingCount = filteredMenuItems.length - renderedItems.length;
+            if (missingCount > 2) {
+                console.log('🚨 Triggering emergency fallback due to too many missing items');
+                grid.classList.add('emergency-fallback');
+                showToast(`Applied emergency layout fix for mobile`);
+            }
+        }
+        
+        // Check for hidden or mispositioned items
+        setTimeout(() => {
+            const hiddenItems = Array.from(renderedItems).filter(item => {
+                const rect = item.getBoundingClientRect();
+                const style = window.getComputedStyle(item);
+                return rect.width === 0 || rect.height === 0 || style.display === 'none' || style.visibility === 'hidden';
+            });
+            
+            if (hiddenItems.length > 0) {
+                console.warn(`⚠️ Found ${hiddenItems.length} hidden/mispositioned items on mobile`);
+                
+                // Force show hidden items
+                hiddenItems.forEach((item, index) => {
+                    console.log(`🔧 Fixing hidden item ${index + 1}:`, item);
+                    item.style.display = 'block';
+                    item.style.visibility = 'visible';
+                    item.style.opacity = '1';
+                    item.style.transform = 'none';
+                });
+            }
+        }, 500);
+    }
+    
+    // Enhanced masonry grid reflow function for mobile compatibility
     const forceCompleteReflow = () => {
+        // Detect if on mobile device
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+        
         // Reset all masonry-related styles for main grid only
         grid.style.columnCount = '';
         grid.style.columnGap = '';
         grid.style.height = '';
         grid.style.transform = '';
+        grid.style.display = '';
         
         // Force layout recalculation
         grid.offsetHeight;
+        
+        if (isMobile) {
+            // More aggressive reflow for mobile devices
+            grid.style.display = 'none';
+            grid.offsetHeight; // Force reflow
+            grid.style.display = '';
+            grid.offsetHeight; // Force another reflow
+        }
         
         // Temporarily set to single column to force complete reflow
         grid.style.columnCount = '1';
@@ -642,13 +709,39 @@ const renderFilteredMenuItems = () => {
         // Reset to let CSS handle the columns
         grid.style.columnCount = '';
         
-        // Force another layout pass
-        setTimeout(() => {
-            grid.offsetHeight;
-            
-            // Trigger window resize to help with any remaining layout issues
-            window.dispatchEvent(new Event('resize'));
-        }, 50);
+        // Multiple reflow passes for mobile stability
+        const reflows = isMobile ? 3 : 1;
+        for (let i = 0; i < reflows; i++) {
+            setTimeout(() => {
+                grid.offsetHeight;
+                
+                // Trigger window resize to help with any remaining layout issues
+                window.dispatchEvent(new Event('resize'));
+                
+                // Additional mobile-specific fixes
+                if (isMobile) {
+                    // Force repaint by changing a non-visual property
+                    grid.style.transform = 'translateZ(0)';
+                    setTimeout(() => {
+                        grid.style.transform = '';
+                    }, 10);
+                    
+                    // Emergency mobile fix: if items are still missing, force visibility
+                    setTimeout(() => {
+                        const allItems = grid.querySelectorAll('.menu-item');
+                        allItems.forEach(item => {
+                            if (item.offsetHeight === 0 || item.offsetWidth === 0) {
+                                console.log('🚨 Emergency fix: Making item visible', item);
+                                item.style.display = 'block !important';
+                                item.style.visibility = 'visible !important';
+                                item.style.height = 'auto !important';
+                                item.style.width = 'auto !important';
+                            }
+                        });
+                    }, 100);
+                }
+            }, 50 * (i + 1));
+        }
     };
     
     // Setup lazy loading for regular menu items
@@ -666,19 +759,27 @@ const renderFilteredMenuItems = () => {
     updateStepperStates();
     
     // Apply enhanced reflow with multiple passes for better stability
-    setTimeout(() => {
-        forceCompleteReflow();
-    }, 100);
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+    const delays = isMobileDevice ? [100, 300, 600, 1000] : [100, 300, 600];
     
-    // Additional reflow after everything is set up
-    setTimeout(() => {
-        forceCompleteReflow();
-    }, 300);
-    
-    // Final reflow to ensure everything is properly laid out
-    setTimeout(() => {
-        forceCompleteReflow();
-    }, 600);
+    delays.forEach((delay, index) => {
+        setTimeout(() => {
+            forceCompleteReflow();
+            
+            // Extra mobile-specific fix on the last pass
+            if (isMobileDevice && index === delays.length - 1) {
+                // Force a final layout recalculation
+                setTimeout(() => {
+                    const grid = document.getElementById('menuGrid');
+                    if (grid) {
+                        grid.style.visibility = 'hidden';
+                        grid.offsetHeight;
+                        grid.style.visibility = 'visible';
+                    }
+                }, 50);
+            }
+        }, delay);
+    });
     
     // Update category FAB with new filtered categories
     updateAvailableCategories();

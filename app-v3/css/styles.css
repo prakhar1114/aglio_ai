@@ -2525,8 +2525,72 @@ html {
     background-color: rgba(239, 68, 68, 0.2);
 }
 
+/* Mobile-specific masonry layout fixes */
+@media (max-width: 768px) {
+    .masonry-grid {
+        /* Force GPU acceleration for better mobile rendering */
+        transform: translateZ(0);
+        /* Prevent layout shifts during content updates */
+        contain: layout style;
+        /* Ensure stable column layout */
+        column-fill: balance;
+        /* Better column break handling */
+        break-inside: avoid;
+    }
+    
+    .menu-item {
+        /* Prevent items from breaking across columns */
+        break-inside: avoid;
+        page-break-inside: avoid;
+        /* Force GPU layer for better performance */
+        transform: translateZ(0);
+        /* Ensure stable positioning */
+        position: relative;
+        /* Ensure items are always visible */
+        min-height: 200px !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        display: block !important;
+        /* Prevent items from being positioned outside viewport */
+        left: 0 !important;
+        right: 0 !important;
+        top: 0 !important;
+        margin-bottom: 20px !important;
+    }
+    
+    .category-header {
+        /* Ensure category headers stay at top of columns */
+        break-after: auto;
+        break-before: auto;
+        break-inside: avoid;
+        /* Make headers more stable */
+        display: block;
+        width: 100%;
+        position: relative;
+        z-index: 1;
+    }
+    
+    /* Emergency fallback: disable masonry on severe layout issues */
+    .masonry-grid.emergency-fallback {
+        column-count: 1 !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+    
+    .masonry-grid.emergency-fallback .menu-item {
+        width: 100% !important;
+        margin-bottom: 20px !important;
+    }
+}
+
 /* Mobile responsiveness */
 @media (max-width: 480px) {
+    .masonry-grid {
+        /* Force stable column layout on very small screens */
+        column-count: 2 !important;
+        column-gap: 15px !important;
+    }
+    
     .cart-modal-content,
     .order-modal-content {
         width: 95%;
