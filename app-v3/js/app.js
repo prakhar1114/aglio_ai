@@ -1343,7 +1343,7 @@ const updatePreviewCartControls = () => {
         
         // Update button states based on quantity limits
         if (decreaseBtn) {
-            decreaseBtn.disabled = cartItem.quantity <= 1;
+            decreaseBtn.disabled = false; // Allow decreasing to 0 to remove item
         }
         if (increaseBtn) {
             increaseBtn.disabled = cartItem.quantity >= 10;
@@ -2204,7 +2204,18 @@ document.addEventListener('DOMContentLoaded', () => {
     // Quantity controls
     document.getElementById('decreaseQty').addEventListener('click', () => {
         if (currentPreviewItem) {
-            updateStepperQuantity(currentPreviewItem.id, -1);
+            const cartItem = cartItems.find(item => item.id === currentPreviewItem.id);
+            if (cartItem && cartItem.quantity === 1) {
+                // Remove from cart when quantity would go to 0
+                cartItems = cartItems.filter(item => item.id !== currentPreviewItem.id);
+                updateCartCount();
+                updateStepperStates();
+                updatePreviewCartControls(); // This will switch back to "Add to Cart" button
+                saveUserPreferences();
+                showToast('Item removed from cart');
+            } else {
+                updateStepperQuantity(currentPreviewItem.id, -1);
+            }
         }
     });
     

@@ -683,18 +683,20 @@ body {
     animation: heartPulse 0.6s ease;
 }
 
-/* Quantity button in preview mode - matches cart modal design */
+/* Quantity button in preview mode - clean minimal design */
 .btn-quantity {
     display: none; /* Hidden by default */
     flex-direction: row;
     align-items: center;
     justify-content: center;
-    gap: var(--spacing-xs);
-    padding: var(--spacing-sm) var(--spacing-xs);
-    background: var(--color-bg-secondary);
-    border: 1px solid var(--color-border);
+    gap: 0; /* No gap for seamless design */
+    padding: 0;
+    background: transparent;
+    border: none;
     border-radius: var(--radius-base);
     min-width: 100px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
 }
 
 /* When quantity button is shown, display as flex */
@@ -703,42 +705,75 @@ body {
 }
 
 .btn-quantity .qty-btn {
-    background: var(--color-bg-primary);
+    background: var(--color-bg-card);
     border: 1px solid var(--color-border);
     color: var(--color-text-primary);
-    width: 28px;
-    height: 28px;
-    border-radius: var(--radius-sm);
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-bold);
+    width: 32px;
+    height: 32px;
+    border-radius: 0; /* Square corners for seamless connection */
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-normal);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all var(--transition-fast);
+    border-right: none; /* Remove right border for seamless connection */
+}
+
+/* First button (decrease) - rounded left corners */
+.btn-quantity .qty-btn:first-child {
+    border-radius: var(--radius-base) 0 0 var(--radius-base);
+    border-right: none;
+}
+
+/* Last button (increase) - rounded right corners */
+.btn-quantity .qty-btn:last-child {
+    border-radius: 0 var(--radius-base) var(--radius-base) 0;
+    border-left: none;
 }
 
 .btn-quantity .qty-btn:hover {
     background-color: var(--color-hover);
-    border-color: var(--color-accent);
+    z-index: 1;
+    position: relative;
+    border-color: var(--color-border);
+}
+
+.btn-quantity .qty-btn:active {
+    background-color: var(--color-bg-secondary);
+    transform: none;
 }
 
 .btn-quantity .qty-btn:disabled {
+    background-color: var(--color-bg-secondary);
+    color: var(--color-text-muted);
     opacity: 0.5;
     cursor: not-allowed;
 }
 
 .btn-quantity .qty-btn:disabled:hover {
-    background-color: var(--color-bg-primary);
-    border-color: var(--color-border);
+    background-color: var(--color-bg-secondary);
+    z-index: auto;
+    position: static;
 }
 
 .btn-quantity #quantity {
-    min-width: 32px;
+    min-width: 36px;
     text-align: center;
     font-weight: var(--font-weight-medium);
     color: var(--color-text-primary);
     font-size: var(--font-size-sm);
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-left: none;
+    border-right: none;
+    padding: 6px 8px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
 }
 
 /* Quantity Controls - Enhanced for Light Mode */
@@ -1070,19 +1105,20 @@ body {
     }
     
     .btn-quantity {
-        min-width: 90px;
-        padding: var(--spacing-xs);
+        min-width: 85px;
     }
     
     .btn-quantity .qty-btn {
-        width: 24px;
-        height: 24px;
-        font-size: var(--font-size-xs);
+        width: 28px;
+        height: 28px;
+        font-size: var(--font-size-sm);
     }
     
     .btn-quantity #quantity {
-        min-width: 28px;
+        min-width: 30px;
+        height: 28px;
         font-size: var(--font-size-xs);
+        padding: 4px 6px;
     }
 }
 
@@ -1114,23 +1150,34 @@ body {
 }
 
 .dark-theme .btn-quantity {
-    background: var(--color-bg-secondary);
-    border-color: var(--color-border);
+    background: transparent;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .dark-theme .btn-quantity .qty-btn {
-    background: var(--color-bg-primary);
+    background: var(--color-bg-card);
     border-color: var(--color-border);
     color: var(--color-text-primary);
 }
 
 .dark-theme .btn-quantity .qty-btn:hover {
     background-color: var(--color-hover);
-    border-color: var(--color-accent);
+    border-color: var(--color-border);
+}
+
+.dark-theme .btn-quantity .qty-btn:active {
+    background-color: var(--color-bg-secondary);
+}
+
+.dark-theme .btn-quantity .qty-btn:disabled {
+    background-color: var(--color-bg-secondary);
+    color: var(--color-text-muted);
 }
 
 .dark-theme .btn-quantity #quantity {
     color: var(--color-text-primary);
+    background: var(--color-bg-card);
+    border-color: var(--color-border);
 }
 
 .dark-theme .stepper-btn {
