@@ -30,12 +30,26 @@ def serve_app(port=8000):
     # Create server
     handler = http.server.SimpleHTTPRequestHandler
     
-    # Add CORS headers for better compatibility
+    # Add CORS headers and cache control for better compatibility
     class CORSRequestHandler(http.server.SimpleHTTPRequestHandler):
         def end_headers(self):
             self.send_header('Access-Control-Allow-Origin', '*')
             self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
             self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+            
+            # Cache control headers to prevent caching issues during development
+            if self.path.endswith(('.css', '.js')):
+                # Disable caching for CSS and JS files during development
+                self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
+                self.send_header('Pragma', 'no-cache')
+                self.send_header('Expires', '0')
+            elif self.path.endswith('.html'):
+                # Short cache for HTML files
+                self.send_header('Cache-Control', 'max-age=300')  # 5 minutes
+            else:
+                # Longer cache for images and other static assets
+                self.send_header('Cache-Control', 'max-age=3600')  # 1 hour
+                
             super().end_headers()
     
     try:

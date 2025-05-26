@@ -48,8 +48,14 @@ app-v3/
 ├── css/
 │   └── styles.css      # Complete CSS with mobile-first approach
 ├── js/
-│   └── app.js          # JavaScript functionality and interactions
+│   ├── app.js          # Main JavaScript functionality and interactions
+│   └── api.js          # API integration and data handling
 ├── images/             # Placeholder for custom images
+├── serve.py            # Local development server with cache control
+├── dev_server.py       # Enhanced development server with auto cache-busting
+├── update_version.py   # Utility to update cache-busting version numbers
+├── deploy.py           # Production deployment script for Vercel
+├── vercel.json         # Vercel configuration for cache headers
 └── README.md           # This documentation file
 ```
 
@@ -92,13 +98,31 @@ The app includes 12 sample menu items with:
 
 ## Usage Instructions
 
-1. **Open the Application**: Open `index.html` in a web browser
-2. **Browse Menu**: Scroll through the Pinterest-like feed
-3. **Quick Actions**: Hover over items (desktop) or tap quick action buttons
-4. **View Details**: Click any menu item to open the preview modal
-5. **Add to Cart**: Use quantity controls and add items to cart
-6. **Like Items**: Heart button to add/remove from favorites
-7. **Share Items**: Use share button for native sharing
+### Development Server
+1. **Start Server**: Run `python dev_server.py` for enhanced development experience
+2. **Alternative**: Run `python serve.py` for basic local server
+3. **Access**: Open the displayed URL in your browser
+
+### Application Usage
+1. **Browse Menu**: Scroll through the Pinterest-like feed
+2. **Quick Actions**: Hover over items (desktop) or tap quick action buttons
+3. **View Details**: Click any menu item to open the preview modal
+4. **Add to Cart**: Use quantity controls and add items to cart
+5. **Like Items**: Heart button to add/remove from favorites
+6. **Share Items**: Use share button for native sharing
+
+### Handling Cache Issues
+If you see outdated content after making changes:
+1. **Hard Refresh**: Press `Ctrl+Shift+R` (or `Cmd+Shift+R` on Mac)
+2. **Update Versions**: Run `python update_version.py` to update cache-busting parameters
+3. **Use Dev Server**: The enhanced dev server automatically handles cache busting
+
+### Production Deployment (Vercel)
+1. **Deploy with Cache Busting**: Run `python deploy.py` (automatically updates versions)
+2. **Preview Deployment**: Run `python deploy.py preview`
+3. **Manual Deploy**: Run `vercel --prod` (after running `python update_version.py`)
+
+**Note**: The deployment script automatically updates cache-busting version numbers before deploying to ensure browsers download fresh files.
 
 ## Customization
 
