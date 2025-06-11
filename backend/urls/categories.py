@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, Header, Request
 from pydantic import BaseModel
 from typing import List
 
-from config import rdb, qd, qd_collection_name
+from config import rdb, qd
+from middleware.tenant_resolver import get_qdrant_collection
 
 router = APIRouter()
 
@@ -12,13 +13,13 @@ class Category(BaseModel):
     total_count: int = 0
     veg_count: int = 0
 
-def get_all_categories() -> List[Category]:
+def get_all_categories(collection_name: str) -> List[Category]:
     all_points = []
     limit = 100
     offset = None  # Start with None for the first request
     while True:
         points, next_offset = qd.scroll(
-            collection_name=qd_collection_name,
+            collection_name=collection_name,
             limit=limit,
             offset=offset,
             with_payload=True,
@@ -66,6 +67,11 @@ def get_all_categories() -> List[Category]:
     return categories
 
 @router.get("/", response_model=List[Category], summary="Get all categories", response_description="List of unique (group_category, category_brief) pairs")
-def read_categories(session_id: str = Header(..., alias="x-session-id")):
+def read_categories(
+    request: Request,
+    session_id: str = Header(..., alias="x-session-id")
+):
     """Retrieve all unique (group_category, category_brief) pairs."""
-    return get_all_categories()
+    # Get tenant-specific collection name
+    collection_name = get_qdrant_collection(request)
+    return get_all_categories(collection_name)

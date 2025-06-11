@@ -1,5 +1,5 @@
 """
-tools.py – Utility layer that backs the LLM “function‑calling” interface.
+tools.py – Utility layer that backs the LLM "function‑calling" interface.
 
 Each public function matches the names you registered with OpenAI:
     search_menu
@@ -12,7 +12,7 @@ Each public function matches the names you registered with OpenAI:
     get_cart_pairings
     validate_blocks
 
-Internal helpers (prefixed with “_”) keep the code DRY.
+Internal helpers (prefixed with "_") keep the code DRY.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ from typing import List, Dict, Any, Tuple
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
-from config import qd, qd_collection_name
+from config import qd
 
 
 # ------------------------------------------------------------------#
@@ -45,7 +45,7 @@ def _embed(text: str) -> np.ndarray:
 
 
 def _payload_to_item(point) -> Dict[str, Any]:
-    """Convert a Qdrant point to the dict schema used in chat “dish_carousal”."""
+    """Convert a Qdrant point to the dict schema used in chat "dish_carousal"."""
     pl = point.payload or {}
     return {
         "id": point.id,
@@ -68,16 +68,17 @@ def _apply_filters(filters: Dict[str, Any]) -> List[Dict]:
 
 
 # ------------------------------------------------------------------#
-# Public API (exposed to the LLM)
+# Public API (exposed to the LLM) - now tenant-aware
 # ------------------------------------------------------------------#
-def search_menu(query: str,
+def search_menu(collection_name: str,
+                query: str,
                 filters: Dict[str, Any] | None = None,
                 limit: int = 8) -> List[Dict[str, Any]]:
     """Free‑text semantic search across name + description using embeddings."""
     vec = _embed(query).tolist()
     must = _apply_filters(filters or {})
     points = qd.search(
-        qd_collection_name,
+        collection_name,
         query_vector=vec,
         query_filter={"must": must} if must else None,
         limit=limit,
@@ -85,7 +86,8 @@ def search_menu(query: str,
     return [_payload_to_item(p) for p in points]
 
 
-def get_chefs_picks(filters: Dict[str, Any] | None = None,
+def get_chefs_picks(collection_name: str,
+                    filters: Dict[str, Any] | None = None,
                     limit: int = 6) -> List[Dict[str, Any]]:
     """Return dishes flagged as chef‑recommended (or bestsellers as fallback)."""
     base = [
@@ -98,7 +100,7 @@ def get_chefs_picks(filters: Dict[str, Any] | None = None,
     alt.extend(_apply_filters(filters or {}))
 
     points = qd.scroll(
-        qd_collection_name,
+        collection_name,
         scroll_filter={"must": base},
         with_payload=True,
         with_vectors=False,
@@ -108,7 +110,7 @@ def get_chefs_picks(filters: Dict[str, Any] | None = None,
     # top‑up with bestsellers if needed
     if len(points) < limit:
         extra = qd.scroll(
-            qd_collection_name,
+            collection_name,
             scroll_filter={"must": alt},
             with_payload=True,
             with_vectors=False,
@@ -120,26 +122,9 @@ def get_chefs_picks(filters: Dict[str, Any] | None = None,
     return items
 
 
-# def get_category_items(category: str,
-#                        filters: Dict[str, Any] | None = None,
-#                        limit: int = 10) -> List[Dict[str, Any]]:
-#     """Return dishes for a given category_brief, respecting user filters."""
-#     must = _apply_filters(filters or {})
-#     must.append({"key": "category_brief", "match": {"value": category}})
-#     points = qd.scroll(
-#         qd_collection_name,
-#         scroll_filter={"must": must},
-#         with_payload=True,
-#         with_vectors=False,
-#         limit=limit,
-#     )[0]
-#     items = [_payload_to_item(p) for p in points]
-#     for it in items:
-#         it["reason"] = f"From {category.title()}"
-#     return items
 
-
-def list_all_items(filters: Dict[str, Any] | None = None,
+def list_all_items(collection_name: str,
+                   filters: Dict[str, Any] | None = None,
                    page: int = 1,
                    page_size: int = 12) -> Tuple[List[Dict[str, Any]], bool]:
     """
@@ -149,7 +134,7 @@ def list_all_items(filters: Dict[str, Any] | None = None,
     must = _apply_filters(filters or {})
     offset = (page - 1) * page_size
     points = qd.scroll(
-        qd_collection_name,
+        collection_name,
         scroll_filter={"must": must} if must else None,
         with_payload=True,
         with_vectors=False,
@@ -161,15 +146,16 @@ def list_all_items(filters: Dict[str, Any] | None = None,
     return items, has_more
 
 
-def find_similar_items(dish_id: int,
+def find_similar_items(collection_name: str,
+                       dish_id: int,
                        filters: Dict[str, Any] | None = None,
                        limit: int = 6) -> List[Dict[str, Any]]:
     """Return dishes with embedding‑space proximity to a reference dish."""
-    ref = qd.retrieve(qd_collection_name, ids=[dish_id], with_vectors=True)[0]
+    ref = qd.retrieve(collection_name, ids=[dish_id], with_vectors=True)[0]
     must = _apply_filters(filters or {})
     must.append({"key": "id", "match": {"not": {"value": dish_id}}})
     pts = qd.search(
-        qd_collection_name,
+        collection_name,
         query_vector=list(ref.vector),
         query_filter={"must": must} if must else None,
         limit=limit,
@@ -180,14 +166,15 @@ def find_similar_items(dish_id: int,
     return items
 
 
-def budget_friendly_options(priceCap: float,
+def budget_friendly_options(collection_name: str,
+                            priceCap: float,
                             filters: Dict[str, Any] | None = None,
                             limit: int = 8) -> List[Dict[str, Any]]:
     """Return dishes whose price <= priceCap, plus user filters."""
     must = _apply_filters(filters or {})
     must.append({"key": "price", "range": {"lte": float(priceCap)}})
     pts = qd.scroll(
-        qd_collection_name,
+        collection_name,
         scroll_filter={"must": must},
         with_payload=True,
         with_vectors=False,
@@ -199,51 +186,55 @@ def budget_friendly_options(priceCap: float,
     return items
 
 
-# def describe_dish(dish_id: int) -> Dict[str, Any]:
-#     """Return full payload for a single dish (for LLM trivia answers)."""
-#     p = qd.retrieve(
-#         qd_collection_name,
-#         ids=[dish_id],
-#         with_payload=True,
-#         with_vectors=False,
-#     )[0]
-#     pl = p.payload or {}
-#     return {
-#         "name": pl.get("name"),
-#         "description": pl.get("description"),
-#         "price": pl.get("price"),
-#         "veg_flag": bool(pl.get("veg_flag")),
-#         "category": pl.get("category_brief"),
-#         "image_path": pl.get("image_path"),
-#         "allergens": pl.get("allergens"),
-#         "spice_level": pl.get("spice_level"),
-#     }
+def describe_dish(collection_name: str,
+                  dish_id: int) -> Dict[str, Any] | None:
+    """Return detailed info about a specific dish."""
+    try:
+        point = qd.retrieve(collection_name, ids=[dish_id], with_payload=True)[0]
+        pl = point.payload or {}
+        return {
+            "id": point.id,
+            "name": pl.get("name"),
+            "description": pl.get("description"),
+            "category": pl.get("category_brief"),
+            "price": pl.get("price"),
+            "veg": bool(pl.get("veg_flag")),
+        }
+    except Exception:
+        return None
 
 
-def get_cart_pairings(cart: List[Dict[str, Any]],
+def get_cart_pairings(collection_name: str,
+                      cart: List[Dict[str, Any]],
                       filters: Dict[str, Any] | None = None,
                       limit: int = 6) -> List[Dict[str, Any]]:
     """
-    Simple centroid‑based pairing: average vectors of current cart, then
-    fetch nearest dishes not already chosen.
+    Recommend dishes that complement items in the cart.
+    Uses embeddings to find semantically related dishes.
     """
     if not cart:
         return []
 
-    ids_in_cart = [item["id"] for item in cart]
-    recs = qd.retrieve(qd_collection_name, ids=ids_in_cart, with_vectors=True)
-    vecs = [np.array(p.vector) for p in recs if p.vector is not None]
-    centroid = np.mean(vecs, axis=0)
+    ids_in_cart = [item["id"] for item in cart if "id" in item]
+    if not ids_in_cart:
+        return []
+
+    # get embeddings for cart items
+    recs = qd.retrieve(collection_name, ids=ids_in_cart, with_vectors=True)
+    cart_vecs = [np.array(rec.vector) for rec in recs]
+    avg_vec = np.mean(cart_vecs, axis=0)
 
     must = _apply_filters(filters or {})
     must.append({"key": "id", "match": {"not": {"any": ids_in_cart}}})
     pts = qd.search(
-        qd_collection_name,
-        query_vector=centroid.tolist(),
+        collection_name,
+        query_vector=avg_vec.tolist(),
         query_filter={"must": must} if must else None,
         limit=limit,
     )
     items = [_payload_to_item(p) for p in pts]
+    for it in items:
+        it["reason"] = "Pairs well with your cart"
     return items
 
 

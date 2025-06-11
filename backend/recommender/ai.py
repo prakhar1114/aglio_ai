@@ -3,7 +3,7 @@ ai.py  – High‑level orchestration layer for the Ask Aglio chatbot.
 
 `generate_blocks(question, session_id)`:
     • Maintains OpenAI conversational context (storing the last response_id in Redis)
-    • Lets the model call our backend “tools” (function‑calling)
+    • Lets the model call our backend "tools" (function‑calling)
     • Converts the result into FE‑ready `blocks` (validated)
 """
 
@@ -44,7 +44,7 @@ RESP_KEY = lambda sid: f"resp:{sid}"   # redis key to store last response.id
 # ------------------------------------------------------------ #
 #  Public entry
 # ------------------------------------------------------------ #
-def generate_blocks(payload: Dict[str, Any], thread_id: str) -> Blocks:
+def generate_blocks(payload: Dict[str, Any], thread_id: str, collection_name: str) -> Blocks:
     """
     Main entry used by the WebSocket handler.
 
@@ -54,6 +54,8 @@ def generate_blocks(payload: Dict[str, Any], thread_id: str) -> Blocks:
         User context + question.
     thread_id : str
         Socket thread ID (maps to redis key storing last response.id).
+    collection_name : str
+        Tenant-specific Qdrant collection name.
 
     Returns
     -------
@@ -114,6 +116,10 @@ def generate_blocks(payload: Dict[str, Any], thread_id: str) -> Blocks:
                 if fn_name not in _TOOL_MAP:
                     logger.error("Unknown tool call requested: %s", fn_name)
                     raise Exception("Unknown tool call requested: %s" % fn_name)
+
+                # Add collection_name to all tool calls that need it
+                if fn_name in ["search_menu", "get_chefs_picks", "list_all_items", "find_similar_items", "budget_friendly_options", "get_cart_pairings"]:
+                    fn_args["collection_name"] = collection_name
 
                 # Call the local Python helper
                 if fn_name in ["search_menu", "get_chefs_picks", "list_all_items", "find_similar_items", "budget_friendly_options", "get_cart_pairings"]:

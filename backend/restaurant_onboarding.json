@@ -1,0 +1,18 @@
+[
+    {
+        "restaurant_name": "handcrafted",
+        "image_directory": "/Users/prakharjain/code/aglio_ai/backend/raw_data/handcrafted",
+        "csv_file": "/Users/prakharjain/code/aglio_ai/backend/raw_data/handcrafted.csv",
+        "subdomain": "handcrafted",
+        "qdrant_db_name": "handcrafted_dishes",
+        "added2qdrant": true
+    },
+    {
+        "restaurant_name": "chianti",
+        "image_directory": "/Users/prakharjain/code/aglio_ai/backend/raw_data/chianti",
+        "csv_file": "/Users/prakharjain/code/aglio_ai/backend/raw_data/chianti.csv",
+        "subdomain": "chianti",
+        "qdrant_db_name": "chianti_dishes",
+        "added2qdrant": true
+    }
+]

@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, Header, Request
 from pydantic import BaseModel
 from typing import List, Optional, Literal
 
-from config import qd, qd_collection_name
+from config import qd
+from middleware.tenant_resolver import get_qdrant_collection
 from recommender import TextBlock
 from models import ResponseBlocks, ResponseDishCard, ResponseDishCarouselBlock
 
@@ -10,6 +11,7 @@ router = APIRouter()
 
 @router.get("/", response_model=ResponseBlocks, summary="Get featured dishes", response_description="Featured dishes in dish_carousal format")
 def read_featured(
+    request: Request,
     session_id: str = Header(..., alias="x-session-id"),
 ) -> ResponseBlocks:
     """
@@ -18,6 +20,9 @@ def read_featured(
     - **session_id**: Required session identifier
     - **Returns**: List of complete dish payloads marked as featured
     """
+    # Get tenant-specific collection name
+    collection_name = get_qdrant_collection(request)
+    
     # Query Qdrant for dishes with "featured": True
     filters = [{"key": "featured", "match": {"value": True}}]
     
@@ -27,7 +32,7 @@ def read_featured(
     
     while True:
         points = qd.scroll(
-            collection_name=qd_collection_name,
+            collection_name=collection_name,
             limit=limit,
             offset=offset,
             with_payload=True,

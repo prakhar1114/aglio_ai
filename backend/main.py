@@ -1,10 +1,15 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import numpy as np
 import uvicorn
-from config import rdb, qd, qd_collection_name, root_dir, DEBUG_MODE
+from loguru import logger
+import sys
+from contextlib import asynccontextmanager
+
+from config import rdb, qd, root_dir, DEBUG_MODE
+from middleware.tenant_resolver import tenant_middleware, tenant_resolver, get_qdrant_collection
 from urls.filtered_recommendations import router as filtered_router
 from urls.menu import router as menu_router
 from urls.chat import router as chat_router
@@ -13,13 +18,48 @@ from urls.featured import router as featured_router
 from urls.prev_orders import router as prev_orders_router
 from urls.upsell import router as upsell_router
 
-# Create the FastAPI app
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan event handler"""
+    # Startup
+    logger.info("🚀 Starting Aglio Multi-Tenant Restaurant API")
+    logger.info(f"🔧 Debug mode: {DEBUG_MODE}")
+    
+    # Display loaded restaurants status
+    tenant_count = len(tenant_resolver.restaurants_data)
+    logger.info(f"🏪 Found {tenant_count} restaurants")
+    
+    if tenant_count == 0:
+        logger.warning("⚠️  No restaurants loaded! Check restaurant_onboarding.json")
+    else:
+        for subdomain, info in tenant_resolver.restaurants_data.items():
+            status = "✅ Ready" if info.get("added2qdrant") else "⏳ Pending"
+            logger.info(f"   • {info['restaurant_name']} -> {subdomain}.aglioapp.com ({status})")
+    
+    yield
+    
+    # Shutdown (if needed)
+    logger.info("🛑 Shutting down Aglio Multi-Tenant Restaurant API")
+
+# Create the FastAPI app with lifespan
+app = FastAPI(
+    title="Aglio Multi-Tenant Restaurant API",
+    description="Multi-tenant restaurant recommendation and menu system",
+    version="2.0.0",
+    lifespan=lifespan
+)
+
+# Add tenant middleware first (before other middlewares)
+app.middleware("http")(tenant_middleware)
+
 app.mount(
     "/image_data",
     StaticFiles(directory=root_dir / "raw_data"),
     name="image_data",
 )
+
+# Include routers
 app.include_router(categories_router, prefix="/categories", tags=["categories"])
 app.include_router(menu_router, prefix="/menu", tags=["menu"])
 app.include_router(filtered_router, prefix="/filtered_recommendations", tags=["recommendations"])
@@ -28,118 +68,36 @@ app.include_router(prev_orders_router, prefix="/prev_orders", tags=["orders"])
 app.include_router(upsell_router, prefix="/upsell", tags=["upsell"])
 app.include_router(chat_router)
 
+# CORS configuration
+allowed_origins = ["*"] if DEBUG_MODE else [
+    "https://aglioapp.com",
+    "https://*.aglioapp.com",
+    "https://agliomenu.vercel.app",
+    "https://pin-menuapp.vercel.app",
+    "https://urchin-creative-supposedly.ngrok-free.app",
+]
+
 app.add_middleware(
     CORSMiddleware, 
-    allow_origins=["*" if DEBUG_MODE else "https://agliomenu.vercel.app"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-DIM = 1280
-EPS  = 0.1     # ε-greedy rate
+@app.get("/health")
+def health():
+    """Health check endpoint"""
+    return {"status": "healthy", "debug_mode": DEBUG_MODE}
 
-class Feedback(BaseModel):
-    session_id: str
-    id: int
-    action: str        # "maybe" | "skip"
-
-# -------- utility -------------------------------------------------------
-def vec_key(sess): return f"vec:{sess}"
-def stat_key(d):    return f"stat:{d}"
-def seen_key(sess): return f"seen:{sess}"
-
-def get_user_vec(sess_id):
-    raw = rdb.get(vec_key(sess_id))
-    if raw:
-        return np.frombuffer(raw, dtype=np.float32)
-    else:
-        # cold-start tiny random vector
-        return np.random.normal(0, 0.01, DIM).astype(np.float32)
-
-def set_user_vec(sess_id, vec):
-    rdb.set(vec_key(sess_id), vec.astype(np.float32).tobytes())
-
-def update_user_vec(vec, dish_vec, action):
-    if action=="maybe":  w=0.5
-    else:                w=-0.3
-    new_vec = vec + w* dish_vec
-    return new_vec / (np.linalg.norm(new_vec)+1e-8)
-
-# -------- endpoints -----------------------------------------------------
-@app.get("/recommend")
-def recommend(session_id: str, is_veg: bool|None=None, price_cap: int|None=None):
-    user_vec = get_user_vec(session_id)
-    filt = []
-    if is_veg is not None:
-        filt.append({"key": "veg_flag", "match": {"value": 1 if is_veg else 0}})
-    if price_cap is not None:
-        # use RangeCondition for numeric filtering
-        filt.append({"key": "price", "range": {"lte": price_cap}})
-    res = qd.search(qd_collection_name, user_vec.tolist(), query_filter={"must":filt} if filt else None, limit=10)
-    cand_ids = [hit.id for hit in res]
-
-    # seen-item filter: drop items already shown and reset when exhausted
-    seen = rdb.smembers(seen_key(session_id))
-    used = {int(x.decode()) for x in seen} if seen else set()
-    remaining = [d for d in cand_ids if d not in used]
-    if not remaining:
-        rdb.delete(seen_key(session_id))
-        remaining = cand_ids
-    cand_ids = remaining
-
-    # Thompson sampling for best candidate
-    samples = []
-    for d in cand_ids:
-        s = float(rdb.hget(stat_key(d), "reward") or 0)
-        r = float(rdb.hget(stat_key(d), "impr") or 0)
-        # Beta prior: add 1 to each count for smoothing
-        sample = np.random.beta(s + 1, r - s + 1 if r - s > 0 else 1)
-        samples.append((sample, d))
-    dish_id = max(samples)[1]
-
-    # record this recommendation
-    rdb.sadd(seen_key(session_id), dish_id)
-
-    payload = qd.retrieve(qd_collection_name, ids=[dish_id])[0].payload
-    return {"id": dish_id, **payload}
-
-@app.post("/feedback")
-def feedback(fb: Feedback):
-    dish = qd.retrieve(
-        qd_collection_name,
-        ids=[fb.id],
-        with_vectors=True
-    )[0]
-    vec  = np.array(dish.vector)
-
-    # --- bandit update
-    r  = 0.4 if fb.action=="maybe" else 0.0
-    pipe = rdb.pipeline()
-    pipe.hincrbyfloat(stat_key(fb.id),"reward", r)
-    pipe.hincrby(stat_key(fb.id),"impr", 1)
-    pipe.execute()
-
-    # --- preference vector update
-    uvec = get_user_vec(fb.session_id)
-    uvec = update_user_vec(uvec, vec, fb.action)
-    set_user_vec(fb.session_id, uvec)
-    # record feedback history per session and action
-    rdb.rpush(f"history:{fb.session_id}:{fb.action}", fb.id)
-    return {"ok": True}
-
-@app.get("/history")
-def history(session_id: str):
-    def fetch(action: str):
-        key = f"history:{session_id}:{action}"
-        ids = [int(x) for x in rdb.lrange(key, 0, -1)]
-        if not ids:
-            return []
-        recs = qd.retrieve(qd_collection_name, ids=ids)
-        return [{"id": r.id, **r.payload} for r in recs]
+@app.get("/tenant-info")
+def tenant_info(request: Request):
+    """Get current tenant information (useful for debugging)"""
     return {
-        "maybe": fetch("maybe"),
-        "skip":  fetch("skip"),
+        "tenant_id": request.state.tenant_id,
+        "restaurant_name": request.state.tenant_info["restaurant_name"],
+        "collection_name": request.state.qdrant_collection_name,
+        "debug_mode": DEBUG_MODE
     }
 
 if __name__ == "__main__":

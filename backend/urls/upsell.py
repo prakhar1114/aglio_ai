@@ -1,10 +1,11 @@
 import random
-from fastapi import APIRouter, Header, Query, Body
+from fastapi import APIRouter, Header, Query, Body, Request
 from pydantic import BaseModel
 from typing import Dict, List, Optional, Any
 import json
 
-from config import qd, qd_collection_name
+from config import qd
+from middleware.tenant_resolver import get_qdrant_collection
 from recommender import DishCard, TextBlock, Blocks, DishCarouselBlock
 from common.utils import enrich_blocks
 
@@ -12,6 +13,7 @@ router = APIRouter()
 
 @router.get("/", summary="Get upsell recommendations", response_description="Upsell recommendations based on cart and filters")
 def get_upsell_recommendations(
+    request: Request,
     session_id: str = Header(..., alias="x-session-id"),
     cart: Optional[str] = Query(None, description="JSON string of cart items"),
     is_veg: Optional[bool] = Query(None, description="Filter for vegetarian items"),
@@ -28,6 +30,9 @@ def get_upsell_recommendations(
     - **category**: Optional category filter
     - **Returns**: Upsell recommendations
     """
+    # Get tenant-specific collection name
+    collection_name = get_qdrant_collection(request)
+    
     # Parse cart items if provided
     cart_items = []
     cart_item_ids = set()
@@ -53,7 +58,7 @@ def get_upsell_recommendations(
     high_margin_items = []
     
     points, next_offset = qd.scroll(
-        collection_name=qd_collection_name,
+        collection_name=collection_name,
         limit=limit,
         offset=offset,
         with_payload=True,
@@ -100,7 +105,7 @@ def get_upsell_recommendations(
     
     # Create Blocks object and enrich with additional data
     response_blocks = Blocks(blocks=blocks)
-    enriched_blocks = enrich_blocks(response_blocks)
+    enriched_blocks = enrich_blocks(response_blocks, collection_name)
     
     return {
         "status": "success",

@@ -1,5 +1,6 @@
 // API Configuration
-const EXPO_PUBLIC_API = 'https://api.aglioapp.com';
+// const EXPO_PUBLIC_API = 'https://api.aglioapp.com';
+const EXPO_PUBLIC_API = 'http://localhost:8005';
 const sessionId = '123456';
 
 // Create API instance with base configuration
