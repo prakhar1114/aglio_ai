@@ -1,0 +1,25 @@
+{
+  "name": "@qrmenu/theme-loader",
+  "version": "1.0.0",
+  "description": "Theme loading utility for QR Menu applications",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {},
+  "devDependencies": {
+    "vite": "^5.1.4"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
+  }
+} 

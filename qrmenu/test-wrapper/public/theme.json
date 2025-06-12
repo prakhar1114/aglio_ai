@@ -1,0 +1,12 @@
+{
+  "brandColor": "#FF6B35",
+  "fontHeading": "'Poppins', sans-serif",
+  "secondaryColor": "#4ECDC4", 
+  "backgroundColor": "#F7F9FC",
+  "textColor": "#2C3E50",
+  "logo": "/logo.png",
+  "instagram": "@testrestaurant",
+  "extras": {
+    "heroBanner": "welcome-promo"
+  }
+} 

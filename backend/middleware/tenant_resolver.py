@@ -46,10 +46,10 @@ class TenantResolver:
         """Extract tenant subdomain from host header"""
         if debug_mode:
             # In debug mode, allow localhost and return default tenant
-            if "localhost" in host or "127.0.0.1" in host:
+            if "localhost" in host or "127.0.0.1" in host or "192.168.1" in host:
                 # Return first available tenant for local development
                 if self.restaurants_data:
-                    default_tenant = list(self.restaurants_data.keys())[0]
+                    default_tenant = list(self.restaurants_data.keys())[1]
                     logger.debug(f"Debug mode: Using default tenant '{default_tenant}' for localhost")
                     return default_tenant
                 return None
@@ -100,6 +100,19 @@ async def tenant_middleware(request: Request, call_next):
         4. Call call_next() to continue to the actual endpoint
         5. Return the response from the endpoint
     """
+    
+    # Skip tenant resolution for documentation and system routes
+    skip_paths = {
+        "/docs", "/redoc", "/openapi.json", 
+        "/health", "/",  # system endpoints
+        "/image_data"  # static files
+    }
+    
+    # Check if current path should skip tenant resolution
+    path = request.url.path
+    if path in skip_paths or path.startswith("/image_data/"):
+        logger.debug(f"Skipping tenant resolution for system path: {path}")
+        return await call_next(request)
     
     # Get debug mode from config (we'll import this dynamically to avoid circular imports)
     try:
