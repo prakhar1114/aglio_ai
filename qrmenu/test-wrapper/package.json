@@ -9,15 +9,19 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@qrmenu/theme-loader": "workspace:*",
+    "@egjs/react-infinitegrid": "^4.12.0",
+    "@heroicons/react": "^2.2.0",
     "@qrmenu/core": "workspace:*",
+    "@qrmenu/theme-loader": "workspace:*",
+    "@qrmenu/ui": "workspace:*",
+    "@tanstack/react-query": "^5.40.17",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "@qrmenu/ui": "workspace:*",
-    "@tanstack/react-query": "^5.40.17"
+    "react-router-dom": "^6.30.1",
+    "zustand": "^4.5.7"
   },
   "devDependencies": {
-    "vite": "^5.1.4",
-    "@vitejs/plugin-react": "^4.2.1"
+    "@vitejs/plugin-react": "^4.2.1",
+    "vite": "^5.1.4"
   }
-} 
+}

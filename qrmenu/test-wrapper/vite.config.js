@@ -7,6 +7,13 @@ export default defineConfig({
   define: {
     'import.meta.env.VITE_API_BASE': JSON.stringify('http://192.168.1.3:8005'),
   },
+  build: {
+    // Test wrapper is an app, not a library, so bundle everything
+    rollupOptions: {
+      // Don't externalize anything for the test wrapper
+      external: []
+    }
+  },
   resolve: {
     alias: {
       '@qrmenu/core': path.resolve('../packages/core/src'),

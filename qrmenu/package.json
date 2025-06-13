@@ -22,5 +22,11 @@
   "engines": {
     "node": ">=18",
     "pnpm": ">=8"
+  },
+  "dependencies": {
+    "@egjs/react-infinitegrid": "^4.12.0",
+    "@heroicons/react": "^2.2.0",
+    "react-router-dom": "^7.6.2",
+    "zustand": "^5.0.5"
   }
-} 
+}

@@ -11,7 +11,7 @@ export default defineConfig({
       formats: ['es']
     },
     rollupOptions: {
-      external: ['react', 'react-dom', '@egjs/react-infinitegrid', 'clsx', '@qrmenu/core'],
+      external: ['react', 'react-dom', 'react-router-dom', '@egjs/react-infinitegrid', 'clsx', '@qrmenu/core', '@tanstack/react-query', '@heroicons/react/24/outline'],
     },
     outDir: 'dist',
     sourcemap: true

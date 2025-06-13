@@ -70,8 +70,8 @@ export function ItemCard({ item }) {
 
   const buttonOverlayStyle = {
     position: 'absolute',
-    bottom: '8px',
-    right: '8px',
+    bottom: '4px',
+    right: '4px',
     zIndex: 10
   };
 
@@ -115,9 +115,83 @@ export function ItemCard({ item }) {
     overflow: 'hidden'
   };
 
+  // Style for cards without images
+  const noImageCardStyle = {
+    position: 'relative',
+    width: '100%',
+    height: '80px', // Even more compact height
+    background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: '6px',
+    textAlign: 'center'
+  };
+
+  const noImageContentStyle = {
+    display: 'flex',
+    // flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '2px',
+    width: '100%',
+    paddingRight: '0px' // Leave space for button
+  };
+
+  const noImageTitleStyle = {
+    fontSize: '12px',
+    fontWeight: '600',
+    color: '#1f2937',
+    lineHeight: '1.2',
+    wordBreak: 'break-word',
+    margin: '0',
+    overflow: 'hidden',
+    display: '-webkit-box',
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: 'vertical'
+  };
+
+  const noImagePriceStyle = {
+    fontSize: '11px',
+    color: '#6b7280',
+    fontWeight: '600',
+    margin: '0'
+  };
+
+  const noImageButtonStyle = {
+    padding: '4px 8px',
+    fontSize: '12px',
+    color: 'white',
+    borderRadius: '4px',
+    border: 'none',
+    background: 'linear-gradient(135deg, var(--brand, #D9232E) 0%, var(--brand, #D9232E) 100%)',
+    cursor: 'pointer',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+  };
+
+  const noImageButtonOverlayStyle = {
+    position: 'absolute',
+    bottom: '4px',
+    right: '4px',
+    zIndex: 10
+  };
+
+  const noImageQuantityPillStyle = {
+    display: 'flex',
+    alignItems: 'center',
+    background: 'white',
+    borderRadius: '12px',
+    border: '1px solid #d1d5db',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+    overflow: 'hidden',
+    fontSize: '11px'
+  };
+
   return (
     <div style={cardStyle}>
-      {item.image_url && (
+      {item.image_url ? (
+        // Card with image
         <div style={imageContainerStyle}>
           <img
             src={item.image_url}
@@ -152,11 +226,47 @@ export function ItemCard({ item }) {
             )}
           </div>
         </div>
+      ) : (
+        // Card without image
+        <div style={noImageCardStyle}>
+          <div style={noImageContentStyle}>
+            <h3 style={noImageTitleStyle}>{item.name}</h3>
+            <p style={noImagePriceStyle}>₹{item.price}</p>
+          </div>
+          <div style={noImageButtonOverlayStyle}>
+            {qty === 0 ? (
+              <button
+                onClick={handleAdd}
+                style={noImageButtonStyle}
+              >
+                Add
+              </button>
+            ) : (
+              <div style={noImageQuantityPillStyle}>
+                <button
+                  onClick={handleRemove}
+                  style={quantityButtonStyle}
+                >
+                  −
+                </button>
+                <span style={quantityStyle}>{qty}</span>
+                <button
+                  onClick={handleAdd}
+                  style={quantityButtonStyle}
+                >
+                  +
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       )}
-      <div style={contentStyle}>
-        <h3 style={titleStyle}>{item.name}</h3>
-        <p style={priceStyle}>₹{item.price}</p>
-      </div>
+      {item.image_url && (
+        <div style={contentStyle}>
+          <h3 style={titleStyle}>{item.name}</h3>
+          <p style={priceStyle}>₹{item.price}</p>
+        </div>
+      )}
     </div>
   );
 } 
