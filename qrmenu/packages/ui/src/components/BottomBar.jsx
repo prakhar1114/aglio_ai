@@ -3,17 +3,23 @@ import { useCartStore } from '@qrmenu/core';
 
 export function BottomBar({ onFiltersOpen, onAIChatOpen, onCartOpen }) {
   const totalCount = useCartStore((state) => state.totalCount());
+  const filterCount = useCartStore((state) => state.getFilterCount());
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-2 safe-area-pb z-50">
       <div className="flex items-center justify-between max-w-md mx-auto">
         
-        {/* Filters Button */}
+        {/* Filters Button with Badge */}
         <button
           onClick={onFiltersOpen}
-          className="flex flex-col items-center p-2 text-gray-600 hover:text-gray-800 transition-colors"
+          className="relative flex flex-col items-center p-2 text-gray-600 hover:text-gray-800 transition-colors"
         >
           <AdjustmentsHorizontalIcon className="w-6 h-6" />
+          {filterCount > 0 && (
+            <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1">
+              {filterCount}
+            </span>
+          )}
           <span className="text-xs mt-1">Filters</span>
         </button>
 

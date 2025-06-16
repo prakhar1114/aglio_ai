@@ -11,7 +11,7 @@ export function ItemCard({ item }) {
   const handleRemove = () => removeItem(item);
 
   const cardStyle = {
-    borderRadius: '8px',
+    borderRadius: '0px',
     overflow: 'hidden',
     boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
     backgroundColor: 'white',
@@ -76,7 +76,7 @@ export function ItemCard({ item }) {
   };
 
   const addButtonStyle = {
-    padding: '4px 8px',
+    padding: '2px 8px',
     fontSize: '12px',
     color: 'white',
     borderRadius: '4px',
@@ -160,7 +160,7 @@ export function ItemCard({ item }) {
   };
 
   const noImageButtonStyle = {
-    padding: '4px 8px',
+    padding: '2px 8px',
     fontSize: '12px',
     color: 'white',
     borderRadius: '4px',

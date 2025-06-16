@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Routes, Route, useNavigate } from 'react-router-dom';
+import './index.css';
 
 // Core / shared imports
 import { loadTheme } from '@qrmenu/theme-loader';

@@ -13,11 +13,14 @@ function MenuPage() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
-  const [currentFilters, setCurrentFilters] = useState({});
-  
+
   // Cart state for upsell timing
   const [hasCartEverOpened, setHasCartEverOpened] = useState(false);
   const totalCount = useCartStore((state) => state.totalCount());
+  
+  // Filter state from store
+  const currentFilters = useCartStore((state) => state.filters);
+  const setFilters = useCartStore((state) => state.setFilters);
 
   // Track when cart first opens for upsell popup
   useEffect(() => {
@@ -40,7 +43,7 @@ function MenuPage() {
   };
 
   const handleApplyFilters = (filters) => {
-    setCurrentFilters(filters);
+    setFilters(filters);
     console.log('Applied filters:', filters);
     // Filters are passed to MasonryFeed for API calls
   };
@@ -60,24 +63,11 @@ function MenuPage() {
     <div className="min-h-screen bg-gray-50 pb-20">
       {/* Main Content Area */}
       <div className="max-w-md mx-auto bg-white min-h-screen">
-        
-        {/* Header */}
-        <header className="sticky top-0 bg-white border-b border-gray-200 p-4 z-30">
-          <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold" style={{ color: 'var(--brand, #D9232E)' }}>
-              QR Menu
-            </h1>
-            {Object.keys(currentFilters).length > 0 && (
-              <span className="text-sm text-gray-500">
-                Filters applied
-              </span>
-            )}
-          </div>
-        </header>
-
         {/* Main Feed */}
         <main className="flex-1">
-          <MasonryFeed filters={currentFilters} />
+          <MasonryFeed 
+            filters={currentFilters}
+          />
         </main>
       </div>
 

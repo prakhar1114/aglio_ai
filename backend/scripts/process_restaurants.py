@@ -116,7 +116,7 @@ def build_embeddings(restaurant_data):
         df['id'] = range(len(df))
     
     # Add group_category and category_brief columns duplicating category
-    df['group_category'] = df['category']
+    df['group_category'] = df['group_category']
     df['category_brief'] = df['category']
     df['veg_flag'] = df['is_veg']
     

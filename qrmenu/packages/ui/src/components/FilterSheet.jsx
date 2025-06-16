@@ -1,23 +1,66 @@
 import { useState, useEffect } from 'react';
 import { XMarkIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { useCategories } from '@qrmenu/core';
+import { useCartStore } from '@qrmenu/core';
+import React from 'react';
 
 export function FilterSheet({ isOpen, onClose, onApplyFilters, initialFilters = {} }) {
+  // Get store filters and setters
+  const storeFilters = useCartStore((state) => state.filters);
+  const setStoreFilters = useCartStore((state) => state.setFilters);
+  const clearStoreFilters = useCartStore((state) => state.clearFilters);
+  
   const [filters, setFilters] = useState({
     category: [],
     isVeg: false,
-    priceRange: [0, 50],
+    priceRange: [0, 1000],
+    priceEnabled: false,
     ...initialFilters
   });
 
-  // Mock categories - in real app this would come from API
-  const categories = [
-    { id: 'pizza', name: 'Pizza', count: 12 },
-    { id: 'burger', name: 'Burgers', count: 8 },
-    { id: 'pasta', name: 'Pasta', count: 6 },
-    { id: 'salad', name: 'Salads', count: 4 },
-    { id: 'dessert', name: 'Desserts', count: 10 },
-    { id: 'beverage', name: 'Beverages', count: 15 }
-  ];
+  // Initialize filters from store when modal opens
+  const [hasInitialized, setHasInitialized] = React.useState(false);
+  
+  if (isOpen && !hasInitialized) {
+    setFilters({
+      category: [],
+      isVeg: false,
+      priceRange: [0, 1000],
+      priceEnabled: false,
+      ...storeFilters
+    });
+    setHasInitialized(true);
+  }
+  
+  if (!isOpen && hasInitialized) {
+    setHasInitialized(false);
+  }
+
+  // Fetch categories from API
+  const { data: categoriesData, isLoading: categoriesLoading, error: categoriesError } = useCategories();
+
+  // Process categories data to group by group_category and sum counts
+  const categories = React.useMemo(() => {
+    if (!categoriesData) return [];
+    
+    const groupedCategories = {};
+    
+    categoriesData.forEach(item => {
+      const groupCategory = item.group_category;
+      if (!groupedCategories[groupCategory]) {
+        groupedCategories[groupCategory] = {
+          id: groupCategory,
+          name: groupCategory,
+          count: 0,
+          veg_count: 0
+        };
+      }
+      groupedCategories[groupCategory].count += item.total_count;
+      groupedCategories[groupCategory].veg_count += item.veg_count;
+    });
+    
+    return Object.values(groupedCategories);
+  }, [categoriesData]);
 
   const handleCategoryToggle = (categoryId) => {
     setFilters(prev => ({
@@ -28,33 +71,37 @@ export function FilterSheet({ isOpen, onClose, onApplyFilters, initialFilters = 
     }));
   };
 
-  const handlePriceChange = (value, index) => {
+  const handlePriceChange = (value) => {
     setFilters(prev => ({
       ...prev,
-      priceRange: prev.priceRange.map((price, i) => i === index ? parseInt(value) : price)
+      priceRange: [0, parseInt(value)] // Only upper bound, lower bound always 0
     }));
   };
 
   const handleApply = () => {
+    // Update store directly
+    setStoreFilters(filters);
     onApplyFilters(filters);
     onClose();
   };
 
   const handleClear = () => {
-    setFilters({
+    const clearedFilters = {
       category: [],
       isVeg: false,
-      priceRange: [0, 50]
-    });
+      priceRange: [0, 1000],
+      priceEnabled: false
+    };
+    
+    // Update both local state and store
+    setFilters(clearedFilters);
+    clearStoreFilters();
+    onApplyFilters(clearedFilters);
+    onClose();
   };
 
-  const getActiveFiltersCount = () => {
-    let count = 0;
-    if (filters.category.length > 0) count++;
-    if (filters.isVeg) count++;
-    if (filters.priceRange[0] > 0 || filters.priceRange[1] < 50) count++;
-    return count;
-  };
+  // Use store-based filter count for consistency
+  const getFilterCount = useCartStore((state) => state.getFilterCount);
 
   if (!isOpen) return null;
 
@@ -63,23 +110,64 @@ export function FilterSheet({ isOpen, onClose, onApplyFilters, initialFilters = 
       {/* Backdrop */}
       <div 
         className="fixed inset-0 bg-black bg-opacity-50 z-40"
-        onClick={onClose}
+        onClick={() => {
+          // Reset local state to store state when closing without applying
+          setFilters({
+            category: [],
+            isVeg: false,
+            priceRange: [0, 1000],
+            priceEnabled: false,
+            ...storeFilters
+          });
+          onClose();
+        }}
       />
       
       {/* Sheet */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white z-50 rounded-t-2xl shadow-xl animate-slide-up max-h-[85vh] flex flex-col">
+      <div className="fixed bottom-0 left-0 right-0 bg-white z-50 rounded-t-2xl shadow-xl animate-slide-up max-h-[80vh] flex flex-col">
+        <style>{`
+          .slider::-webkit-slider-thumb {
+            appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #ef4444;
+            cursor: pointer;
+            border: 2px solid #ffffff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          }
+          .slider::-moz-range-thumb {
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #ef4444;
+            cursor: pointer;
+            border: 2px solid #ffffff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          }
+        `}</style>
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
+        <div className="flex items-center justify-between p-3 border-b">
           <div className="flex items-center space-x-2">
             <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
-            {getActiveFiltersCount() > 0 && (
+            {getFilterCount() > 0 && (
               <span className="bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                {getActiveFiltersCount()}
+                {getFilterCount()}
               </span>
             )}
           </div>
           <button
-            onClick={onClose}
+            onClick={() => {
+              // Reset local state to store state when closing without applying
+              setFilters({
+                category: [],
+                isVeg: false,
+                priceRange: [0, 1000],
+                priceEnabled: false,
+                ...storeFilters
+              });
+              onClose();
+            }}
             className="p-1 hover:bg-gray-100 rounded-full transition-colors"
           >
             <XMarkIcon className="w-6 h-6 text-gray-500" />
@@ -87,98 +175,96 @@ export function FilterSheet({ isOpen, onClose, onApplyFilters, initialFilters = 
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        <div className="flex-1 overflow-y-auto p-3 space-y-4">
           
           {/* Categories */}
           <div>
-            <h3 className="font-medium text-gray-900 mb-3">Categories</h3>
-            <div className="grid grid-cols-2 gap-2">
-              {categories.map((category) => (
-                <button
-                  key={category.id}
-                  onClick={() => handleCategoryToggle(category.id)}
-                  className={`p-3 rounded-lg border text-left transition-colors ${
-                    filters.category.includes(category.id)
-                      ? 'bg-red-50 border-red-200 text-red-700'
-                      : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium">{category.name}</span>
-                    {filters.category.includes(category.id) && (
-                      <CheckIcon className="w-4 h-4 text-red-500" />
-                    )}
-                  </div>
-                  <span className="text-sm text-gray-500">{category.count} items</span>
-                </button>
-              ))}
+            <h3 className="font-medium text-gray-900 mb-2">Categories</h3>
+            <div className="flex flex-wrap gap-2">
+              {categoriesLoading ? (
+                <div className="text-sm text-gray-500">Loading categories...</div>
+              ) : categoriesError ? (
+                <div className="text-sm text-red-500">Error loading categories</div>
+              ) : categories.length === 0 ? (
+                <div className="text-sm text-gray-500">No categories available</div>
+              ) : (
+                categories.map((category) => (
+                  <button
+                    key={category.id}
+                    onClick={() => handleCategoryToggle(category.id)}
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                      filters.category.includes(category.id)
+                        ? 'bg-red-500 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {category.name} ({category.count})
+                  </button>
+                ))
+              )}
             </div>
           </div>
 
           {/* Dietary Preferences */}
           <div>
-            <h3 className="font-medium text-gray-900 mb-3">Dietary Preferences</h3>
-            <label className="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-              <input
-                type="checkbox"
-                checked={filters.isVeg}
-                onChange={(e) => setFilters(prev => ({ ...prev, isVeg: e.target.checked }))}
-                className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
-              />
-              <div>
-                <span className="font-medium text-gray-900">Vegetarian Only</span>
-                <p className="text-sm text-gray-500">Show only vegetarian items</p>
-              </div>
-            </label>
+            <h3 className="font-medium text-gray-900 mb-2">Dietary Preferences</h3>
+            <button
+              onClick={() => setFilters(prev => ({ ...prev, isVeg: !prev.isVeg }))}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                filters.isVeg
+                  ? 'bg-green-500 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Veg Only
+            </button>
           </div>
 
           {/* Price Range */}
           <div>
-            <h3 className="font-medium text-gray-900 mb-3">Price Range</h3>
-            <div className="space-y-3">
-              <div className="flex items-center space-x-4">
-                <div className="flex-1">
-                  <label className="block text-sm text-gray-600 mb-1">Min Price</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="49"
-                    value={filters.priceRange[0]}
-                    onChange={(e) => handlePriceChange(e.target.value, 0)}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:border-red-500"
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="block text-sm text-gray-600 mb-1">Max Price</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="50"
-                    value={filters.priceRange[1]}
-                    onChange={(e) => handlePriceChange(e.target.value, 1)}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:border-red-500"
-                  />
-                </div>
-              </div>
-              <div className="text-sm text-gray-600 text-center">
-                ${filters.priceRange[0]} - ${filters.priceRange[1]}
-              </div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={filters.priceEnabled}
+                  onChange={(e) => setFilters(prev => ({ ...prev, priceEnabled: e.target.checked }))}
+                  className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                />
+                <h3 className="font-medium text-gray-900">Max Price</h3>
+              </label>
+              {filters.priceEnabled && (
+                <span className="text-sm font-medium text-gray-700">₹{filters.priceRange[1]}</span>
+              )}
             </div>
+            {filters.priceEnabled && (
+              <input
+                type="range"
+                min="200"
+                max="2000"
+                step="50"
+                value={filters.priceRange[1]}
+                onChange={(e) => handlePriceChange(e.target.value)}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                style={{
+                  background: `linear-gradient(to right, #ef4444 0%, #ef4444 ${((filters.priceRange[1] - 200) / (2000 - 200)) * 100}%, #e5e7eb ${((filters.priceRange[1] - 200) / (2000 - 200)) * 100}%, #e5e7eb 100%)`
+                }}
+              />
+            )}
           </div>
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t bg-gray-50">
+        <div className="p-3 border-t bg-gray-50">
           <div className="flex space-x-3">
             <button
               onClick={handleClear}
-              className="flex-1 py-3 px-4 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              className="flex-1 py-2.5 px-4 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 active:scale-95 active:bg-gray-100 transition-all duration-150 ease-in-out"
             >
               Clear All
             </button>
             <button
               onClick={handleApply}
-              className="flex-1 py-3 px-4 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+              className="flex-1 py-2.5 px-4 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
             >
               Apply Filters
             </button>

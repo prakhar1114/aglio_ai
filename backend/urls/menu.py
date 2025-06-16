@@ -55,7 +55,8 @@ def read_menu(
     # For first request, cursor is empty string, which we treat as None
     offset = cursor if cursor else None
 
-    limit = 20  # Reasonable page size for infinite scroll
+    # Increased page size so that the UI can build the entire masonry grid in one request
+    limit = 500  # Fetch a large batch at once; remaining items (if any) can still be paged
     
     points, next_offset = qd.scroll(
         collection_name=collection_name,
