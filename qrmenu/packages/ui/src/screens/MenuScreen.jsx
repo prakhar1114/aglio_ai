@@ -7,12 +7,17 @@ import { CartDrawer } from '../components/CartDrawer.jsx';
 import { FilterSheet } from '../components/FilterSheet.jsx';
 import { AIChatDrawer } from '../components/AIChatDrawer.jsx';
 import { UpsellPopup } from '../components/UpsellPopup.jsx';
+import { OrderConfirmationSheet } from '../components/OrderConfirmationSheet.jsx';
+import { MyOrdersDrawer } from '../components/MyOrdersDrawer.jsx';
 
 function MenuPage() {
   // UI State Management
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
+  const [isOrderConfirmationOpen, setIsOrderConfirmationOpen] = useState(false);
+  const [isMyOrdersOpen, setIsMyOrdersOpen] = useState(false);
+  const [lastPlacedOrder, setLastPlacedOrder] = useState(null);
 
   // Cart state for upsell timing
   const [hasCartEverOpened, setHasCartEverOpened] = useState(false);
@@ -21,6 +26,9 @@ function MenuPage() {
   // Filter state from store
   const currentFilters = useCartStore((state) => state.filters);
   const setFilters = useCartStore((state) => state.setFilters);
+  
+  // Order state from store
+  const addOrder = useCartStore((state) => state.addOrder);
 
   // Track when cart first opens for upsell popup
   useEffect(() => {
@@ -50,13 +58,33 @@ function MenuPage() {
 
   const handleCheckout = (cartItems, total) => {
     console.log('Proceeding to checkout:', { cartItems, total });
-    // TODO: Implement checkout flow
+    
+    // Create order and clear cart
+    const newOrder = addOrder();
+    setLastPlacedOrder(newOrder);
+    
+    // Close cart and show confirmation
     setIsCartOpen(false);
+    setIsOrderConfirmationOpen(true);
   };
 
   const handleUpsellClose = () => {
     // Upsell popup manages its own visibility
     console.log('Upsell popup closed');
+  };
+
+  const handleMyOrdersOpen = () => {
+    setIsMyOrdersOpen(true);
+  };
+
+  const handleOrderConfirmationClose = () => {
+    setIsOrderConfirmationOpen(false);
+    setLastPlacedOrder(null);
+  };
+
+  const handleViewOrdersFromConfirmation = () => {
+    setIsOrderConfirmationOpen(false);
+    setIsMyOrdersOpen(true);
   };
 
   return (
@@ -76,6 +104,7 @@ function MenuPage() {
         onFiltersOpen={handleFiltersOpen}
         onAIChatOpen={handleAIChatOpen}
         onCartOpen={handleCartOpen}
+        onMyOrdersOpen={handleMyOrdersOpen}
       />
 
       {/* Drawers and Popups */}
@@ -100,6 +129,18 @@ function MenuPage() {
       <UpsellPopup
         isCartOpen={hasCartEverOpened}
         onClose={handleUpsellClose}
+      />
+
+      <OrderConfirmationSheet
+        isOpen={isOrderConfirmationOpen}
+        onClose={handleOrderConfirmationClose}
+        onViewOrders={handleViewOrdersFromConfirmation}
+        placedOrder={lastPlacedOrder}
+      />
+
+      <MyOrdersDrawer
+        isOpen={isMyOrdersOpen}
+        onClose={() => setIsMyOrdersOpen(false)}
       />
     </div>
   );

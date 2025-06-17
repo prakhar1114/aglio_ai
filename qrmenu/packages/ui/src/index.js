@@ -12,6 +12,8 @@ export { UpsellPopup } from './components/UpsellPopup.jsx';
 export { AIChatDrawer } from './components/AIChatDrawer.jsx';
 export { FilterSheet } from './components/FilterSheet.jsx';
 export { CartDrawer } from './components/CartDrawer.jsx';
+export { OrderConfirmationSheet } from './components/OrderConfirmationSheet.jsx';
+export { MyOrdersDrawer } from './components/MyOrdersDrawer.jsx';
 
 // Complete Screens (compose individual components + core functionality)
 export { MenuScreen } from './screens/MenuScreen.jsx';
