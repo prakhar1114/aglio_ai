@@ -7,7 +7,14 @@ const BASE_API = import.meta.env.VITE_API_BASE || '';
 function buildQueryString(params) {
   const usp = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => {
-    if (v != null && v !== '') usp.append(k, v);
+    if (v != null && v !== '') {
+      // Handle arrays by appending each item separately
+      if (Array.isArray(v)) {
+        v.forEach(item => usp.append(k, item));
+      } else {
+        usp.append(k, v);
+      }
+    }
   });
   return usp.toString();
 }
@@ -53,7 +60,27 @@ export const useMenu = (filters = {}) => {
   return useInfiniteQuery({
     queryKey: ['menu', filters],
     queryFn: async ({ pageParam }) => {
-      const queryString = buildQueryString({ cursor: pageParam ?? '', ...filters });
+      // Map frontend filter names to backend API parameter names
+      const mappedFilters = {};
+      
+      // Map isVeg -> is_veg
+      if (filters.isVeg !== undefined) {
+        mappedFilters.is_veg = filters.isVeg;
+      }
+      
+      // Map category -> group_category
+      if (filters.category && filters.category.length > 0) {
+        mappedFilters.group_category = filters.category;
+      }
+      
+      // Map priceRange + priceEnabled -> price_cap
+      if (filters.priceEnabled && filters.priceRange && filters.priceRange[1]) {
+        mappedFilters.price_cap = filters.priceRange[1];
+      }
+      
+      const queryString = buildQueryString({ cursor: pageParam ?? '', ...mappedFilters });
+      console.log("original filters ", filters);
+      console.log("mapped filters ", mappedFilters);
       const path = `/menu/?${queryString}`;
       const res = await fetchWithFallback(path, {
         headers: { 'x-session-id': getSessionId() },

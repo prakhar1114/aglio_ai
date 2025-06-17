@@ -198,7 +198,7 @@ export function FilterSheet({ isOpen, onClose, onApplyFilters, initialFilters = 
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
-                    {category.name} ({category.count})
+                    {category.name} ({filters.isVeg ? category.veg_count : category.count})
                   </button>
                 ))
               )}

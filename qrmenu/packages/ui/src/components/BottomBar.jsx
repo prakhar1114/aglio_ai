@@ -43,7 +43,7 @@ export function BottomBar({ onFiltersOpen, onAIChatOpen, onCartOpen }) {
           className="flex flex-col items-center p-2 text-gray-600 hover:text-gray-800 transition-colors"
         >
           <ChatBubbleLeftIcon className="w-6 h-6" />
-          <span className="text-xs mt-1">AI Help</span>
+          <span className="text-xs mt-1">Ask AI</span>
         </button>
       </div>
     </div>

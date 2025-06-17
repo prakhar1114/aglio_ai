@@ -1,6 +1,6 @@
 import React, { useRef, useState, useMemo } from 'react';
 import { GroupedVirtuoso } from 'react-virtuoso';
-import { useMenu, useCategories } from '@qrmenu/core';
+import { useMenu } from '@qrmenu/core';
 import { FeedItemSwitcher } from './FeedItemSwitcher.jsx';
 import { CategoryDropdown } from './CategoryDropdown.jsx';
 
@@ -15,11 +15,6 @@ export function MasonryFeed({ filters = {}, gap = 2 }) {
   const [currentVisibleCategory, setCurrentVisibleCategory] = useState(null);
   
   // Fetch data
-  const { data: categoriesRes } = useCategories();
-  const dropdownCategories = Array.isArray(categoriesRes)
-    ? Array.from(new Set(categoriesRes.map((c) => (c.category_brief ?? c).trim())))
-    : categoriesRes?.categories?.map((c)=> (typeof c === 'string' ? c.trim(): c)) ?? [];
-
   const {
     data,
     fetchNextPage,
@@ -30,7 +25,7 @@ export function MasonryFeed({ filters = {}, gap = 2 }) {
   } = useMenu(filters);
 
   // Transform and group data
-  const { groupedData, groupCounts, categoryIndexMap, categories } = useMemo(() => {
+  const { groupedData, groupCounts, categoryIndexMap, categories, dropdownCategories, hasAnyItems } = useMemo(() => {
     const fetchedItems = data ? data.pages.flatMap((p) => p.items) : [];
     const transformedItems = fetchedItems
       .filter(item => item && item.id)
@@ -38,6 +33,15 @@ export function MasonryFeed({ filters = {}, gap = 2 }) {
         ...item,
         kind: 'food',
       }));
+
+    // Extract unique categories for dropdown from all fetched items
+    const allCategories = new Set();
+    fetchedItems.forEach(item => {
+      if (item && item.category_brief) {
+        allCategories.add(item.category_brief.trim());
+      }
+    });
+    const dropdownCategories = Array.from(allCategories);
 
     // Group items by category_brief
     const grouped = {};
@@ -58,7 +62,9 @@ export function MasonryFeed({ filters = {}, gap = 2 }) {
     const groupedData = categories.map(cat => [grouped[cat]]); // Wrap each group in an array
     const groupCounts = groupedData.map(() => 1); // Each group renders as 1 item (the complete grid)
 
-    return { groupedData, groupCounts, categoryIndexMap, categories };
+    const hasAnyItems = transformedItems.length > 0;
+
+    return { groupedData, groupCounts, categoryIndexMap, categories, dropdownCategories, hasAnyItems };
   }, [data]);
 
 
@@ -119,6 +125,30 @@ export function MasonryFeed({ filters = {}, gap = 2 }) {
         <h3 className="text-lg font-medium text-gray-900 mb-2">Something went wrong</h3>
         <p className="text-gray-500">Error: {error.message}</p>
         <p className="text-gray-400 text-sm mt-2">API: {import.meta.env.VITE_API_BASE || 'http://localhost:8005'}</p>
+      </div>
+    );
+  }
+
+  // Check for filters applied (any active filter)
+  const hasActiveFilters = Object.values(filters).some(value => {
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'object' && value !== null) return Object.keys(value).length > 0;
+    return value !== undefined && value !== null && value !== '';
+  });
+
+  // Show no items found message when there are no items and filters are applied
+  if (!isLoading && !hasAnyItems && hasActiveFilters) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-center px-6">
+        <div className="text-4xl mb-4">🍽️</div>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">No Items Found</h3>
+        <p className="text-gray-500 mb-4">
+          We couldn't find any items matching your current filters.
+        </p>
+        <p className="text-sm text-gray-400">
+          Try relaxing your filters to see more options.
+        </p>
       </div>
     );
   }

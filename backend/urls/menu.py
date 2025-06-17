@@ -27,7 +27,7 @@ def read_menu(
     request: Request,
     session_id: str = Header(..., alias="x-session-id"),
     cursor: Optional[int] = Query("", description="Pagination cursor"),
-    group_category: Optional[str] = None,
+    group_category: Optional[list[str]] = Query(None),
     category_brief: Optional[list[str]] = Query(None),
     is_veg: Optional[bool] = None,
     price_cap: Optional[float] = None,
@@ -39,14 +39,18 @@ def read_menu(
     collection_name = tenant_info["qdrant_db_name"]
     
     filters = []
-    print(category_brief)
+    print("group_category ", group_category)
+    if group_category:
+        # Handle case where frontend sends comma-separated string in a single list item
+        if len(group_category) == 1:
+            filters.append({"key": "group_category", "match": {"value": group_category[0]}})
+        else:
+            filters.append({"key": "group_category", "match": {"any": group_category}})
     if category_brief:
         if len(category_brief) == 1:
             filters.append({"key": "category_brief", "match": {"value": category_brief[0]}})
         else:
             filters.append({"key": "category_brief", "match": {"any": category_brief}})
-    # elif group_category is not None:
-    #     filters.append({"key": "category_brief", "match": {"value": group_category}})
     if is_veg is not None and is_veg:
         filters.append({"key": "veg_flag", "match": {"value": 1}})
     if price_cap is not None:
@@ -80,7 +84,7 @@ def read_menu(
                 price=(p.payload or {}).get("price"),
                 veg_flag=bool((p.payload or {}).get("veg_flag")),
                 image_url="image_data/" + image_base_dir + "/" + (p.payload or {}).get("image_path") if (p.payload or {}).get("image_path") else None,
-                category_brief="Promotions",  # Set category as Promotions
+                category_brief="Recommendations",  # Set category as Promotions
             )
             for p in promoted_points
         ]
