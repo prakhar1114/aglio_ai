@@ -11,15 +11,16 @@ export function ItemCard({ item }) {
   const handleRemove = () => removeItem(item);
 
   const cardStyle = {
-    borderRadius: '0px',
+    borderRadius: '12px', // theme radius.lg
     overflow: 'hidden',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-    backgroundColor: 'white',
+    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06)', // theme shadows.lg
+    backgroundColor: '#FFFFFF', // theme colors.surface
     display: 'flex',
     flexDirection: 'column',
-    border: '1px solid #e5e7eb',
+    border: '1px solid #E5E7EB', // theme colors.border.light
     width: '100%',
-    margin: 0
+    margin: 0,
+    transition: 'all 0.2s ease-in-out'
   };
 
   const imageContainerStyle = {
@@ -36,82 +37,117 @@ export function ItemCard({ item }) {
     display: 'block'
   };
 
+  const videoStyle = {
+    aspectRatio: '1',
+    objectFit: 'cover',
+    width: '100%',
+    height: '100%',
+    display: 'block'
+  };
+
+  // Helper function to check if URL is a video
+  const isVideoUrl = (url) => {
+    if (!url) return false;
+    const videoExtensions = ['.mp4', '.webm', '.ogg', '.mov', '.avi'];
+    return videoExtensions.some(ext => url.toLowerCase().includes(ext));
+  };
+
   const contentStyle = {
-    padding: '2px 8px',
+    padding: '8px 12px', // theme spacing sm + md
     display: 'flex',
     alignItems: 'center',
-    gap: '4px',
-    minHeight: '20px'
+    gap: '8px', // theme spacing.sm
+    minHeight: '44px',
+    backgroundColor: 'rgba(250, 251, 252, 0.95)', // theme colors.surfaceElevated with subtle transparency
+    backdropFilter: 'blur(8px)', // Subtle blur for Apple-like elevation
+    WebkitBackdropFilter: 'blur(8px)'
   };
 
   const titleStyle = {
-    fontSize: '10px',
-    fontWeight: '500',
-    color: '#1f2937',
-    lineHeight: '1.1',
+    fontSize: '14px', // theme typography.sizes.sm
+    fontWeight: '600', // theme typography.weights.semibold
+    color: '#1C1C1E', // theme colors.text.primary
+    lineHeight: '1.4', // theme typography.lineHeights.normal
+    fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", // theme typography.fontFamily
     wordBreak: 'break-word',
     flex: '1',
     margin: 0,
     padding: 0,
     overflow: 'hidden',
     display: '-webkit-box',
-    WebkitLineClamp: 1,
+    WebkitLineClamp: 2,
     WebkitBoxOrient: 'vertical'
   };
 
   const priceStyle = {
-    fontSize: '9px',
-    color: '#6b7280',
+    fontSize: '12px', // theme typography.sizes.xs
+    color: '#E23744', // theme colors.primary (Zomato Red)
     whiteSpace: 'nowrap',
-    fontWeight: '500',
+    fontWeight: '700', // theme typography.weights.bold
+    fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     margin: 0,
     padding: 0
   };
 
   const buttonOverlayStyle = {
     position: 'absolute',
-    bottom: '4px',
-    right: '4px',
+    bottom: '6px', // Closer to corner, Apple-style
+    right: '6px', // Closer to corner, Apple-style
     zIndex: 10
   };
 
   const addButtonStyle = {
-    padding: '2px 8px',
-    fontSize: '12px',
-    color: 'white',
-    borderRadius: '4px',
+    padding: '6px', // Reduced footprint - square aspect ratio
+    fontSize: '12px', // theme typography.sizes.xs
+    color: '#FFFFFF', // theme colors.text.inverse
+    borderRadius: '6px', // Slightly smaller radius to match smaller size
     border: 'none',
-    background: 'var(--brand, #D9232E)',
+    background: '#E23744', // theme colors.primary (Zomato Red)
     cursor: 'pointer',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.15)', // Subtle shadow for smaller element
+    fontWeight: '600', // theme typography.weights.semibold
+    fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    transition: 'all 0.2s ease-in-out',
+    width: '28px', // Explicit size for perfect square
+    height: '28px', // Maintains minimum touch target
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ':hover': {
+      transform: 'translateY(-1px)',
+      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.2)'
+    }
   };
 
   const quantityButtonStyle = {
-    padding: '2px 6px',
-    fontSize: '12px',
+    padding: '4px 8px', // theme spacing xs + sm
+    fontSize: '12px', // theme typography.sizes.xs
     border: 'none',
     background: 'transparent',
     cursor: 'pointer',
-    color: '#374151',
-    fontWeight: '500'
+    color: '#1C1C1E', // theme colors.text.primary
+    fontWeight: '600', // theme typography.weights.semibold
+    fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    transition: 'all 0.15s ease-in-out'
   };
 
   const quantityStyle = {
-    padding: '0 4px',
-    fontSize: '12px',
-    fontWeight: '500',
-    color: '#374151',
-    minWidth: '16px',
+    padding: '0 8px', // theme spacing.sm
+    fontSize: '12px', // theme typography.sizes.xs
+    fontWeight: '600', // theme typography.weights.semibold
+    color: '#1C1C1E', // theme colors.text.primary
+    fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    minWidth: '20px',
     textAlign: 'center'
   };
 
   const quantityPillStyle = {
     display: 'flex',
     alignItems: 'center',
-    background: 'white',
-    borderRadius: '12px',
-    border: '1px solid #d1d5db',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+    background: '#FFFFFF', // theme colors.surface
+    borderRadius: '16px', // theme radius.xl
+    border: '1px solid #E5E7EB', // theme colors.border.light
+    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06)', // theme shadows.lg
     overflow: 'hidden'
   };
 
@@ -119,31 +155,34 @@ export function ItemCard({ item }) {
   const noImageCardStyle = {
     position: 'relative',
     width: '100%',
-    height: '80px', // Even more compact height
-    background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
+    height: '96px', // Increased height for better proportions
+    background: 'linear-gradient(135deg, rgba(250, 251, 252, 0.8) 0%, rgba(247, 249, 252, 0.6) 100%)', // theme colors with subtle transparency
+    backdropFilter: 'blur(12px)', // Enhanced blur for no-image cards
+    WebkitBackdropFilter: 'blur(12px)',
+    border: '1px solid rgba(229, 231, 235, 0.3)', // theme colors.border.light with transparency
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: '6px',
+    padding: '12px', // theme spacing.md
     textAlign: 'center'
   };
 
   const noImageContentStyle = {
     display: 'flex',
-    // flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: '2px',
+    gap: '8px', // theme spacing.sm
     width: '100%',
-    paddingRight: '0px' // Leave space for button
+    paddingRight: '0px'
   };
 
   const noImageTitleStyle = {
-    fontSize: '12px',
-    fontWeight: '600',
-    color: '#1f2937',
-    lineHeight: '1.2',
+    fontSize: '14px', // theme typography.sizes.sm
+    fontWeight: '600', // theme typography.weights.semibold
+    color: '#1C1C1E', // theme colors.text.primary
+    lineHeight: '1.4', // theme typography.lineHeights.normal
+    fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", // theme typography.fontFamily
     wordBreak: 'break-word',
     margin: '0',
     overflow: 'hidden',
@@ -153,59 +192,94 @@ export function ItemCard({ item }) {
   };
 
   const noImagePriceStyle = {
-    fontSize: '11px',
-    color: '#6b7280',
-    fontWeight: '600',
+    fontSize: '12px', // theme typography.sizes.xs
+    color: '#E23744', // theme colors.primary (Zomato Red)
+    fontWeight: '700', // theme typography.weights.bold
+    fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     margin: '0'
   };
 
   const noImageButtonStyle = {
-    padding: '2px 8px',
-    fontSize: '12px',
-    color: 'white',
-    borderRadius: '4px',
+    padding: '6px', // Reduced footprint - square aspect ratio
+    fontSize: '12px', // theme typography.sizes.xs
+    color: '#FFFFFF', // theme colors.text.inverse
+    borderRadius: '6px', // Slightly smaller radius to match smaller size
     border: 'none',
-    background: 'linear-gradient(135deg, var(--brand, #D9232E) 0%, var(--brand, #D9232E) 100%)',
+    background: '#E23744', // theme colors.primary (Zomato Red)
     cursor: 'pointer',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.15)', // Subtle shadow for smaller element
+    fontWeight: '600', // theme typography.weights.semibold
+    fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    transition: 'all 0.2s ease-in-out',
+    width: '28px', // Explicit size for perfect square
+    height: '28px', // Maintains minimum touch target
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
   };
 
   const noImageButtonOverlayStyle = {
     position: 'absolute',
-    bottom: '4px',
-    right: '4px',
+    bottom: '6px', // Closer to corner, Apple-style
+    right: '6px', // Closer to corner, Apple-style
     zIndex: 10
   };
 
   const noImageQuantityPillStyle = {
     display: 'flex',
     alignItems: 'center',
-    background: 'white',
-    borderRadius: '12px',
-    border: '1px solid #d1d5db',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+    background: '#FFFFFF', // theme colors.surface
+    borderRadius: '16px', // theme radius.xl
+    border: '1px solid #E5E7EB', // theme colors.border.light
+    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06)', // theme shadows.lg
     overflow: 'hidden',
-    fontSize: '11px'
+    fontSize: '12px' // theme typography.sizes.xs
   };
 
   return (
     <div style={cardStyle}>
       {item.image_url ? (
-        // Card with image
+        // Card with image or video
         <div style={imageContainerStyle}>
-          <img
-            src={item.image_url}
-            alt={item.name}
-            style={imageStyle}
-            loading="lazy"
-          />
+          {isVideoUrl(item.image_url) ? (
+            <video
+              src={item.image_url}
+              style={videoStyle}
+              autoPlay
+              loop
+              muted={true}
+              playsInline
+              controls={false}
+            />
+          ) : (
+            <img
+              src={item.image_url}
+              alt={item.name}
+              style={imageStyle}
+              loading="lazy"
+            />
+          )}
           <div style={buttonOverlayStyle}>
             {qty === 0 ? (
               <button
                 onClick={handleAdd}
                 style={addButtonStyle}
               >
-                Add
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M12 5v14m-7-7h14"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
               </button>
             ) : (
               <div style={quantityPillStyle}>
@@ -239,7 +313,21 @@ export function ItemCard({ item }) {
                 onClick={handleAdd}
                 style={noImageButtonStyle}
               >
-                Add
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M12 5v14m-7-7h14"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
               </button>
             ) : (
               <div style={noImageQuantityPillStyle}>

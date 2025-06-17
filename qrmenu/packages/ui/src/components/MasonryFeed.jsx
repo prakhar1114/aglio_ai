@@ -63,12 +63,7 @@ export function MasonryFeed({ filters = {}, gap = 2 }) {
 
 
 
-  // Fallback: Set first category as visible when categories are available and no category is set
-  React.useEffect(() => {
-    if (categories.length > 0 && !currentVisibleCategory) {
-      setCurrentVisibleCategory(categories[0]);
-    }
-  }, [categories, currentVisibleCategory]);
+
 
   // Calculate responsive column count based on viewport width
   const getColumnCount = () => {
@@ -102,12 +97,12 @@ export function MasonryFeed({ filters = {}, gap = 2 }) {
       const visibleGroupIndex = range.startIndex;
       const visibleCategory = categories[visibleGroupIndex];
       
-      // Only update if category changed to prevent unnecessary re-renders
-      if (visibleCategory && visibleCategory !== currentVisibleCategory) {
+      // React's setState only triggers re-render if value actually changes
+      if (visibleCategory) {
         setCurrentVisibleCategory(visibleCategory);
       }
     }
-  }, [categories, currentVisibleCategory]);
+  }, [categories]);
 
   if (isLoading) {
     return (
@@ -196,24 +191,62 @@ export function MasonryFeed({ filters = {}, gap = 2 }) {
               >
                 <button
                   onClick={() => setIsDropdownOpen((prev) => !prev)}
-                  className="bg-white/40 backdrop-blur-lg px-3 py-1.5 rounded-lg shadow-lg text-sm font-medium flex items-center space-x-2 hover:bg-white/75 transition-all duration-200 border border-gray-200/20"
                   style={{
                     position: 'absolute',
                     top: '4px',
-                    left: '4px',
+                    left: '6px',
                     zIndex: 100,
+                    background: 'rgba(255, 255, 255, 0.92)', // Subtle transparency as requested
+                    backdropFilter: 'blur(8px)', // Light blur for premium feel
+                    WebkitBackdropFilter: 'blur(8px)',
+                    padding: '6px 10px', // Reduced footprint: smaller padding
+                    borderRadius: '6px', // Smaller border radius to match reduced size
+                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)', // Lighter shadow for smaller element
+                    border: '1px solid rgba(229, 231, 235, 0.6)', // More transparent border
+                    fontSize: '14px', // Same font size as requested
+                    fontWeight: '600', // theme typography.weights.semibold
+                    fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px', // Reduced gap for smaller footprint
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease-in-out',
+                    lineHeight: '1.4',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.background = 'rgba(255, 255, 255, 0.98)';
+                    e.target.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.12)';
+                    e.target.style.transform = 'translateY(-0.5px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.background = 'rgba(255, 255, 255, 0.92)';
+                    e.target.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.08)';
+                    e.target.style.transform = 'translateY(0)';
                   }}
                 >
-                  <span className="text-gray-800">{category}</span>
+                  <span style={{ 
+                    color: '#1C1C1E', // Same black as dish names (theme colors.text.primary)
+                    fontWeight: '600',
+                    letterSpacing: '-0.01em'
+                  }}>
+                    {category}
+                  </span>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className={`h-4 w-4 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}
-                    fill="none"
+                    width="12" // Smaller icon for reduced footprint
+                    height="12"
                     viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
+                    fill="none"
+                    stroke="#6B7280" // theme colors.text.secondary
+                    strokeWidth="2.5" // Slightly bolder for smaller size
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    style={{
+                      transition: 'transform 0.15s ease-in-out',
+                      transform: isDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)'
+                    }}
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    <path d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
               </div>
@@ -223,6 +256,16 @@ export function MasonryFeed({ filters = {}, gap = 2 }) {
             const groupItems = groupedData[groupIndex][0]; // Get all items in this group
             const category = (groupItems[0]?.category_brief || '').trim();
             
+            // Apple-like subtle alternating backgrounds for visual differentiation
+            const getBackgroundForCategory = (index) => {
+              const backgrounds = [
+                '#F7F9FC', // theme colors.background
+                'rgba(226, 55, 68, 0.02)', // theme colors.primarySubtle (very subtle Zomato red tint)
+                'rgba(250, 251, 252, 1)', // theme colors.surfaceElevated
+              ];
+              return backgrounds[index % backgrounds.length];
+            };
+            
             return (
               <div
                 className="masonry-container"
@@ -230,32 +273,43 @@ export function MasonryFeed({ filters = {}, gap = 2 }) {
                 style={{
                   // Use CSS columns for true masonry layout like Pinterest
                   columnCount: columnCount,
-                  columnGap: `0px`, // Fixed 0px gap between columns
+                  columnGap: `4px`, // theme spacing.xs - minimal gap for Apple-like breathing
                   width: '100%',
-                  padding: `0px`, // No padding
-                  margin: '0', // No margin
-                  lineHeight: '1', // Remove line height spacing
+                  padding: `2px 4px`, // Minimal padding - just enough to prevent edge collision
+                  margin: '0',
+                  lineHeight: '1',
+                  backgroundColor: getBackgroundForCategory(groupIndex), // Subtle alternating backgrounds
+                  borderRadius: '8px', // theme radius.md for gentle container feel
+                  marginBottom: '4px', // theme spacing.xs for category separation
+                  border: groupIndex % 3 === 1 ? '1px solid rgba(226, 55, 68, 0.08)' : 'none', // Subtle Zomato red accent for alternate sections
                 }}
               >
-                {groupItems.map((item, itemIndex) => (
-                  <div
-                    key={item.id}
-                    className="feed-item"
-                    data-category={category}
-                    style={{
-                      borderRadius: '0px',
-                      overflow: 'hidden',
-                      breakInside: 'avoid', // Prevents items from breaking across columns
-                      margin: '0', // Remove all margins
-                      padding: '0', // Remove all padding
-                      display: 'inline-block',
-                      width: '100%',
-                      verticalAlign: 'top', // Align to top to prevent text baseline spacing
-                    }}
-                  >
-                    <FeedItemSwitcher item={item} />
-                  </div>
-                ))}
+                {groupItems.map((item, itemIndex) => {
+                  // Determine if this item should be featured (span all columns)
+                  // You can customize this logic based on your needs:
+                  const isFeatured = false; // Every 5th item, or add your own logic
+                  
+                  return (
+                    <div
+                      key={item.id}
+                      className="feed-item"
+                      data-category={category}
+                      style={{
+                        borderRadius: '0px',
+                        overflow: 'hidden',
+                        breakInside: 'avoid', // Prevents items from breaking across columns
+                        margin: '0 0 4px 0', // theme spacing.xs bottom margin for subtle item separation
+                        padding: '0',
+                        display: 'inline-block',
+                        width: '100%',
+                        verticalAlign: 'top', // Align to top to prevent text baseline spacing
+                        columnSpan: isFeatured ? 'all' : 'none', // Span all columns for featured items
+                      }}
+                    >
+                      <FeedItemSwitcher item={item} />
+                    </div>
+                  );
+                })}
               </div>
             );
           }}
