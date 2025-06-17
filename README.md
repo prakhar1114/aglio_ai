@@ -1,7 +1,8 @@
-Running qdrant:
+## Running qdrant:
 ```bash
 docker run -d --name qdrant -p 6333:6333 -v $(pwd)/qdrant_data:/qdrant/storage qdrant/qdrant
 ```
+You can view the collection add, delete them from the qdrant web UI accessible from http://localhost:6333/dashboard
 
 Running backend:
 ```bash

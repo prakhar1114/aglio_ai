@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Header, Query, Request
 from pydantic import BaseModel
 from typing import List, Optional
+import random
 
 from config import qd
 from middleware.tenant_resolver import get_tenant_from_request
@@ -58,27 +59,84 @@ def read_menu(
     # Increased page size so that the UI can build the entire masonry grid in one request
     limit = 500  # Fetch a large batch at once; remaining items (if any) can still be paged
     
-    points, next_offset = qd.scroll(
-        collection_name=collection_name,
-        limit=limit,
-        offset=offset,
-        with_payload=True,
-        with_vectors=False,
-        scroll_filter={"must": filters} if filters else None,
-    )
-    
-    items = [
-        MenuItem(
-            id=(p.payload or {}).get("public_id"),
-            name=(p.payload or {}).get("name"),
-            description=(p.payload or {}).get("description"),
-            price=(p.payload or {}).get("price"),
-            veg_flag=bool((p.payload or {}).get("veg_flag")),
-            image_url="image_data/" + image_base_dir + "/" + (p.payload or {}).get("image_path") if (p.payload or {}).get("image_path") else None,
-            category_brief=(p.payload or {}).get("category_brief"),
+    # Check if this is the first request (cursor is None or empty)
+    if not cursor:  # cursor is None or empty string
+        # First request - fetch promoted items first
+        promoted_filters = [{"key": "promote", "match": {"value": 1}}]
+        
+        promoted_points, _ = qd.scroll(
+            collection_name=collection_name,
+            limit=500,  # Get all promoted items
+            with_payload=True,
+            with_vectors=False,
+            scroll_filter={"must": promoted_filters + filters},
         )
-        for p in points
-    ]
+        
+        promoted_items = [
+            MenuItem(
+                id=(p.payload or {}).get("public_id"),
+                name=(p.payload or {}).get("name"),
+                description=(p.payload or {}).get("description"),
+                price=(p.payload or {}).get("price"),
+                veg_flag=bool((p.payload or {}).get("veg_flag")),
+                image_url="image_data/" + image_base_dir + "/" + (p.payload or {}).get("image_path") if (p.payload or {}).get("image_path") else None,
+                category_brief="Promotions",  # Set category as Promotions
+            )
+            for p in promoted_points
+        ]
+        
+        # Shuffle promoted items among themselves
+        random.shuffle(promoted_items)
+        
+        # Then fetch regular items
+        points, next_offset = qd.scroll(
+            collection_name=collection_name,
+            limit=limit,
+            offset=None,  # Start from beginning for regular items
+            with_payload=True,
+            with_vectors=False,
+            scroll_filter={"must": filters} if filters else None,
+        )
+        
+        regular_items = [
+            MenuItem(
+                id=(p.payload or {}).get("public_id"),
+                name=(p.payload or {}).get("name"),
+                description=(p.payload or {}).get("description"),
+                price=(p.payload or {}).get("price"),
+                veg_flag=bool((p.payload or {}).get("veg_flag")),
+                image_url="image_data/" + image_base_dir + "/" + (p.payload or {}).get("image_path") if (p.payload or {}).get("image_path") else None,
+                category_brief=(p.payload or {}).get("category_brief"),
+            )
+            for p in points
+        ]
+        
+        # Combine promoted items at the top
+        items = promoted_items + regular_items
+        
+    else:
+        # Subsequent requests - just fetch regular items
+        points, next_offset = qd.scroll(
+            collection_name=collection_name,
+            limit=limit,
+            offset=offset,
+            with_payload=True,
+            with_vectors=False,
+            scroll_filter={"must": filters} if filters else None,
+        )
+        
+        items = [
+            MenuItem(
+                id=(p.payload or {}).get("public_id"),
+                name=(p.payload or {}).get("name"),
+                description=(p.payload or {}).get("description"),
+                price=(p.payload or {}).get("price"),
+                veg_flag=bool((p.payload or {}).get("veg_flag")),
+                image_url="image_data/" + image_base_dir + "/" + (p.payload or {}).get("image_path") if (p.payload or {}).get("image_path") else None,
+                category_brief=(p.payload or {}).get("category_brief"),
+            )
+            for p in points
+        ]
     
     # Set nextCursor - if there are more items, provide the next offset
     next_cursor = next_offset if next_offset is not None else None
