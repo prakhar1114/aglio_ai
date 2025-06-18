@@ -9,19 +9,21 @@ import { AIChatDrawer } from '../components/AIChatDrawer.jsx';
 import { UpsellPopup } from '../components/UpsellPopup.jsx';
 import { OrderConfirmationSheet } from '../components/OrderConfirmationSheet.jsx';
 import { MyOrdersDrawer } from '../components/MyOrdersDrawer.jsx';
+import { PreviewScreen } from './PreviewScreen.jsx';
 
 function MenuPage() {
   // UI State Management
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
-  const [isAIChatOpen, setIsAIChatOpen] = useState(false);
   const [isOrderConfirmationOpen, setIsOrderConfirmationOpen] = useState(false);
   const [isMyOrdersOpen, setIsMyOrdersOpen] = useState(false);
   const [lastPlacedOrder, setLastPlacedOrder] = useState(null);
 
+  // Preview State Management - support for stacking previews
+  const [previewStack, setPreviewStack] = useState([]);
+
   // Cart state for upsell timing
   const [hasCartEverOpened, setHasCartEverOpened] = useState(false);
-  const totalCount = useCartStore((state) => state.totalCount());
   
   // Filter state from store
   const currentFilters = useCartStore((state) => state.filters);
@@ -29,6 +31,9 @@ function MenuPage() {
   
   // Order state from store
   const addOrder = useCartStore((state) => state.addOrder);
+  
+  // AI Chat methods from store
+  const openAIChatDrawer = useCartStore((state) => state.openAIChatDrawer);
 
   // Track when cart first opens for upsell popup
   useEffect(() => {
@@ -43,7 +48,7 @@ function MenuPage() {
   };
 
   const handleAIChatOpen = () => {
-    setIsAIChatOpen(true);
+    openAIChatDrawer();
   };
 
   const handleCartOpen = () => {
@@ -87,6 +92,65 @@ function MenuPage() {
     setIsMyOrdersOpen(true);
   };
 
+  // Preview Screen Handlers
+  const handleItemClick = (clickedItem, allCurrentItems) => {
+    // Filter items by same category and ensure they have the 'kind' property
+    const categoryItems = allCurrentItems
+      .filter(item => item.category_brief === clickedItem.category_brief)
+      .map(item => ({ ...item, kind: item.kind || 'food' })); // Ensure kind property is set
+    
+    console.log('Preview categoryItems:', {
+      total: categoryItems.length,
+      currentItem: clickedItem.name,
+      category: clickedItem.category_brief,
+      items: categoryItems.map(item => ({ id: item.id, name: item.name, kind: item.kind }))
+    });
+    
+    // Find index of clicked item
+    const currentIndex = categoryItems.findIndex(
+      item => item.id === clickedItem.id
+    );
+    
+    // Push new preview to stack
+    const newPreview = {
+      item: clickedItem,
+      categoryItems,
+      currentIndex,
+      id: Date.now() // Unique ID for each preview
+    };
+    
+    setPreviewStack(prev => [...prev, newPreview]);
+  };
+
+  const handlePreviewClose = () => {
+    setPreviewStack(prev => {
+      const newStack = [...prev];
+      newStack.pop(); // Remove the top preview
+      return newStack;
+    });
+  };
+
+  const handleItemChange = (newIndex) => {
+    setPreviewStack(prev => {
+      const newStack = [...prev];
+      const topPreview = newStack[newStack.length - 1];
+      if (topPreview) {
+        const newItem = topPreview.categoryItems[newIndex];
+        topPreview.item = { ...newItem, kind: newItem.kind || 'food' }; // Ensure kind property
+        topPreview.currentIndex = newIndex;
+        
+        console.log('Item changed to:', {
+          index: newIndex,
+          item: topPreview.item.name,
+          kind: topPreview.item.kind
+        });
+      }
+      return newStack;
+    });
+  };
+
+
+
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       {/* Main Content Area */}
@@ -95,6 +159,7 @@ function MenuPage() {
         <main className="flex-1">
           <MasonryFeed 
             filters={currentFilters}
+            onItemClick={handleItemClick}
           />
         </main>
       </div>
@@ -121,10 +186,7 @@ function MenuPage() {
         initialFilters={currentFilters}
       />
 
-      <AIChatDrawer
-        isOpen={isAIChatOpen}
-        onClose={() => setIsAIChatOpen(false)}
-      />
+      <AIChatDrawer />
 
       <UpsellPopup
         isCartOpen={hasCartEverOpened}
@@ -142,6 +204,22 @@ function MenuPage() {
         isOpen={isMyOrdersOpen}
         onClose={() => setIsMyOrdersOpen(false)}
       />
+
+      {/* Preview Screen Stack */}
+      {previewStack.map((preview, index) => (
+        <PreviewScreen
+          key={preview.id}
+          isOpen={true}
+          item={preview.item}
+          categoryItems={preview.categoryItems}
+          currentIndex={preview.currentIndex}
+          onClose={handlePreviewClose}
+          onItemChange={index === previewStack.length - 1 ? handleItemChange : null}
+          onItemClick={index === previewStack.length - 1 ? handleItemClick : null}
+          zIndex={50 + index} // Stack them with increasing z-index
+          isTopmost={index === previewStack.length - 1}
+        />
+      ))}
     </div>
   );
 }

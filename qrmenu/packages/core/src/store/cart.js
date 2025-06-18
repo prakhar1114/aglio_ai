@@ -1,10 +1,25 @@
 import { create } from 'zustand';
+import { getAIResponse } from '../utils/aiResponses.js';
 
 export const useCartStore = create((set, get) => ({
   items: {}, // { [id]: { item, qty } }
   filters: {}, // Applied filters object
   orders: [], // Array of placed orders
   orderCounter: 0, // Counter for order numbering
+  
+  // Chat state
+  chatMessages: [
+    {
+      id: 1,
+      type: 'ai',
+      content: "Hi! I'm your AI food assistant. How can I help you with your order today? 🍔",
+      timestamp: Date.now()
+    }
+  ],
+  isChatTyping: false,
+  
+  // Global AI Chat Drawer state
+  isAIChatDrawerOpen: false,
   
   // Cart methods
   addItem: (item) => {
@@ -31,6 +46,66 @@ export const useCartStore = create((set, get) => ({
   },
   clear: () => set({ items: {} }),
   totalCount: () => Object.values(get().items).reduce((acc, e) => acc + e.qty, 0),
+  
+  // Chat methods
+  addChatMessage: (message) => {
+    set((state) => ({
+      chatMessages: [...state.chatMessages, {
+        ...message,
+        id: Date.now() + Math.random(), // Ensure unique ID
+        timestamp: Date.now()
+      }]
+    }));
+  },
+  setChatTyping: (isTyping) => set({ isChatTyping: isTyping }),
+  clearChat: () => set({ 
+    chatMessages: [
+      {
+        id: 1,
+        type: 'ai',
+        content: "Hi! I'm your AI food assistant. How can I help you with your order today? 🍔",
+        timestamp: Date.now()
+      }
+    ]
+  }),
+  
+  // Global AI Chat Drawer methods
+  openAIChatDrawer: () => set({ isAIChatDrawerOpen: true }),
+  closeAIChatDrawer: () => set({ isAIChatDrawerOpen: false }),
+  sendMessageAndOpenChat: (message) => {
+    const userMessage = {
+      type: 'user',
+      content: message
+    };
+    
+    // Add user message immediately
+    set((state) => ({
+      isAIChatDrawerOpen: true,
+      isChatTyping: true,
+      chatMessages: [...state.chatMessages, {
+        ...userMessage,
+        id: Date.now() + Math.random(),
+        timestamp: Date.now()
+      }]
+    }));
+    
+    // Simulate AI response
+    setTimeout(() => {
+      const aiResponse = {
+        type: 'ai',
+        content: getAIResponse(message)
+      };
+      
+      set((state) => ({
+        isChatTyping: false,
+        chatMessages: [...state.chatMessages, {
+          ...aiResponse,
+          id: Date.now() + Math.random(),
+          timestamp: Date.now()
+        }]
+      }));
+    }, 1500);
+  },
   
   // Order methods
   addOrder: () => {

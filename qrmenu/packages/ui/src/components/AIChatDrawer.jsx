@@ -1,16 +1,17 @@
 import { useState, useRef, useEffect } from 'react';
+import { useCartStore, getAIResponse } from '@qrmenu/core';
 import { XMarkIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
 
-export function AIChatDrawer({ isOpen, onClose }) {
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      type: 'ai',
-      content: "Hi! I'm your AI food assistant. How can I help you with your order today? 🍔"
-    }
-  ]);
+export function AIChatDrawer() {
+  // Use Zustand store for everything
+  const isOpen = useCartStore((state) => state.isAIChatDrawerOpen);
+  const messages = useCartStore((state) => state.chatMessages);
+  const isTyping = useCartStore((state) => state.isChatTyping);
+  const addChatMessage = useCartStore((state) => state.addChatMessage);
+  const setChatTyping = useCartStore((state) => state.setChatTyping);
+  const closeAIChatDrawer = useCartStore((state) => state.closeAIChatDrawer);
+  
   const [inputMessage, setInputMessage] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -31,49 +32,31 @@ export function AIChatDrawer({ isOpen, onClose }) {
   const handleSendMessage = async () => {
     if (!inputMessage.trim()) return;
 
+    const message = inputMessage.trim();
+    setInputMessage('');
+    
+    // Use the store method to send message and get AI response
+    // This will handle adding the user message and AI response
     const userMessage = {
-      id: Date.now(),
       type: 'user',
-      content: inputMessage.trim()
+      content: message
     };
 
-    setMessages(prev => [...prev, userMessage]);
-    setInputMessage('');
-    setIsTyping(true);
+    addChatMessage(userMessage);
+    setChatTyping(true);
 
-    // Simulate AI response delay
+    // Use the centralized AI response function
     setTimeout(() => {
       const aiResponse = {
-        id: Date.now() + 1,
         type: 'ai',
-        content: getAIResponse(userMessage.content)
+        content: getAIResponse(message)
       };
-      setMessages(prev => [...prev, aiResponse]);
-      setIsTyping(false);
+      addChatMessage(aiResponse);
+      setChatTyping(false);
     }, 1500);
   };
 
-  const getAIResponse = (userInput) => {
-    const input = userInput.toLowerCase();
-    
-    if (input.includes('recommend') || input.includes('suggest')) {
-      return "I'd recommend our bestsellers: the Classic Burger ($12.99) and Margherita Pizza ($14.99). Both are customer favorites! 🌟";
-    }
-    if (input.includes('vegan') || input.includes('vegetarian')) {
-      return "Great choice! We have several vegan options: Beyond Burger, Quinoa Salad, and Veggie Pizza. Would you like details on any of these? 🌱";
-    }
-    if (input.includes('spicy') || input.includes('hot')) {
-      return "For spicy food lovers, try our Buffalo Chicken Wings, Jalapeño Burger, or Spicy Pasta Arrabbiata! 🌶️";
-    }
-    if (input.includes('allergen') || input.includes('allergy')) {
-      return "Please let me know your specific allergies and I'll help you find safe options. We clearly mark all allergens in our menu items. 🛡️";
-    }
-    if (input.includes('price') || input.includes('cheap') || input.includes('budget')) {
-      return "Our budget-friendly options under $10 include: Classic Fries ($4.99), Soup of the Day ($6.99), and Mini Pizza ($8.99)! 💰";
-    }
-    
-    return "I'd be happy to help you with your order! You can ask me about menu recommendations, dietary restrictions, prices, or any other questions about our food. 😊";
-  };
+
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -88,12 +71,12 @@ export function AIChatDrawer({ isOpen, onClose }) {
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-black bg-opacity-50 z-40"
-        onClick={onClose}
+        className="fixed inset-0 bg-black bg-opacity-50 z-[100]"
+        onClick={closeAIChatDrawer}
       />
       
       {/* Drawer */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white z-50 rounded-t-2xl shadow-xl animate-slide-up max-h-[80vh] flex flex-col">
+      <div className="fixed bottom-0 left-0 right-0 bg-white z-[110] rounded-t-2xl shadow-xl animate-slide-up max-h-[80vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b bg-red-500 text-white rounded-t-2xl">
           <div className="flex items-center space-x-2">
@@ -106,7 +89,7 @@ export function AIChatDrawer({ isOpen, onClose }) {
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={closeAIChatDrawer}
             className="p-1 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
           >
             <XMarkIcon className="w-6 h-6" />

@@ -12,6 +12,19 @@
   animation: slide-up 0.3s ease-out;
 }
 
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}
+
 /* Safe area padding for mobile */
 .safe-area-pb {
   padding-bottom: env(safe-area-inset-bottom, 0);
@@ -30,6 +43,8 @@
   background: rgba(0, 0, 0, 0.2);
   border-radius: 2px;
 }
+
+
 
 /* Smooth focus transitions */
 input:focus, textarea:focus, button:focus {

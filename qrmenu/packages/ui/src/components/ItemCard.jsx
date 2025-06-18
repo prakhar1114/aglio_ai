@@ -1,7 +1,7 @@
 import React from 'react';
 import { useCartStore } from '@qrmenu/core';
 
-export function ItemCard({ item }) {
+export function ItemCard({ item, onItemClick }) {
   const qty = useCartStore((s) => s.items[item.id]?.qty ?? 0);
   const addItem = useCartStore((s) => s.addItem);
   const removeItem = useCartStore((s) => s.removeItem);
@@ -9,6 +9,13 @@ export function ItemCard({ item }) {
   const handleAdd = () => addItem(item);
 
   const handleRemove = () => removeItem(item);
+
+  const handleCardClick = (e) => {
+    // Don't trigger if clicking on add/remove buttons
+    if (e.target.closest('button')) return;
+    
+    onItemClick?.(item);
+  };
 
   const cardStyle = {
     borderRadius: '12px', // theme radius.lg
@@ -237,7 +244,13 @@ export function ItemCard({ item }) {
   };
 
   return (
-    <div style={cardStyle}>
+    <div 
+      style={cardStyle}
+      onClick={handleCardClick}
+      role="button"
+      tabIndex={0}
+      className="cursor-pointer"
+    >
       {item.image_url ? (
         // Card with image or video
         <div style={imageContainerStyle}>

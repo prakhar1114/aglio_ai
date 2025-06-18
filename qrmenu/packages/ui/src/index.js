@@ -3,6 +3,7 @@ import './styles.css';
 
 // Individual UI Components
 export { MasonryFeed } from './components/MasonryFeed.jsx';
+export { SimpleMasonryGrid } from './components/SimpleMasonryGrid.jsx';
 export { FeedItemSwitcher } from './components/FeedItemSwitcher.jsx';
 export { ItemCard } from './components/ItemCard.jsx';
 export { PromotionBanner } from './components/PromotionBanner.jsx';
@@ -17,3 +18,4 @@ export { MyOrdersDrawer } from './components/MyOrdersDrawer.jsx';
 
 // Complete Screens (compose individual components + core functionality)
 export { MenuScreen } from './screens/MenuScreen.jsx';
+export { PreviewScreen } from './screens/PreviewScreen.jsx';

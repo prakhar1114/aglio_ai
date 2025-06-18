@@ -4,7 +4,7 @@ import { useMenu } from '@qrmenu/core';
 import { FeedItemSwitcher } from './FeedItemSwitcher.jsx';
 import { CategoryDropdown } from './CategoryDropdown.jsx';
 
-export function MasonryFeed({ filters = {}, gap = 2 }) {
+export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
   // Refs for virtuoso
   const virtuosoRef = useRef(null);
 
@@ -336,7 +336,13 @@ export function MasonryFeed({ filters = {}, gap = 2 }) {
                         columnSpan: isFeatured ? 'all' : 'none', // Span all columns for featured items
                       }}
                     >
-                      <FeedItemSwitcher item={item} />
+                      <FeedItemSwitcher 
+                        item={item} 
+                        onItemClick={() => {
+                          const allCurrentItems = data ? data.pages.flatMap(p => p.items) : [];
+                          onItemClick?.(item, allCurrentItems);
+                        }}
+                      />
                     </div>
                   );
                 })}
