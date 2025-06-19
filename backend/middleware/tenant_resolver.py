@@ -49,7 +49,7 @@ class TenantResolver:
             if "localhost" in host or "127.0.0.1" in host or "192.168.1" in host:
                 # Return first available tenant for local development
                 if self.restaurants_data:
-                    default_tenant = list(self.restaurants_data.keys())[1]
+                    default_tenant = list(self.restaurants_data.keys())[0]
                     logger.debug(f"Debug mode: Using default tenant '{default_tenant}' for localhost")
                     return default_tenant
                 return None
@@ -110,7 +110,7 @@ async def tenant_middleware(request: Request, call_next):
     
     # Check if current path should skip tenant resolution
     path = request.url.path
-    if path in skip_paths or path.startswith("/image_data/"):
+    if path in skip_paths or path.startswith("/image_data/") or path.startswith("/settings"):
         logger.debug(f"Skipping tenant resolution for system path: {path}")
         return await call_next(request)
     

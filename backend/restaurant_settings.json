@@ -1,0 +1,12 @@
+{
+    "handcrafted": {
+        "number_of_tables": 10,
+        "pass_required": false,
+        "password": "coffee"
+    },
+    "chianti": {
+        "number_of_tables": 15,
+        "pass_required": false,
+        "password": null
+    }
+}
