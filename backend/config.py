@@ -7,12 +7,25 @@ from dotenv import load_dotenv
 load_dotenv()
 
 DEBUG_MODE = ast.literal_eval(os.getenv("DEBUG_MODE", "False"))
+JWT_SECRET=os.getenv("JWT_SECRET")
+if not JWT_SECRET:
+    raise ValueError("JWT_SECRET is not set in environment variables")
+
+PG_DB_USER = os.getenv("PG_DB_USER", "postgres")
+PG_DB_PASS = os.getenv("PG_DB_PASS", "postgres")
+PG_DB_HOST = os.getenv("PG_DB_HOST", "localhost")
+PG_DB_PORT = os.getenv("PG_DB_PORT", "5432")
+PG_DB_NAME = os.getenv("PG_DB_NAME", "db")
+
 
 root_dir = Path(__file__).parent
 
 # Database connections (shared across all tenants)
 rdb = redis.Redis(host="localhost", port=6379, decode_responses=False)
 qd = qdrant_client.QdrantClient("localhost", port=6333)
+pg_url = f"postgresql://{PG_DB_USER}:{PG_DB_PASS}@{PG_DB_HOST}:{PG_DB_PORT}/{PG_DB_NAME}"
+
+image_dir = Path(os.getenv("IMAGE_DIR", "images"))
 
 # Multi-tenant Redis key generators
 def get_tenant_redis_key(tenant_id: str, key_type: str, identifier: str = "") -> str:
@@ -33,3 +46,14 @@ def get_tenant_seen_key(tenant_id: str, session_id: str) -> str:
 
 def get_tenant_history_key(tenant_id: str, session_id: str, action: str) -> str:
     return get_tenant_redis_key(tenant_id, f"history:{session_id}", action)
+
+# Table session Redis keys
+def get_table_session_key(tenant_id: str, table_number: int) -> str:
+    return get_tenant_redis_key(tenant_id, "table_session", str(table_number))
+
+def get_session_details_key(tenant_id: str, session_id: str) -> str:
+    return get_tenant_redis_key(tenant_id, "session", session_id)
+
+def get_table_sessions_key(tenant_id: str, table_number: int) -> str:
+    """Return key for sorted-set that stores all session IDs ever used by a table"""
+    return get_tenant_redis_key(tenant_id, "table_sessions", str(table_number))

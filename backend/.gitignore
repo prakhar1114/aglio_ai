@@ -4,3 +4,4 @@ processed/
 qdrant_data/
 raw_data/
 **/*/.DS_Store
+onboarding_data/

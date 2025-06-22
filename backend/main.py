@@ -7,8 +7,10 @@ import uvicorn
 from loguru import logger
 import sys
 from contextlib import asynccontextmanager
+from models.schema import init_db
 
-from config import rdb, qd, root_dir, DEBUG_MODE
+
+from config import rdb, qd, root_dir, DEBUG_MODE, image_dir
 from middleware.tenant_resolver import tenant_middleware, tenant_resolver, get_qdrant_collection
 from urls.filtered_recommendations import router as filtered_router
 from urls.menu import router as menu_router
@@ -17,9 +19,13 @@ from urls.categories import router as categories_router
 from urls.featured import router as featured_router
 from urls.prev_orders import router as prev_orders_router
 from urls.upsell import router as upsell_router
-from urls.admin import router as admin_router
 from urls.settings import router as settings_router
+from urls.admin.dashboard import router as admin_router
+from urls.table_session import router as table_session_router
 
+
+
+init_db()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -57,9 +63,15 @@ app.middleware("http")(tenant_middleware)
 
 app.mount(
     "/image_data",
-    StaticFiles(directory=root_dir / "raw_data"),
+    StaticFiles(directory=image_dir),
     name="image_data",
 )
+
+# Mount static files for admin dashboard
+import os
+admin_static_dir = os.path.join(os.path.dirname(__file__), "urls", "admin", "static")
+if os.path.exists(admin_static_dir):
+    app.mount("/admin/static", StaticFiles(directory=admin_static_dir), name="admin_static")
 
 # Include routers
 app.include_router(categories_router, prefix="/categories", tags=["categories"])
@@ -68,9 +80,10 @@ app.include_router(filtered_router, prefix="/filtered_recommendations", tags=["r
 app.include_router(featured_router, prefix="/featured", tags=["featured"])
 app.include_router(prev_orders_router, prefix="/prev_orders", tags=["orders"])
 app.include_router(upsell_router, prefix="/upsell", tags=["upsell"])
-app.include_router(admin_router, prefix="/add", tags=["admin"])
 app.include_router(settings_router, prefix="/settings", tags=["settings"])
-app.include_router(chat_router)
+app.include_router(admin_router, prefix="/admin", tags=["admin"])
+app.include_router(table_session_router, tags=["table_session"])
+
 
 # CORS configuration
 allowed_origins = ["*"] if DEBUG_MODE else [

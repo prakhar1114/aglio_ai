@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route } from 'react-router-dom';
-import { useCartStore } from '@qrmenu/core';
+import { Routes, Route, useLocation } from 'react-router-dom';
+import { useCartStore, setupConnection } from '@qrmenu/core';
 import { MasonryFeed } from '../components/MasonryFeed.jsx';
 import { BottomBar } from '../components/BottomBar.jsx';
 import { CartDrawer } from '../components/CartDrawer.jsx';
@@ -9,9 +9,12 @@ import { AIChatDrawer } from '../components/AIChatDrawer.jsx';
 import { UpsellPopup } from '../components/UpsellPopup.jsx';
 import { OrderConfirmationSheet } from '../components/OrderConfirmationSheet.jsx';
 import { MyOrdersDrawer } from '../components/MyOrdersDrawer.jsx';
+import { InformationModal } from '../components/InformationModal.jsx';
 import { PreviewScreen } from './PreviewScreen.jsx';
 
 function MenuPage() {
+  const location = useLocation();
+  
   // UI State Management
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
@@ -34,6 +37,11 @@ function MenuPage() {
   
   // AI Chat methods from store
   const openAIChatDrawer = useCartStore((state) => state.openAIChatDrawer);
+
+  // Setup connection on component mount
+  useEffect(() => {
+    setupConnection(location);
+  }, [location.search]);
 
   // Track when cart first opens for upsell popup
   useEffect(() => {
@@ -220,6 +228,9 @@ function MenuPage() {
           isTopmost={index === previewStack.length - 1}
         />
       ))}
+
+      {/* Global Information Modal */}
+      <InformationModal />
     </div>
   );
 }

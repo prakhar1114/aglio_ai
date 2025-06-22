@@ -1,10 +1,64 @@
-import { XMarkIcon } from '@heroicons/react/24/outline';
-import { useCartStore } from '@qrmenu/core';
+import { XMarkIcon, UserIcon, StarIcon, ArrowLeftOnRectangleIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
+import { useCartStore, useSessionStore, updateMemberNickname } from '@qrmenu/core';
+import { useState } from 'react';
 
 export function MyOrdersDrawer({ isOpen, onClose }) {
   const orders = useCartStore((state) => state.getOrders());
   const totalBill = useCartStore((state) => state.getTotalBill());
   
+  // Session store data
+  const sessionStore = useSessionStore();
+  const members = sessionStore.members;
+  const wsStatus = sessionStore.wsStatus;
+  const connectionStatus = sessionStore.connectionStatus;
+  const isHost = sessionStore.isHost;
+  const nickname = sessionStore.nickname;
+  const memberPid = sessionStore.memberPid;
+  const restaurantName = sessionStore.restaurantName;
+  const tableNumber = sessionStore.tableNumber;
+  
+  // Local state for nickname editing
+  const [editingNickname, setEditingNickname] = useState(false);
+  const [newNickname, setNewNickname] = useState(nickname || '');
+
+  // Nickname editing handlers
+  const handleNicknameEdit = () => {
+    setNewNickname(nickname || '');
+    setEditingNickname(true);
+  };
+
+  const handleNicknameSave = async () => {
+    if (newNickname.trim() && newNickname !== nickname) {
+      try {
+        await updateMemberNickname(memberPid, newNickname.trim());
+        setEditingNickname(false);
+      } catch (error) {
+        console.error('Failed to update nickname:', error);
+        sessionStore.showModal({
+          type: 'error',
+          title: 'Update Failed',
+          message: 'Failed to update nickname. Please try again.',
+        });
+      }
+    } else {
+      setEditingNickname(false);
+    }
+  };
+
+  const handleNicknameCancel = () => {
+    setNewNickname(nickname || '');
+    setEditingNickname(false);
+  };
+
+  // Logout handler
+  const handleLogout = () => {
+    // Clear session data
+    sessionStore.clearSession();
+    
+    // Redirect to menu page without table parameters
+    window.location.href = '/menu';
+  };
+
   // Helper function to format time
   const formatTime = (timestamp) => {
     return new Date(timestamp).toLocaleTimeString('en-US', {
@@ -61,23 +115,179 @@ export function MyOrdersDrawer({ isOpen, onClose }) {
                backdropFilter: 'blur(8px)',
                WebkitBackdropFilter: 'blur(8px)'
              }}>
-          <h2 className="text-lg font-semibold text-gray-900"
+          <div className="flex-1">
+            {/* First line: Restaurant name, table number, restaurant status, and order count */}
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <h2 className="text-lg font-semibold text-gray-900"
+                  style={{
+                    fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    color: '#1C1C1E'
+                  }}>
+                {restaurantName || 'Restaurant'}
+              </h2>
+              
+              {/* Table Number - always show if available */}
+              {tableNumber !== null && (
+                <span className="text-sm font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded-md">
+                  Table {tableNumber}
+                </span>
+              )}
+              
+              {/* Restaurant Status */}
+              {connectionStatus && (
+                <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                  connectionStatus === 'open' ? 'text-green-700 bg-green-100' :
+                  connectionStatus === 'closed' ? 'text-yellow-700 bg-yellow-100' :
+                  connectionStatus === 'disabled' ? 'text-red-700 bg-red-100' : 'text-gray-700 bg-gray-100'
+                }`}>
+                  {connectionStatus === 'open' ? 'Open' :
+                   connectionStatus === 'closed' ? 'Closed' :
+                   connectionStatus === 'disabled' ? 'Disabled' : 'Unknown'}
+                </span>
+              )}
+              
+              {/* Order count */}
+              {!isEmpty && (
+                <span className="text-sm text-gray-500 font-medium">
+                  {orders.length} order{orders.length !== 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+            
+            {/* Second line: Member info and connection status */}
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Member Info */}
+              {nickname && (
+                <div className="flex items-center gap-1">
+                  {isHost ? (
+                    <StarIcon className="w-4 h-4 text-yellow-500" />
+                  ) : (
+                    <UserIcon className="w-4 h-4 text-gray-400" />
+                  )}
+                  {editingNickname ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={newNickname}
+                        onChange={(e) => setNewNickname(e.target.value)}
+                        className="text-sm bg-white border border-gray-300 rounded px-2 py-1 max-w-24"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleNicknameSave();
+                          if (e.key === 'Escape') handleNicknameCancel();
+                        }}
+                        autoFocus
+                      />
+                      <button
+                        onClick={handleNicknameSave}
+                        className="text-xs text-green-600 hover:text-green-700"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={handleNicknameCancel}
+                        className="text-xs text-gray-500 hover:text-gray-600"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <span
+                      onClick={handleNicknameEdit}
+                      className="flex items-center gap-1 text-sm font-medium text-gray-700 cursor-pointer hover:text-gray-900 group"
+                      style={{
+                        fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                      }}
+                    >
+                      {nickname} {isHost && '(Host)'}
+                      <PencilSquareIcon className="w-4 h-4 text-gray-400 group-hover:text-gray-500" />
+                    </span>
+                  )}
+                </div>
+              )}
+              
+              {/* Connection Status - clarified as sync status */}
+              <div className="flex items-center gap-1">
+                <div className={`w-2 h-2 rounded-full ${
+                  wsStatus === 'connected' ? 'bg-green-500' :
+                  wsStatus === 'connecting' ? 'bg-yellow-500' :
+                  wsStatus === 'error' ? 'bg-red-500' : 'bg-gray-400'
+                }`} />
+                <span className="text-xs text-gray-600">
+                  {wsStatus === 'connected' ? 'Synced' :
+                   wsStatus === 'connecting' ? 'Syncing' :
+                   wsStatus === 'error' ? 'Sync Error' : 'Offline'}
+                </span>
+              </div>
+              
+              {/* Session Members - more compact */}
+              {members.length > 1 && (
+                <span className="text-xs text-gray-500">
+                  {members.length} members
+                </span>
+              )}
+            </div>
+            
+            {/* Member List - show when there are multiple members */}
+            {members.length > 1 && (
+              <div className="mt-2 pt-2 border-t border-gray-100">
+                <div className="flex flex-wrap gap-1">
+                  {members.map((member) => (
+                    <div
+                      key={member.member_pid}
+                      className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
+                        member.member_pid === memberPid 
+                          ? 'bg-blue-100 text-blue-700 ring-1 ring-blue-200' 
+                          : 'bg-gray-100 text-gray-600'
+                      }`}
+                      style={{
+                        fontSize: '11px',
+                        fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                      }}
+                    >
+                      {member.is_host ? (
+                        <StarIcon className="w-3 h-3 text-yellow-500" />
+                      ) : (
+                        <UserIcon className="w-3 h-3 text-gray-400" />
+                      )}
+                      <span className="max-w-16 truncate">
+                        {member.nickname || 'Guest'}
+                        {member.member_pid === memberPid && ' (You)'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {/* Logout Button - only show if there's a session */}
+            {sessionStore.sessionPid && (
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-1 px-3 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200"
+                style={{
+                  fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  fontSize: '12px',
+                  fontWeight: '500'
+                }}
+                title="Logout and leave table session"
+              >
+                <ArrowLeftOnRectangleIcon className="w-4 h-4" />
+                <span>Logout</span>
+              </button>
+            )}
+            
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-gray-100 rounded-full transition-all duration-200"
               style={{
-                fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                color: '#1C1C1E'
-              }}>
-            My Orders {!isEmpty && `(${orders.length})`}
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full transition-all duration-200"
-            style={{
-              borderRadius: '8px',
-              transition: 'all 0.2s ease-in-out'
-            }}
-          >
-            <XMarkIcon className="w-5 h-5 text-gray-500" />
-          </button>
+                borderRadius: '8px',
+                transition: 'all 0.2s ease-in-out'
+              }}
+            >
+              <XMarkIcon className="w-5 h-5 text-gray-500" />
+            </button>
+          </div>
         </div>
 
         {/* Content */}

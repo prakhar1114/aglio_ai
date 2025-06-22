@@ -1,0 +1,295 @@
+#!/usr/bin/env python3
+"""
+Seed a single restaurant folder into Postgres.
+
+Usage:
+    python 1_onboard_restaurants.py /abs/path/to/restaurant_folder
+"""
+
+import csv, json, uuid, hashlib, hmac, sys, os, shutil
+from pathlib import Path
+from datetime import datetime, date, time
+import pandas as pd
+from loguru import logger
+
+# Add parent directory to path to import config and models
+sys.path.append(str(Path(__file__).parent.parent))
+from models.schema import SessionLocal
+from common.utils import download_instagram_content, download_url_content, is_url, is_instagram_url
+from urls.admin.auth_utils import generate_api_key
+from utils.jwt_utils import create_qr_token  # Unified QR token generation
+from models.schema import Restaurant, RestaurantHours, Table, DailyPass, MenuItem
+from config import image_dir
+
+# ---------- helpers -----------------------------------------------------------
+
+def new_id() -> str:
+    """Generate 6‑char public_id."""
+    return uuid.uuid4().hex[:6]
+
+def validate_and_clean_csv(df_menu: pd.DataFrame) -> pd.DataFrame:
+    """Validate CSV format and clean extra columns"""
+    # Expected columns according to documentation
+    expected_columns = [
+        'name', 'category_brief', 'group_category', 'description', 
+        'price', 'image_path', 'veg_flag', 'is_bestseller', 
+        'is_recommended', 'kind', 'priority', 'promote', 'public_id'
+    ]
+    
+    # Check for required columns
+    required_columns = ['name', 'category_brief', 'group_category', 'description', 'price']
+    missing_columns = [col for col in required_columns if col not in df_menu.columns]
+    if missing_columns:
+        raise ValueError(f"Missing required columns in CSV: {missing_columns}")
+    
+    # Filter to only expected columns (ignore extra columns like id, ADDED, FORCE_UPDATE)
+    available_columns = [col for col in expected_columns if col in df_menu.columns]
+    df_cleaned = df_menu[available_columns].copy()
+    
+    # Add missing optional columns with defaults
+    for col in expected_columns:
+        if col not in df_cleaned.columns:
+            if col == 'public_id':
+                df_cleaned[col] = None  # Will be auto-generated
+            elif col in ['veg_flag', 'is_bestseller', 'is_recommended', 'promote']:
+                df_cleaned[col] = False
+            elif col == 'priority':
+                df_cleaned[col] = 0
+            elif col == 'kind':
+                df_cleaned[col] = 'food'
+            elif col == 'image_path':
+                df_cleaned[col] = None
+    
+    logger.info(f"📋 CSV validated and cleaned: {len(df_cleaned)} rows, {len(available_columns)} columns")
+    return df_cleaned
+
+def process_image_urls(df_menu: pd.DataFrame, image_directory: str) -> pd.DataFrame:
+    """Process image_path URLs and download them to the local directory"""
+    logger.info(f"📷 Processing image URLs, target directory: {image_directory}")
+    
+    # Ensure image directory exists
+    os.makedirs(image_directory, exist_ok=True)
+    
+    processed_df = df_menu.copy()
+    
+    for idx, row in processed_df.iterrows():
+        if 'image_path' in row and pd.notna(row['image_path']) and is_url(str(row['image_path'])):
+            image_url = str(row['image_path']).strip()
+            logger.info(f"🔗 Found URL in image_path for {row['name']}: {image_url}")
+            
+            # Generate base filename for download
+            safe_name = str(row['name']).replace(' ', '_').replace('/', '_').replace('\\', '_')
+            base_filename = f"{idx}_{safe_name}"
+            
+            try:
+                downloaded_path = None
+                if is_instagram_url(image_url):
+                    # Handle Instagram URLs
+                    logger.info(f"📸 Downloading Instagram content for {row['name']}")
+                    downloaded_path, content_type, success = download_instagram_content(
+                        image_url, image_directory, base_filename
+                    )
+                else:
+                    # Handle regular URLs
+                    logger.info(f"🌐 Downloading content from URL for {row['name']}")
+                    downloaded_path, content_type, success = download_url_content(
+                        image_url, image_directory, base_filename
+                    )
+                
+                if success and downloaded_path:
+                    # Update the image_path in the dataframe with just the filename
+                    new_filename = Path(downloaded_path).name
+                    processed_df.at[idx, 'image_path'] = new_filename
+                    logger.success(f"✅ Downloaded and updated image_path for {row['name']}: {new_filename}")
+                else:
+                    # Download failed, set image_path to null
+                    processed_df.at[idx, 'image_path'] = None
+                    logger.warning(f"⚠️  Failed to download URL for {row['name']}, setting image_path to null")
+                    
+            except Exception as e:
+                logger.error(f"❌ Error downloading URL for {row['name']}: {e}")
+                processed_df.at[idx, 'image_path'] = None
+        else:
+            # Not a URL, keep as is (should be a local filename)
+            if 'image_path' in row and pd.notna(row['image_path']):
+                logger.info(f"📁 Using local file for {row['name']}: {row['image_path']}")
+    
+    return processed_df
+
+# ---------- core loader -------------------------------------------------------
+
+def seed_folder(folder: Path):
+    logger.info(f"On‑boarding folder: {folder}")
+    assert (folder / "meta.json").exists(), "meta.json missing"
+    assert (folder / "tables.json").exists(), "tables.json missing"
+    assert (folder / "menu.csv").exists(), "menu.csv missing"
+    assert (folder / "images").exists(), "images directory missing"
+
+    meta     = json.loads((folder / "meta.json").read_text())
+    tbl_cfg  = json.loads((folder / "tables.json").read_text())
+    hours_fp = folder / "hours.json"
+    hours_cfg = json.loads(hours_fp.read_text()) if hours_fp.exists() else None
+
+    df_menu  = pd.read_csv(folder / "menu.csv")
+    logger.info(f"{len(df_menu)} menu rows loaded")
+
+    # Validate and clean CSV format
+    df_menu = validate_and_clean_csv(df_menu)
+
+    # Always use images/ subfolder in the restaurant folder
+    image_directory = str(folder / "images")
+    logger.info(f"🖼️  Using images directory: {image_directory}")
+    df_menu = process_image_urls(df_menu, image_directory)
+    
+    # Save the updated CSV with processed image paths (only expected columns)
+    df_menu.to_csv(folder / "menu_processed.csv", index=False)
+    logger.success(f"✅ Saved processed menu data to menu_processed.csv")
+
+    with SessionLocal() as db:
+        # ---- restaurant
+        rest = db.query(Restaurant).filter_by(public_id=meta["public_id"]).first()
+        if not rest:
+            # Generate API key for new restaurant
+            api_key = generate_api_key()
+            
+            # Ensure uniqueness across all restaurants
+            while db.query(Restaurant).filter(Restaurant.api_key == api_key).first():
+                api_key = generate_api_key()
+            
+            rest = Restaurant(
+                public_id   = meta["public_id"],
+                slug        = meta["slug"],
+                name        = meta["restaurant_name"],
+                tz          = meta["tz"],
+                require_pass= tbl_cfg["pass_required"],
+                api_key     = api_key
+            )
+            db.add(rest)
+            db.flush()
+            logger.success(f"Restaurant created id={rest.id}")
+            logger.success(f"🔑 API Key generated: {api_key}")
+            print(f"\n{'='*60}")
+            print(f"🔑 ADMIN API KEY FOR {meta['restaurant_name'].upper()}")
+            print(f"   Restaurant Slug: {meta['slug']}")
+            print(f"   API Key: {api_key}")
+            print(f"   Usage: Authorization: Bearer {api_key}")
+            print(f"{'='*60}\n")
+        else:
+            logger.info(f"Restaurant already exists id={rest.id}")
+
+        # ---- hours
+        db.query(RestaurantHours).filter_by(restaurant_id=rest.id).delete()
+        if hours_cfg:
+            for h in hours_cfg:
+                db.add(RestaurantHours(
+                    public_id=new_id(),
+                    restaurant_id=rest.id,
+                    day=h["day"],
+                    opens_at=datetime.strptime(h["opens_at"], "%H:%M").time(),
+                    closes_at=datetime.strptime(h["closes_at"], "%H:%M").time()
+                ))
+        else:  # default 24 h
+            db.add(RestaurantHours(
+                public_id=new_id(),
+                restaurant_id=rest.id,
+                day=0,
+                opens_at=time(0, 0),
+                closes_at=time(23, 59)
+            ))
+
+        # ---- tables (only once)
+        existing_tables = db.query(Table).filter_by(restaurant_id=rest.id).count()
+        if existing_tables == 0:
+            for n in range(1, tbl_cfg["number_of_tables"] + 1):
+                db.add(Table(
+                    public_id=new_id(),
+                    restaurant_id=rest.id,
+                    number=n,
+                    qr_token=create_qr_token(rest.id, n)
+                ))
+            logger.success(f"Created {tbl_cfg['number_of_tables']} tables")
+        else:
+            logger.info(f"Tables already exist: {existing_tables} tables found")
+
+        # ---- daily pass
+        if tbl_cfg["pass_required"]:
+            today = date.today()
+            db.merge(DailyPass(
+                restaurant_id=rest.id,
+                public_id=new_id(),
+                word_hash=hashlib.sha256((tbl_cfg["password"] or "").encode()).hexdigest(),
+                valid_date=today
+            ))
+            logger.success("Daily pass configured")
+
+        # ---- menu items
+        menu_items_processed = 0
+        for _, row in df_menu.iterrows():
+            try:
+                mi = db.query(MenuItem).filter_by(
+                    restaurant_id=rest.id,
+                    name=row["name"]
+                ).first()
+                if not mi:
+                    mi = MenuItem(public_id=row.get("public_id") or new_id(),
+                                  restaurant_id=rest.id)
+                    db.add(mi)
+
+                mi.name            = row["name"]
+                mi.category_brief  = row["category_brief"]
+                mi.group_category  = row["group_category"]
+                mi.description     = row["description"]
+                # Handle price conversion properly
+                try:
+                    if pd.notna(row["price"]) and row["price"] != "":
+                        mi.price = float(row["price"])
+                    else:
+                        logger.warning(f"⚠️  Missing price for {row['name']}, setting to 0.0")
+                        mi.price = 0.0
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"⚠️  Invalid price for {row['name']}: {row['price']}, setting to 0.0")
+                    mi.price = 0.0
+                
+                mi.image_path      = row["image_path"] if pd.notna(row["image_path"]) else None
+                mi.veg_flag        = bool(row["veg_flag"]) if pd.notna(row["veg_flag"]) else False
+                mi.is_bestseller   = bool(row["is_bestseller"]) if pd.notna(row["is_bestseller"]) else False
+                mi.is_recommended  = bool(row["is_recommended"]) if pd.notna(row["is_recommended"]) else False
+                mi.kind            = row["kind"] if pd.notna(row["kind"]) else "food"
+                mi.priority        = int(row["priority"]) if pd.notna(row["priority"]) else 0
+                mi.promote         = bool(row["promote"]) if pd.notna(row["promote"]) else False
+                
+                # Flush this individual item to catch any issues early
+                db.flush()
+                menu_items_processed += 1
+                
+            except Exception as e:
+                logger.error(f"❌ Failed to process menu item {row['name']}: {e}")
+                db.rollback()
+                continue
+
+        logger.success(f"✅ Processed {menu_items_processed} menu items")
+        db.commit()
+        logger.success("Postgres seed complete ✔︎")
+
+    logger.success(f"🎉 On‑boarding finished for {meta['restaurant_name']}")
+
+# ---------- cli ---------------------------------------------------------------
+
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: python 1_onboard_restaurants.py /path/to/restaurant_folder")
+        sys.exit(1)
+
+    folder = Path(sys.argv[1]).expanduser().resolve()
+    if not folder.is_dir():
+        logger.error("Provided path is not a directory")
+        sys.exit(1)
+
+    try:
+        seed_folder(folder)
+    except Exception as e:
+        logger.error(f"❌ Onboarding failed: {e}")
+        sys.exit(1)
+
+    # copy images to image_dir
+    shutil.copytree(folder / "images", image_dir / folder.name, dirs_exist_ok=True)

@@ -18,7 +18,6 @@ Scanning the QR code:
 ## State 0
 - GET /is_open call
     - body:
-        - restaurant_name
         - table_number
     - response:
         - 200: OK - State 1
@@ -30,7 +29,7 @@ Scanning the QR code:
 - sets the table number visible in My Table
 - in the background:
     - create websocket connection
-    - POST /table_session: get or create a session
+    - POST /table/create_session: get or create a session
         - force = True/False
     - response:
         - 201: new created
@@ -41,6 +40,24 @@ Scanning the QR code:
             - new one with force=True in the body
                 - this returns a 201 with the sessionId, sets it
     - after the sessionId exists: State 2
+| **1 Issue** | When `POST /table/create_session` returns a `sessionId`, it also returns a **`ws_token`** (JWT). | Signed with HMAC‑SHA256; TTL = 3 h. |
+| **2 Open** | Browser opens `wss://table/ws?sess={sessionId}` with HTTP header `Authorization: Bearer {ws_token}`. | Keeps URL clean; works behind most proxies. |
+
+```jsonc
+{
+  "sub": "memberId‑xyz",
+  "name": <randomly generate a name like animals cutecat, tinytiger etc>
+  "sid": "sessionId‑abc123",
+  "tbl": 7,
+  "table_name": "<something>",
+  "iat": 1718802912,
+  "exp": 1718910000
+}
+```
+Front‑end stores the `ws_token` in `sessionStorage` so it survives a page reload during the same tab.
+
+
+
 
 ## State 2
 - GET /table_session_details:

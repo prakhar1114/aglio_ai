@@ -1,0 +1,44 @@
+<div id="grid" hx-get="/admin/tables" hx-trigger="every 10s" hx-swap="outerHTML">
+    <table class="grid">
+        <tr>
+        {% for table in tables %}
+            <td data-table-id="{{ table.id }}"
+                class="tile {{ table.status }} {% if table.session %}occupied{% endif %}">
+                <div class="num">{{ table.number }}</div>
+
+                {% if table.session %}
+                    <small class="badge">⏱ {{ table.session.last_active|idle }}</small>
+                    <div class="btn-row">
+                        <button hx-post="/admin/table/{{ table.id }}/close"
+                                hx-target="#toast" 
+                                hx-swap="innerHTML"
+                                class="btn-close">Close</button>
+
+                        <button class="btn-move"
+                                hx-post="/admin/table/{{ table.id }}/move"
+                                hx-vals='{"target":null}'
+                                hx-on="htmx:beforeRequest: pickTarget(event)">Move</button>
+                    </div>
+                {% elif table.status == 'open' %}
+                    <button hx-post="/admin/table/{{ table.id }}/disable"
+                            hx-target="#toast" 
+                            hx-swap="innerHTML"
+                            class="btn-disable">Disable</button>
+                {% elif table.status == 'disabled' %}
+                    <button hx-post="/admin/table/{{ table.id }}/enable"
+                            hx-target="#toast" 
+                            hx-swap="innerHTML"
+                            class="btn-enable">Enable</button>
+                {% elif table.status == 'dirty' %}
+                    <em class="dirty-text">Needs Cleaning</em>
+                    <button hx-post="/admin/table/{{ table.id }}/enable"
+                            hx-target="#toast" 
+                            hx-swap="innerHTML"
+                            class="btn-clean">Mark Clean</button>
+                {% endif %}
+            </td>
+            {% if loop.index is divisibleby(6) %}</tr><tr>{% endif %}
+        {% endfor %}
+        </tr>
+    </table>
+</div> 

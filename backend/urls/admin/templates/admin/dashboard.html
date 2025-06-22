@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ restaurant_name }} - Admin Dashboard</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10/dist/htmx.min.js"></script>
+    <link rel="stylesheet" href="/admin/static/dashboard.css">
+</head>
+<body {% if api_key %}data-api-key="{{ api_key }}"{% endif %}>
+    <header>
+        <h1>{{ restaurant_name }}</h1>
+        <button id="logout" onclick="logout()">Logout</button>
+    </header>
+
+    <main>
+        <div id="grid"
+             hx-get="/admin/tables"
+             hx-trigger="load, every 30s"
+             hx-swap="outerHTML">
+            <!-- Grid will be loaded here -->
+        </div>
+    </main>
+
+    <div id="toast" class="toast hidden"></div>
+
+    <script src="/admin/static/dashboard.js"></script>
+</body>
+</html> 

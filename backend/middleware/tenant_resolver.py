@@ -105,12 +105,14 @@ async def tenant_middleware(request: Request, call_next):
     skip_paths = {
         "/docs", "/redoc", "/openapi.json", 
         "/health", "/",  # system endpoints
-        "/image_data"  # static files
+        "/image_data",  # static files
+        "/settings",  # settings management
+        "/admin",  # admin dashboard endpoints (use API key auth)
     }
     
     # Check if current path should skip tenant resolution
     path = request.url.path
-    if path in skip_paths or path.startswith("/image_data/") or path.startswith("/settings"):
+    if path in skip_paths or path.startswith("/image_data/") or path.startswith("/settings") or path.startswith("/admin/"):
         logger.debug(f"Skipping tenant resolution for system path: {path}")
         return await call_next(request)
     
