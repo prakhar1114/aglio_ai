@@ -11,7 +11,7 @@ from models.schema import init_db
 
 
 from config import rdb, qd, root_dir, DEBUG_MODE, image_dir
-from middleware.tenant_resolver import tenant_middleware, tenant_resolver, get_qdrant_collection
+# from middleware.tenant_resolver import tenant_middleware, tenant_resolver, get_qdrant_collection
 from urls.filtered_recommendations import router as filtered_router
 from urls.menu import router as menu_router
 from urls.chat import router as chat_router
@@ -35,15 +35,15 @@ async def lifespan(app: FastAPI):
     logger.info(f"🔧 Debug mode: {DEBUG_MODE}")
     
     # Display loaded restaurants status
-    tenant_count = len(tenant_resolver.restaurants_data)
-    logger.info(f"🏪 Found {tenant_count} restaurants")
+    # tenant_count = len(tenant_resolver.restaurants_data)
+    # logger.info(f"🏪 Found {tenant_count} restaurants")
     
-    if tenant_count == 0:
-        logger.warning("⚠️  No restaurants loaded! Check restaurant_onboarding.json")
-    else:
-        for subdomain, info in tenant_resolver.restaurants_data.items():
-            status = "✅ Ready" if info.get("added2qdrant") else "⏳ Pending"
-            logger.info(f"   • {info['restaurant_name']} -> {subdomain}.aglioapp.com ({status})")
+    # if tenant_count == 0:
+    #     logger.warning("⚠️  No restaurants loaded! Check restaurant_onboarding.json")
+    # else:
+    #     for subdomain, info in tenant_resolver.restaurants_data.items():
+    #         status = "✅ Ready" if info.get("added2qdrant") else "⏳ Pending"
+    #         logger.info(f"   • {info['restaurant_name']} -> {subdomain}.aglioapp.com ({status})")
     
     yield
     
@@ -59,7 +59,7 @@ app = FastAPI(
 )
 
 # Add tenant middleware first (before other middlewares)
-app.middleware("http")(tenant_middleware)
+# app.middleware("http")(tenant_middleware)
 
 app.mount(
     "/image_data",
@@ -74,8 +74,8 @@ if os.path.exists(admin_static_dir):
     app.mount("/admin/static", StaticFiles(directory=admin_static_dir), name="admin_static")
 
 # Include routers
-app.include_router(categories_router, prefix="/categories", tags=["categories"])
-app.include_router(menu_router, prefix="/menu", tags=["menu"])
+app.include_router(categories_router, tags=["categories"])  # No prefix - full path in router
+app.include_router(menu_router, tags=["menu"])  # No prefix - full path in router
 app.include_router(filtered_router, prefix="/filtered_recommendations", tags=["recommendations"])
 app.include_router(featured_router, prefix="/featured", tags=["featured"])
 app.include_router(prev_orders_router, prefix="/prev_orders", tags=["orders"])

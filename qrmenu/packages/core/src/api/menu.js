@@ -3,6 +3,10 @@ import { getSessionId } from '../session.js';
 import { getBaseApiCandidates } from './base.js';
 
 const BASE_API = import.meta.env.VITE_API_BASE || '';
+const restaurantSlug = import.meta.env.VITE_RESTAURANT_SLUG;
+if (!restaurantSlug) {
+  throw new Error('Restaurant slug not configured. Please set VITE_RESTAURANT_SLUG environment variable.');
+}
 
 function buildQueryString(params) {
   const usp = new URLSearchParams();
@@ -59,7 +63,7 @@ function constructImageUrl(imageUrl, baseApi) {
 export const useMenu = (filters = {}) => {
   return useInfiniteQuery({
     queryKey: ['menu', filters],
-    queryFn: async ({ pageParam }) => {
+    queryFn: async ({ pageParam }) => {      
       // Map frontend filter names to backend API parameter names
       const mappedFilters = {};
       
@@ -79,9 +83,7 @@ export const useMenu = (filters = {}) => {
       }
       
       const queryString = buildQueryString({ cursor: pageParam ?? '', ...mappedFilters });
-      console.log("original filters ", filters);
-      console.log("mapped filters ", mappedFilters);
-      const path = `/menu/?${queryString}`;
+      const path = `/restaurants/${restaurantSlug}/menu/?${queryString}`;
       const res = await fetchWithFallback(path, {
         headers: { 'x-session-id': getSessionId() },
       });
@@ -107,7 +109,8 @@ export const useCategories = () => {
   return useQuery({
     queryKey: ['categories'],
     queryFn: async () => {
-      const res = await fetchWithFallback('/categories/', {
+      
+      const res = await fetchWithFallback(`/restaurants/${restaurantSlug}/categories/`, {
         headers: { 'x-session-id': getSessionId() },
       });
       if (!res.ok) throw new Error('Failed to fetch categories');

@@ -7,6 +7,7 @@ export default defineConfig({
   define: {
     'import.meta.env.VITE_API_BASE': JSON.stringify('http://192.168.1.103:8005'),
     'import.meta.env.VITE_WS_BASE': JSON.stringify('ws://192.168.1.103:8005'),
+    'import.meta.env.VITE_RESTAURANT_SLUG': JSON.stringify('handcrafted'),
     // 'import.meta.env.VITE_API_BASE': JSON.stringify('http://172.20.10.2:8005'),
   },
   build: {
