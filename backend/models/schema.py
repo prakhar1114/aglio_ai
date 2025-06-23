@@ -162,6 +162,7 @@ class CartItem(Base):
     menu_item_id = Column(Integer, ForeignKey("menu_items.id"), nullable=False)
     qty = Column(Integer, nullable=False)
     note = Column(Text)
+    state = Column(Enum("pending", "locked", "ordered", name="cart_item_state"), default="pending", nullable=False)
     version = Column(Integer, default=1)
 
     session = relationship("Session", back_populates="cart_items")
@@ -179,8 +180,11 @@ class Order(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     public_id = Column(String(36), unique=True, nullable=False)
     session_id = Column(Integer, ForeignKey("sessions.id"), nullable=False)
-    pos_ticket = Column(String)
+    payload = Column(JSON, nullable=False)  # Cart items data
     cart_hash = Column(String, nullable=False)
+    total_amount = Column(Float, nullable=False)  # Total in Indian Rs
+    pay_method = Column(String, nullable=False)  # Payment method
+    pos_ticket = Column(String)  # Reserved for future POS integration
     created_at = Column(DateTime, default=datetime.utcnow)
 
     session = relationship("Session", back_populates="orders")

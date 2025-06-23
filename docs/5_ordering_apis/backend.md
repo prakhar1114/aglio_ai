@@ -246,6 +246,117 @@ WHERE id = :id AND session_id = :sid;
 
 ---
 
-## 8.  Order submission endpoints are out‑of‑scope for this file.  
+## 8.  `POST /orders` – persist the order (POS integration deferred)  
 
-Cart and password validation are fully specified above. Cursor can generate Pydantic models, routers, and unit tests directly from this document.
+> **Goal in v1:** simply write a row to the `orders` table so the kitchen can see it in a back‑office screen.  
+> POS/KDS push will be added later; the schema already contains `pos_ticket`, leaving it `NULL` for now.
+
+### Request  
+
+```json
+{
+  "session_pid": "s_97df48",
+  "items": [
+    { "public_id": "ci_0a1b", "qty": 2, "note": "" },
+    { "public_id": "ci_7ff2", "qty": 1, "note": "no onion" }
+  ],
+  "cart_hash": "7d8c…",
+  "pay_method": "cash"
+}
+```
+
+* `items[]` **must reference cart‐item `public_id`s**, not DB ints.  
+  This prevents a malicious client from injecting arbitrary menu IDs.  
+  Server maps them to `CartItem` rows to rebuild the authoritative cart.
+
+### Response – happy path  
+
+| HTTP | Body |
+|------|------|
+| **201** | `{ "success":true, "data":{ "order_id":"o_789" } }` |
+
+### Validations  
+
+| Check | HTTP | code | Notes |
+|-------|------|------|-------|
+| pass_required & not validated | 403 | `pass_required` | |
+| Session closed | 410 | `session_closed` | |
+| Cart empty | 409 | `cart_empty` | `items` array len = 0 |
+| Any `public_id` not present in cart | 409 | `item_not_found` | client out of sync |
+| Cart hash mismatch | 409 | `cart_mismatch` | returns current snapshot |
+
+**Hash mismatch response**
+
+```jsonc
+{
+  "success": false,
+  "code": "cart_mismatch",
+  "detail": "Hash differs; refresh cart.",
+  "cart_snapshot": { … }            // full current state
+}
+```
+
+### Implementation steps  
+
+1. **Fetch session**  
+   ```python
+   session = db.query(Session).filter_by(public_id=req.session_pid, state='active').one_or_none()
+   ```
+   Raise `410 session_closed` if not.
+
+2. **Load all live `cart_items`** for that session, keyed by `public_id`.  
+
+   ```python
+   rows = {ci.public_id: ci for ci in db.query(CartItem)
+                                   .filter_by(session_id=session.id).all()}
+   ```
+
+3. **Validate request items**  
+   * Every `public_id` in request must exist in `rows`; else `item_not_found`.  
+   * Build `economic_rows` = subset after applying requested `qty` & `note` (client
+     may have stale data; use server values).  
+
+4. **Recompute canonical hash** *(see Cart‑Hash algorithm section)*  
+   *If different from `req.cart_hash` → 409 `cart_mismatch`*.
+
+5. **Insert `orders` row**  
+
+   ```python
+   order_pid = f"o_{uuid4().hex[:6]}"
+   total_amount = sum(r.qty * r.menu_item.price for r in rows.values())
+   order = Order(
+       public_id    = order_pid,
+       session_id   = session.id,
+       payload      = [ row_to_dict(r) for r in rows.values() ],
+       cart_hash    = req.cart_hash,
+       total_amount = total_amount,  # Total in Indian Rs
+       pay_method   = req.pay_method,
+       pos_ticket   = None           # reserved for future POS push
+   )
+   db.add(order)
+   db.commit()
+   ```
+
+6. **WebSocket broadcast** (optional in v1)  
+
+   ```jsonc
+   { "type":"order_fired",
+     "order":{ "order_id":order_pid,
+               "created_at":now_iso,
+               "items":[…],
+               "total_amount":total_amount } }
+   ```
+
+7. **Return 201** `{success:true,data:{order_id:order_pid}}`.
+
+### Error codes added  
+
+| code | Used in |
+|------|---------|
+| `item_not_found` | POST /orders |
+| `cart_empty` | POST /orders |
+| `cart_mismatch` | POST /orders |
+
+*(Remove previous note that POS integration waits 3 s; that text is obsolete.)*
+
+---

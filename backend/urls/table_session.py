@@ -7,13 +7,16 @@ import json
 import hashlib
 from loguru import logger
 
-from models.schema import SessionLocal, Restaurant, Table, Session, Member, RestaurantHours, DailyPass
+from models.schema import SessionLocal, Restaurant, Table, Session, Member, RestaurantHours, DailyPass, CartItem, MenuItem
 from models.table_session_models import (
     TableSessionRequest, TableSessionResponse, 
     TokenRefreshRequest, TokenRefreshResponse,
     MemberUpdateRequest, MemberUpdateResponse,
     ValidatePassRequest, ValidatePassResponse,
     ErrorResponse, MemberJoinEvent, MemberInfo
+)
+from models.cart_models import (
+    CartMutateEvent, CartUpdateEvent, CartErrorEvent, CartItemResponse
 )
 from utils.jwt_utils import (
     encode_ws_token, decode_ws_token, is_token_near_expiry, verify_qr_token
@@ -347,81 +350,6 @@ async def update_member_nickname(
             status_code=500,
             detail={"success": False, "code": "internal_error", "detail": "Internal server error"}
         )
-
-@router.websocket("/ws/session")
-async def websocket_endpoint(websocket: WebSocket):
-    """
-    WebSocket endpoint for real-time session communication
-    """
-    session_pid = None
-    try:
-        # Get session ID from query params
-        session_pid = websocket.query_params.get("sid")
-        if not session_pid:
-            await websocket.close(code=4003, reason="Missing session ID")
-            return
-        
-        # Get token from headers or query params (fallback for browsers that don't support WS headers)
-        token = None
-        auth_header = websocket.headers.get("authorization", "")
-        if auth_header.startswith("Bearer "):
-            token = auth_header[7:]
-        else:
-            # Fallback: get token from query params
-            token = websocket.query_params.get("token")
-        
-        if not token:
-            await websocket.close(code=4003, reason="Missing or invalid auth token")
-            return
-        payload = decode_ws_token(token)
-        if not payload:
-            await websocket.close(code=4003, reason="Invalid token")
-            return
-        
-        # Verify session ID matches token
-        if payload.get("sid") != session_pid:
-            await websocket.close(code=4003, reason="Session ID mismatch")
-            return
-        
-        # Connect to session
-        connected = await connection_manager.connect(websocket, session_pid)
-        if not connected:
-            return  # Connection was closed due to limit
-        
-        logger.info(f"WebSocket connected to session {session_pid}")
-        
-        # Listen for messages
-        while True:
-            try:
-                data = await websocket.receive_text()
-                
-                # Only accept "ping" for now
-                if data.strip() == "ping":
-                    await websocket.send_text("pong")
-                else:
-                    await connection_manager.send_error(
-                        websocket, 
-                        "invalid_payload", 
-                        "Only 'ping' messages are supported"
-                    )
-                    
-            except WebSocketDisconnect:
-                break
-            except Exception as e:
-                logger.warning(f"WebSocket message error: {e}")
-                await connection_manager.send_error(
-                    websocket,
-                    "message_error", 
-                    "Error processing message"
-                )
-                
-    except Exception as e:
-        logger.error(f"WebSocket connection error: {e}")
-        if websocket.client_state.name == "CONNECTED":
-            await websocket.close(code=4000, reason="Internal error")
-    finally:
-        if session_pid:
-            connection_manager.disconnect(websocket)
 
 @router.post("/session/validate_pass", response_model=ValidatePassResponse)
 async def validate_pass(data: ValidatePassRequest):

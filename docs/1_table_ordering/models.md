@@ -126,6 +126,7 @@ class CartItem(Base):
     menu_item_id = Column(Integer, ForeignKey("menu_items.id"), nullable=False)
     qty          = Column(Integer, nullable=False)
     note         = Column(Text)
+    state        = Column(Enum("pending", "locked", "ordered", name="cart_item_state"), default="pending", nullable=False)
     version      = Column(Integer, default=1)
 
     session = relationship("Session", back_populates="cart_items")
@@ -184,5 +185,5 @@ class MenuItem(Base):
 ```
 
 > **Notes for migrations**
-> * Use Alembic’s `op.create_index()` with `postgresql_where` to replicate the partial `IX_one_open_per_table`.
+> * Use Alembic's `op.create_index()` with `postgresql_where` to replicate the partial `IX_one_open_per_table`.
 > * `public_id` can be populated in your `before_insert` events with `uuid.uuid4().hex`.

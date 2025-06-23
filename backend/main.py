@@ -19,9 +19,11 @@ from urls.categories import router as categories_router
 from urls.featured import router as featured_router
 from urls.prev_orders import router as prev_orders_router
 from urls.upsell import router as upsell_router
-from urls.settings import router as settings_router
+# from urls.settings import router as settings_router
 from urls.admin.dashboard import router as admin_router
 from urls.table_session import router as table_session_router
+from urls.session_ws import router as session_ws_router
+from urls.cart import router as cart_router
 
 
 
@@ -80,9 +82,11 @@ app.include_router(filtered_router, prefix="/filtered_recommendations", tags=["r
 app.include_router(featured_router, prefix="/featured", tags=["featured"])
 app.include_router(prev_orders_router, prefix="/prev_orders", tags=["orders"])
 app.include_router(upsell_router, prefix="/upsell", tags=["upsell"])
-app.include_router(settings_router, prefix="/settings", tags=["settings"])
+# app.include_router(settings_router, prefix="/settings", tags=["settings"])
 app.include_router(admin_router, prefix="/admin", tags=["admin"])
 app.include_router(table_session_router, tags=["table_session"])
+app.include_router(session_ws_router, tags=["session_ws"])
+app.include_router(cart_router, tags=["cart"])
 
 
 # CORS configuration
