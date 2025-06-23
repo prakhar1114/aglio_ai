@@ -8,3 +8,14 @@ export const getBaseApiCandidates = () => {
   // candidates.push('');
   return [...new Set(candidates)];
 }; 
+
+export function constructImageUrl(imageUrl) {
+  const baseApi = getBaseApiCandidates()[0];
+  if (!imageUrl) return null;
+  // If already a complete URL, return as is
+  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+    return imageUrl;
+  }
+  // Construct complete URL by prepending base API
+  return `${baseApi}/${imageUrl}`;
+}

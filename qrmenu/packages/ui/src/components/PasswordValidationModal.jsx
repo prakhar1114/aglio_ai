@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { validatePassword } from '@qrmenu/core/utils/connection';
-import { useSessionStore } from '@qrmenu/core/store/session';
+import { validatePassword } from '@qrmenu/core';
+import { useSessionStore } from '@qrmenu/core';
 
 export function PasswordValidationModal({ isOpen, onClose }) {
   const [password, setPassword] = useState('');

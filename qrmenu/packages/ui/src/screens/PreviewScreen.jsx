@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useCartStore } from '@qrmenu/core';
+import { useCartStore, useSessionStore, addItemToCart, updateCartItem, deleteCartItem } from '@qrmenu/core';
 import { useSwipeable } from 'react-swipeable';
 import { ItemCard } from '../components/ItemCard.jsx';
 import { SimpleMasonryGrid } from '../components/SimpleMasonryGrid.jsx';
@@ -115,9 +115,45 @@ function MediaSection({ item, currentIndex, totalItems }) {
 
 // Compact Action Buttons Component
 function CompactActionButtons({ item, onAskAI }) {
-  const qty = useCartStore((s) => s.items[item.id]?.qty ?? 0);
-  const addItem = useCartStore((s) => s.addItem);
-  const removeItem = useCartStore((s) => s.removeItem);
+  // Calculate current quantity for this menu item from shared cart
+  const { items } = useCartStore();
+  const { memberPid } = useSessionStore();
+  
+  // Find the current user's cart items for this menu item
+  const userCartItems = items.filter(cartItem => 
+    cartItem.menu_item_pid === item.id && cartItem.member_pid === memberPid
+  );
+  const qty = userCartItems.reduce((total, cartItem) => total + cartItem.qty, 0);
+
+  const handleAdd = () => {
+    if (qty === 0) {
+      // Item not in cart, add new item
+      addItemToCart(item, 1, ''); // item, qty, note
+    } else {
+      // Item already in cart, update existing item's quantity
+      const cartItem = userCartItems[0]; // Get the first (should be only one per user per item)
+      if (cartItem) {
+        updateCartItem(cartItem.public_id, cartItem.qty + 1, cartItem.note, cartItem.version);
+      }
+    }
+  };
+
+  const handleRemove = () => {
+    // Find the first item to decrease or remove
+    const cartItem = userCartItems[0];
+    if (!cartItem) {
+      console.log('No cart item found to remove for menu item:', item.id);
+      return;
+    }
+    
+    console.log('Removing cart item:', cartItem);
+    
+    if (cartItem.qty === 1) {
+      deleteCartItem(cartItem.public_id, cartItem.version);
+    } else {
+      updateCartItem(cartItem.public_id, cartItem.qty - 1, cartItem.note, cartItem.version);
+    }
+  };
 
   const buttonBaseStyle = {
     borderRadius: '8px',
@@ -197,7 +233,7 @@ function CompactActionButtons({ item, onAskAI }) {
       <div className="flex-shrink-0">
         {qty === 0 ? (
           <button
-            onClick={() => addItem(item)}
+            onClick={handleAdd}
             style={addButtonStyle}
           >
             <svg
@@ -219,14 +255,14 @@ function CompactActionButtons({ item, onAskAI }) {
         ) : (
           <div style={quantityPillStyle}>
             <button
-              onClick={() => removeItem(item)}
+              onClick={handleRemove}
               style={quantityButtonStyle}
             >
               −
             </button>
             <span style={quantityDisplayStyle}>{qty}</span>
             <button
-              onClick={() => addItem(item)}
+              onClick={handleAdd}
               style={quantityButtonStyle}
             >
               +

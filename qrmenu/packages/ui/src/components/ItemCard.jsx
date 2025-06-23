@@ -1,14 +1,46 @@
 import React from 'react';
-import { useCartStore } from '@qrmenu/core';
+import { useCartStore, useSessionStore, addItemToCart, updateCartItem, deleteCartItem } from '@qrmenu/core';
 
 export function ItemCard({ item, onItemClick }) {
-  const qty = useCartStore((s) => s.items[item.id]?.qty ?? 0);
-  const addItem = useCartStore((s) => s.addItem);
-  const removeItem = useCartStore((s) => s.removeItem);
+  // Calculate current quantity for this menu item from shared cart
+  const { items } = useCartStore();
+  const { memberPid } = useSessionStore();
+  
+  // Find the current user's cart items for this menu item
+  const userCartItems = items.filter(cartItem => 
+    cartItem.menu_item_pid === item.id && cartItem.member_pid === memberPid
+  );
+  const qty = userCartItems.reduce((total, cartItem) => total + cartItem.qty, 0);
 
-  const handleAdd = () => addItem(item);
+  const handleAdd = () => {
+    if (qty === 0) {
+      // Item not in cart, add new item
+      addItemToCart(item, 1, ''); // item, qty, note
+    } else {
+      // Item already in cart, update existing item's quantity
+      const cartItem = userCartItems[0]; // Get the first (should be only one per user per item)
+      if (cartItem) {
+        updateCartItem(cartItem.public_id, cartItem.qty + 1, cartItem.note, cartItem.version);
+      }
+    }
+  };
 
-  const handleRemove = () => removeItem(item);
+  const handleRemove = () => {
+    // Find the first item to decrease or remove
+    const cartItem = userCartItems[0];
+    if (!cartItem) {
+      console.log('No cart item found to remove for menu item:', item.id);
+      return;
+    }
+    
+    console.log('Removing cart item:', cartItem);
+    
+    if (cartItem.qty === 1) {
+      deleteCartItem(cartItem.public_id, cartItem.version);
+    } else {
+      updateCartItem(cartItem.public_id, cartItem.qty - 1, cartItem.note, cartItem.version);
+    }
+  };
 
   const handleCardClick = (e) => {
     // Don't trigger if clicking on add/remove buttons

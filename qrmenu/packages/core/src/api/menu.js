@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { getBaseApiCandidates } from './base.js';
+import { getBaseApiCandidates, constructImageUrl } from './base.js';
 
 // Polyfill for crypto.randomUUID() for Safari compatibility
 function generateUUID() {
@@ -66,24 +66,6 @@ async function fetchWithFallback(pathOrUrl, options) {
   throw new Error('All API base URLs failed');
 }
 
-// Helper function to get the working base API URL
-function getWorkingBaseApi() {
-  const bases = getBaseApiCandidates();
-  // Return the first base (preferring env var, then localhost:8005)
-  return bases[0] || 'http://localhost:8005';
-}
-
-// Helper function to construct complete image URLs
-function constructImageUrl(imageUrl, baseApi) {
-  if (!imageUrl) return null;
-  // If already a complete URL, return as is
-  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-    return imageUrl;
-  }
-  // Construct complete URL by prepending base API
-  return `${baseApi}/${imageUrl}`;
-}
-
 export const useMenu = (filters = {}) => {
   return useInfiniteQuery({
     queryKey: ['menu', filters],
@@ -115,11 +97,10 @@ export const useMenu = (filters = {}) => {
       const data = await res.json();
       
       // Transform image URLs to include base API
-      const baseApi = getWorkingBaseApi();
       if (data.items) {
         data.items = data.items.map(item => ({
           ...item,
-          image_url: constructImageUrl(item.image_url, baseApi)
+          image_url: constructImageUrl(item.image_url)
         }));
       }
       

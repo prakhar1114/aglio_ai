@@ -1,13 +1,19 @@
 import { create } from 'zustand';
 import { getAIResponse } from '../utils/aiResponses.js';
+import { useSessionStore } from './session.js';
 
 export const useCartStore = create((set, get) => ({
-  items: {}, // { [id]: { item, qty } }
-  filters: {}, // Applied filters object
-  orders: [], // Array of placed orders
-  orderCounter: 0, // Counter for order numbering
+  // Cart data - new shared cart structure
+  items: [], // Array of CartItem objects
+  members: [], // Array of Member objects  
+  orders: [], // Array of completed orders
+  cart_version: 0, // Overall cart version for optimistic locking
   
-  // Chat state
+  // UI state
+  isPasswordRequired: false,
+  pendingMutations: [], // Queue for mutations when password is required
+  
+  // Existing AI chat state (keep as is)
   chatMessages: [
     {
       id: 1,
@@ -21,33 +27,224 @@ export const useCartStore = create((set, get) => ({
   // Global AI Chat Drawer state
   isAIChatDrawerOpen: false,
   
-  // Cart methods
-  addItem: (item) => {
+  // Legacy filter state (keep for backward compatibility)
+  filters: {},
+  
+  // Cart methods - new shared cart API
+  addItemOptimistic: (menuItem, qty, note, tmpId) => {
+    const sessionStore = useSessionStore?.getState();
+    const memberPid = sessionStore?.memberPid;
+    
+    if (!memberPid) {
+      console.error('No member PID available for cart operation');
+      return;
+    }
+    
     set((state) => {
-      const prev = state.items[item.id]?.qty ?? 0;
+      const newItem = {
+        public_id: tmpId || crypto.randomUUID(), // Use tmpId or generate one
+        member_pid: memberPid,
+        menu_item_pid: menuItem.id, // Use dish.id which corresponds to menu_item.public_id
+        name: menuItem.name,
+        price: menuItem.price,
+        qty,
+        note: note || '',
+        version: 1,
+        tmpId: tmpId // Track temporary ID for optimistic updates
+      };
+      
       return {
-        items: {
-          ...state.items,
-          [item.id]: { item, qty: prev + 1 },
-        },
+        items: [...state.items, newItem]
       };
     });
   },
-  removeItem: (item) => {
+  
+  updateItemOptimistic: (public_id, qty, note, version) => {
     set((state) => {
-      const entry = state.items[item.id];
-      if (!entry) return state;
-      const newQty = entry.qty - 1;
-      const newItems = { ...state.items };
-      if (newQty <= 0) delete newItems[item.id];
-      else newItems[item.id] = { item, qty: newQty };
-      return { items: newItems };
+      const itemIndex = state.items.findIndex(item => item.public_id === public_id);
+      if (itemIndex === -1) return state;
+      
+      const updatedItems = [...state.items];
+      updatedItems[itemIndex] = {
+        ...updatedItems[itemIndex],
+        qty,
+        note: note || updatedItems[itemIndex].note,
+        version: version + 1 // Increment version for optimistic update
+      };
+      
+      return { items: updatedItems };
     });
   },
-  clear: () => set({ items: {} }),
-  totalCount: () => Object.values(get().items).reduce((acc, e) => acc + e.qty, 0),
   
-  // Chat methods
+  deleteItemOptimistic: (public_id, version) => {
+    set((state) => ({
+      items: state.items.filter(item => item.public_id !== public_id)
+    }));
+  },
+  
+  // Real-time sync methods
+  applyCartUpdate: (update) => {
+    set((state) => {
+      let newItems = [...state.items];
+      let newMembers = [...state.members];
+      
+      // Handle individual cart operations (create/update/delete)
+      if (update.op && update.item) {
+        const { op, item, tmpId } = update;
+        
+        if (op === 'create') {
+          // Replace optimistic item with server response or add new item
+          if (tmpId) {
+            // Find and replace optimistic item
+            const optimisticIndex = newItems.findIndex(cartItem => cartItem.tmpId === tmpId);
+            if (optimisticIndex >= 0) {
+              newItems[optimisticIndex] = {
+                ...item,
+                tmpId: undefined // Clear tmpId since it's now confirmed
+              };
+            } else {
+              // Add new item if optimistic item not found
+              newItems.push(item);
+            }
+          } else {
+            // Add new item
+            newItems.push(item);
+          }
+        } else if (op === 'update') {
+          // Update existing item
+          const itemIndex = newItems.findIndex(cartItem => cartItem.public_id === item.public_id);
+          if (itemIndex >= 0) {
+            newItems[itemIndex] = {
+              ...newItems[itemIndex],
+              ...item
+            };
+          }
+        } else if (op === 'delete') {
+          // Remove item
+          newItems = newItems.filter(cartItem => cartItem.public_id !== item.public_id);
+        }
+      }
+      
+      return {
+        items: newItems,
+        members: newMembers,
+        cart_version: update.cart_version || state.cart_version
+      };
+    });
+  },
+  
+  handleCartError: (error) => {
+    if (error.code === 'version_conflict') {
+      console.warn('Cart version conflict, reloading cart state');
+      // In a real app, you might want to show a toast notification
+      // The backend should send the latest cart state to resolve conflicts
+    }
+  },
+  
+  // Cart snapshot loading
+  loadCartSnapshot: (snapshot) => {
+    set({
+      items: snapshot.items || [],
+      members: snapshot.members || [],
+      cart_version: snapshot.cart_version || 0
+    });
+  },
+  
+  // Password & queue methods
+  setPasswordRequired: (required) => set({ isPasswordRequired: required }),
+  
+  queueMutation: (mutation) => {
+    set((state) => ({
+      pendingMutations: [...state.pendingMutations, mutation]
+    }));
+  },
+  
+  flushPendingMutations: () => {
+    const mutations = get().pendingMutations;
+    set({ pendingMutations: [] });
+    return mutations;
+  },
+  
+  // Utility methods
+  getItemsByMember: () => {
+    const items = get().items;
+    const members = get().members;
+    
+    const groupedItems = {};
+    
+    // Initialize groups for all members
+    members.forEach(member => {
+      groupedItems[member.member_pid] = [];
+    });
+    
+    // Group items by member
+    items.forEach(item => {
+      if (!groupedItems[item.member_pid]) {
+        groupedItems[item.member_pid] = [];
+      }
+      groupedItems[item.member_pid].push(item);
+    });
+    
+    return groupedItems;
+  },
+  
+  canEditItem: (item, currentMemberPid, isHost) => {
+    // Host can edit any item, members can only edit their own
+    return isHost || item.member_pid === currentMemberPid;
+  },
+  
+  getTotalAmount: () => {
+    const items = get().items;
+    return items.reduce((total, item) => total + (item.price * item.qty), 0);
+  },
+  
+  getCartHash: () => {
+    // Simple hash implementation for cart validation
+    const items = get().items;
+    const sortedItems = items
+      .map(item => `${item.public_id}:${item.qty}`)
+      .sort()
+      .join('|');
+    
+    // Simple string hash (in production, use crypto.subtle.digest)
+    let hash = 0;
+    for (let i = 0; i < sortedItems.length; i++) {
+      const char = sortedItems.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    return hash.toString(16);
+  },
+  
+  // Legacy cart methods (for backward compatibility)
+  addItem: (item) => {
+    console.warn('Legacy addItem method called. Use addItemOptimistic instead.');
+    // For backward compatibility, convert to new format
+    get().addItemOptimistic(item, 1, '', null);
+  },
+  
+  removeItem: (item) => {
+    console.warn('Legacy removeItem method called. Use updateItemOptimistic instead.');
+    // For backward compatibility, find the item and update quantity
+    const cartItem = get().items.find(cartItem => cartItem.menu_item_pid === item.id);
+    if (cartItem && cartItem.qty > 1) {
+      get().updateItemOptimistic(cartItem.public_id, cartItem.qty - 1, cartItem.note, cartItem.version);
+    } else if (cartItem) {
+      get().deleteItemOptimistic(cartItem.public_id, cartItem.version);
+    }
+  },
+  
+  clear: () => {
+    console.warn('Legacy clear method called. Cart clearing should be done via WebSocket.');
+    set({ items: [] });
+  },
+  
+  totalCount: () => {
+    const items = get().items;
+    return items.reduce((acc, item) => acc + item.qty, 0);
+  },
+  
+  // Chat methods (keep unchanged)
   addChatMessage: (message) => {
     set((state) => ({
       chatMessages: [...state.chatMessages, {
@@ -69,7 +266,7 @@ export const useCartStore = create((set, get) => ({
     ]
   }),
   
-  // Global AI Chat Drawer methods
+  // Global AI Chat Drawer methods (keep unchanged)
   openAIChatDrawer: () => set({ isAIChatDrawerOpen: true }),
   closeAIChatDrawer: () => set({ isAIChatDrawerOpen: false }),
   sendMessageAndOpenChat: (message) => {
@@ -107,15 +304,15 @@ export const useCartStore = create((set, get) => ({
     }, 1500);
   },
   
-  // Order methods
+  // Order methods (updated for new structure)
   addOrder: () => {
     const state = get();
-    const cartItems = Object.values(state.items);
+    const cartItems = state.items;
     
     if (cartItems.length === 0) return;
     
-    const newOrderNumber = state.orderCounter + 1;
-    const total = cartItems.reduce((sum, entry) => sum + (entry.item.price * entry.qty), 0);
+    const newOrderNumber = state.orders.length + 1;
+    const total = state.getTotalAmount();
     
     const newOrder = {
       id: `order-${newOrderNumber}`,
@@ -127,8 +324,7 @@ export const useCartStore = create((set, get) => ({
     
     set((state) => ({
       orders: [newOrder, ...state.orders], // Add to beginning for descending order
-      orderCounter: newOrderNumber,
-      items: {} // Clear cart after creating order
+      items: [] // Clear cart after creating order
     }));
     
     return newOrder;
@@ -138,7 +334,7 @@ export const useCartStore = create((set, get) => ({
   getTotalBill: () => get().orders.reduce((sum, order) => sum + order.total, 0),
   getOrdersCount: () => get().orders.length,
   
-  // Filter methods
+  // Filter methods (keep for backward compatibility)
   setFilters: (filters) => set({ filters }),
   clearFilters: () => set({ filters: {} }),
   getFilterCount: () => {
