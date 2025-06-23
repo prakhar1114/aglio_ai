@@ -13,6 +13,10 @@ class TokenRefreshRequest(BaseModel):
 class MemberUpdateRequest(BaseModel):
     nickname: str = Field(..., min_length=1, max_length=50, description="New nickname")
 
+class ValidatePassRequest(BaseModel):
+    session_pid: str = Field(..., description="Session public ID")
+    word: str = Field(..., description="Daily password word")
+
 # Response models
 class TableSessionResponse(BaseModel):
     session_pid: str
@@ -22,6 +26,7 @@ class TableSessionResponse(BaseModel):
     ws_token: str
     restaurant_name: str
     table_number: int
+    session_validated: bool
 
 class TokenRefreshResponse(BaseModel):
     ws_token: str
@@ -29,6 +34,10 @@ class TokenRefreshResponse(BaseModel):
 class MemberUpdateResponse(BaseModel):
     success: bool = True
     nickname: str
+
+class ValidatePassResponse(BaseModel):
+    success: bool = True
+    session_validated: bool
 
 class ErrorResponse(BaseModel):
     success: bool = False

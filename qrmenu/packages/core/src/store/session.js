@@ -33,6 +33,7 @@ export const useSessionStore = create((set, get) => ({
   isHost: false,
   restaurantName: null,
   tableNumber: null,
+  sessionValidated: false,
   
   // WebSocket state
   wsToken: null,
@@ -66,6 +67,7 @@ export const useSessionStore = create((set, get) => ({
     restaurantName: data.restaurant_name,
     wsToken: data.ws_token,
     tableNumber: data.table_number,
+    sessionValidated: data.session_validated,
   }),
   
   updateNickname: (newNickname) => set({ nickname: newNickname }),
@@ -154,6 +156,14 @@ export const useSessionStore = create((set, get) => ({
     const state = get();
     return state.wsToken && isTokenNearExpiry(state.wsToken, 15);
   },
+
+  // Session validation methods
+  setSessionValidated: (validated) => set({ sessionValidated: validated }),
+
+  isPasswordRequired: () => {
+    const state = get();
+    return !state.sessionValidated;
+  },
   
   // Session persistence
   loadPersistedSession: () => {
@@ -164,6 +174,7 @@ export const useSessionStore = create((set, get) => ({
     const restaurantName = sessionStorage.getItem('restaurant_name');
     const wsToken = sessionStorage.getItem('ws_token');
     const tableNumber = sessionStorage.getItem('table_number');
+    const sessionValidated = sessionStorage.getItem('session_validated') === 'true';
     
     if (sessionPid && memberPid && wsToken) {
       set({
@@ -174,6 +185,7 @@ export const useSessionStore = create((set, get) => ({
         restaurantName,
         wsToken,
         tableNumber: tableNumber ? parseInt(tableNumber, 10) : null,
+        sessionValidated,
       });
       return true;
     }
@@ -189,6 +201,7 @@ export const useSessionStore = create((set, get) => ({
       sessionStorage.setItem('is_host', state.isHost.toString());
       sessionStorage.setItem('restaurant_name', state.restaurantName || '');
       sessionStorage.setItem('table_number', state.tableNumber ? state.tableNumber.toString() : '');
+      sessionStorage.setItem('session_validated', state.sessionValidated.toString());
       if (state.wsToken) {
         sessionStorage.setItem('ws_token', state.wsToken);
       }
@@ -210,6 +223,7 @@ export const useSessionStore = create((set, get) => ({
       members: [],
       connectionStatus: null,
       connectionMessage: null,
+      sessionValidated: false,
     });
     
     // Clear sessionStorage
@@ -220,5 +234,6 @@ export const useSessionStore = create((set, get) => ({
     sessionStorage.removeItem('restaurant_name');
     sessionStorage.removeItem('table_number');
     sessionStorage.removeItem('ws_token');
+    sessionStorage.removeItem('session_validated');
   },
 })); 

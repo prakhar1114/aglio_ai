@@ -77,6 +77,43 @@ async function refreshToken(wsToken) {
   throw lastError || new Error('All API endpoints failed');
 }
 
+async function validateSessionPassword(sessionPid, word) {
+  const candidates = getBaseApiCandidates();
+  let lastError = null;
+
+  for (const baseUrl of candidates) {
+    try {
+      const url = `${baseUrl}/session/validate_pass`;
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          session_pid: sessionPid,
+          word: word
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Password validated successfully');
+        return { success: true, data };
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`HTTP ${response.status}: ${errorData.detail || response.statusText}`);
+      }
+    } catch (error) {
+      console.log(`Password validation failed with ${baseUrl}:`, error.message);
+      lastError = error;
+      continue;
+    }
+  }
+
+  throw lastError || new Error('All API endpoints failed');
+}
+
 /**
  * WebSocket connection management
  */
@@ -355,6 +392,13 @@ export async function setupConnection(location) {
     
     return { success: false, reason: 'connection_failed', error: error.message };
   }
+}
+
+/**
+ * Utility function to validate session password
+ */
+export async function validatePassword(sessionPid, word) {
+  return await validateSessionPassword(sessionPid, word);
 }
 
 /**

@@ -1,16 +1,18 @@
 from fastapi import APIRouter, HTTPException, Request, Depends, Header, WebSocket, WebSocketDisconnect
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import text
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 import uuid
 import json
+import hashlib
 from loguru import logger
 
-from models.schema import SessionLocal, Restaurant, Table, Session, Member, RestaurantHours
+from models.schema import SessionLocal, Restaurant, Table, Session, Member, RestaurantHours, DailyPass
 from models.table_session_models import (
     TableSessionRequest, TableSessionResponse, 
     TokenRefreshRequest, TokenRefreshResponse,
     MemberUpdateRequest, MemberUpdateResponse,
+    ValidatePassRequest, ValidatePassResponse,
     ErrorResponse, MemberJoinEvent, MemberInfo
 )
 from utils.jwt_utils import (
@@ -155,13 +157,18 @@ async def create_table_session(
                 nickname = member.nickname
                 is_host = member.is_host
             
-            # 7. Generate WebSocket token
+            # 7. Determine session validation status
+            session_validated = True
+            if restaurant.require_pass:
+                session_validated = session.pass_validated
+            
+            # 8. Generate WebSocket token
             ws_token = encode_ws_token(member.public_id, session.public_id, data.device_id)
             
-            # 8. Commit all changes
+            # 9. Commit all changes
             db.commit()
             
-            # 9. Broadcast member_join event to existing WebSocket connections
+            # 10. Broadcast member_join event to existing WebSocket connections
             if session_pid in connection_manager.connections:
                 member_info = MemberInfo(
                     member_pid=member.public_id,
@@ -181,7 +188,8 @@ async def create_table_session(
                 is_host=member.is_host,
                 ws_token=ws_token,
                 restaurant_name=restaurant.name,
-                table_number=table.number
+                table_number=table.number,
+                session_validated=session_validated
             )
             
     except HTTPException:
@@ -414,3 +422,84 @@ async def websocket_endpoint(websocket: WebSocket):
     finally:
         if session_pid:
             connection_manager.disconnect(websocket)
+
+@router.post("/session/validate_pass", response_model=ValidatePassResponse)
+async def validate_pass(data: ValidatePassRequest):
+    """
+    Validate daily password and unblock cart mutations
+    """
+    try:
+        with SessionLocal() as db:
+            # Get session
+            session = db.query(Session).filter(Session.public_id == data.session_pid).first()
+            if not session or session.state != 'active':
+                raise HTTPException(
+                    status_code=410,
+                    detail={"success": False, "code": "session_closed", "detail": "Session is closed"}
+                )
+            
+            # Check if already validated
+            if session.pass_validated:
+                raise HTTPException(
+                    status_code=409,
+                    detail={"success": False, "code": "already_validated", "detail": "Session already validated"}
+                )
+            
+            # Get restaurant
+            restaurant = db.query(Restaurant).filter(Restaurant.id == session.restaurant_id).first()
+            if not restaurant:
+                raise HTTPException(
+                    status_code=404,
+                    detail={"success": False, "code": "restaurant_not_found", "detail": "Restaurant not found"}
+                )
+            
+            # Check if restaurant requires password
+            if not restaurant.require_pass:
+                raise HTTPException(
+                    status_code=409,
+                    detail={"success": False, "code": "pass_not_required", "detail": "Password not required for this restaurant"}
+                )
+            
+            # Get today's daily pass
+            today = date.today()
+            daily_pass = db.query(DailyPass).filter(
+                DailyPass.restaurant_id == restaurant.id,
+                DailyPass.valid_date == today
+            ).first()
+            
+            # If no daily pass exists, create one with default "coffee"
+            if not daily_pass:
+                word_hash = hashlib.sha256("coffee".encode()).hexdigest()
+                daily_pass = DailyPass(
+                    public_id=f"dp_{uuid.uuid4().hex[:6]}",
+                    restaurant_id=restaurant.id,
+                    word_hash=word_hash,
+                    valid_date=today
+                )
+                db.add(daily_pass)
+                db.flush()
+            
+            # Validate the provided word
+            provided_hash = hashlib.sha256(data.word.encode()).hexdigest()
+            if provided_hash != daily_pass.word_hash:
+                raise HTTPException(
+                    status_code=403,
+                    detail={"success": False, "code": "wrong_word", "detail": "Incorrect password"}
+                )
+            
+            # Update session as validated
+            session.pass_validated = True
+            session.last_activity_at = datetime.utcnow()
+            
+            db.commit()
+            
+            return ValidatePassResponse(session_validated=True)
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error validating password: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail={"success": False, "code": "internal_error", "detail": "Internal server error"}
+        )
