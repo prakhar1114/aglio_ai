@@ -109,174 +109,29 @@ export function MyOrdersDrawer({ isOpen, onClose }) {
            }}>
         
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-100"
+        <div className="p-4 border-b border-gray-100"
              style={{
                backgroundColor: 'rgba(250, 251, 252, 0.95)',
                backdropFilter: 'blur(8px)',
                WebkitBackdropFilter: 'blur(8px)'
              }}>
-          <div className="flex-1">
-            {/* First line: Restaurant name, table number, restaurant status, and order count */}
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <h2 className="text-lg font-semibold text-gray-900"
+          
+          {/* Main Header Row */}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex-1">
+              <h1 className="text-xl font-bold text-gray-900"
                   style={{
                     fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                    color: '#1C1C1E'
+                    fontSize: '20px',
+                    fontWeight: '700',
+                    color: '#1C1C1E',
+                    lineHeight: '1.2'
                   }}>
                 {restaurantName || 'Restaurant'}
-              </h2>
-              
-              {/* Table Number - always show if available */}
-              {tableNumber !== null && (
-                <span className="text-sm font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded-md">
-                  Table {tableNumber}
-                </span>
-              )}
-              
-              {/* Restaurant Status */}
-              {connectionStatus && (
-                <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                  connectionStatus === 'open' ? 'text-green-700 bg-green-100' :
-                  connectionStatus === 'closed' ? 'text-yellow-700 bg-yellow-100' :
-                  connectionStatus === 'disabled' ? 'text-red-700 bg-red-100' : 'text-gray-700 bg-gray-100'
-                }`}>
-                  {connectionStatus === 'open' ? 'Open' :
-                   connectionStatus === 'closed' ? 'Closed' :
-                   connectionStatus === 'disabled' ? 'Disabled' : 'Unknown'}
-                </span>
-              )}
-              
-              {/* Order count */}
-              {!isEmpty && (
-                <span className="text-sm text-gray-500 font-medium">
-                  {orders.length} order{orders.length !== 1 ? 's' : ''}
-                </span>
-              )}
+              </h1>
             </div>
             
-            {/* Second line: Member info and connection status */}
-            <div className="flex items-center gap-3 flex-wrap">
-              {/* Member Info */}
-              {nickname && (
-                <div className="flex items-center gap-1">
-                  {isHost ? (
-                    <StarIcon className="w-4 h-4 text-yellow-500" />
-                  ) : (
-                    <UserIcon className="w-4 h-4 text-gray-400" />
-                  )}
-                  {editingNickname ? (
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={newNickname}
-                        onChange={(e) => setNewNickname(e.target.value)}
-                        className="text-sm bg-white border border-gray-300 rounded px-2 py-1 max-w-24"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleNicknameSave();
-                          if (e.key === 'Escape') handleNicknameCancel();
-                        }}
-                        autoFocus
-                      />
-                      <button
-                        onClick={handleNicknameSave}
-                        className="text-xs text-green-600 hover:text-green-700"
-                      >
-                        Save
-                      </button>
-                      <button
-                        onClick={handleNicknameCancel}
-                        className="text-xs text-gray-500 hover:text-gray-600"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
-                    <span
-                      onClick={handleNicknameEdit}
-                      className="flex items-center gap-1 text-sm font-medium text-gray-700 cursor-pointer hover:text-gray-900 group"
-                      style={{
-                        fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                      }}
-                    >
-                      {nickname} {isHost && '(Host)'}
-                      <PencilSquareIcon className="w-4 h-4 text-gray-400 group-hover:text-gray-500" />
-                    </span>
-                  )}
-                </div>
-              )}
-              
-              {/* Connection Status - clarified as sync status */}
-              <div className="flex items-center gap-1">
-                <div className={`w-2 h-2 rounded-full ${
-                  wsStatus === 'connected' ? 'bg-green-500' :
-                  wsStatus === 'connecting' ? 'bg-yellow-500' :
-                  wsStatus === 'error' ? 'bg-red-500' : 'bg-gray-400'
-                }`} />
-                <span className="text-xs text-gray-600">
-                  {wsStatus === 'connected' ? 'Synced' :
-                   wsStatus === 'connecting' ? 'Syncing' :
-                   wsStatus === 'error' ? 'Sync Error' : 'Offline'}
-                </span>
-              </div>
-              
-              {/* Session Members - more compact */}
-              {members.length > 1 && (
-                <span className="text-xs text-gray-500">
-                  {members.length} members
-                </span>
-              )}
-            </div>
-            
-            {/* Member List - show when there are multiple members */}
-            {members.length > 1 && (
-              <div className="mt-2 pt-2 border-t border-gray-100">
-                <div className="flex flex-wrap gap-1">
-                  {members.map((member) => (
-                    <div
-                      key={member.member_pid}
-                      className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
-                        member.member_pid === memberPid 
-                          ? 'bg-blue-100 text-blue-700 ring-1 ring-blue-200' 
-                          : 'bg-gray-100 text-gray-600'
-                      }`}
-                      style={{
-                        fontSize: '11px',
-                        fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                      }}
-                    >
-                      {member.is_host ? (
-                        <StarIcon className="w-3 h-3 text-yellow-500" />
-                      ) : (
-                        <UserIcon className="w-3 h-3 text-gray-400" />
-                      )}
-                      <span className="max-w-16 truncate">
-                        {member.nickname || 'Guest'}
-                        {member.member_pid === memberPid && ' (You)'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            {/* Logout Button - only show if there's a session */}
-            {sessionStore.sessionPid && (
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-1 px-3 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200"
-                style={{
-                  fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                  fontSize: '12px',
-                  fontWeight: '500'
-                }}
-                title="Logout and leave table session"
-              >
-                <ArrowLeftOnRectangleIcon className="w-4 h-4" />
-                <span>Logout</span>
-              </button>
-            )}
-            
+            {/* Close Button */}
             <button
               onClick={onClose}
               className="p-2 hover:bg-gray-100 rounded-full transition-all duration-200"
@@ -288,6 +143,174 @@ export function MyOrdersDrawer({ isOpen, onClose }) {
               <XMarkIcon className="w-5 h-5 text-gray-500" />
             </button>
           </div>
+
+          {/* Secondary Info Row */}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3">
+              {/* Table Info */}
+              {tableNumber !== null && (
+                <span className="text-sm text-gray-600"
+                      style={{
+                        fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                        fontSize: '14px',
+                        fontWeight: '500'
+                      }}>
+                  Table {tableNumber}
+                </span>
+              )}
+              
+              {/* Separator */}
+              {tableNumber !== null && nickname && (
+                <span className="text-gray-300">•</span>
+              )}
+              
+              {/* User Info with Sync Status */}
+              {nickname && (
+                <div className="flex items-center gap-1.5">
+                  {isHost ? (
+                    <StarIcon className="w-4 h-4 text-yellow-500" />
+                  ) : (
+                    <UserIcon className="w-4 h-4 text-gray-400" />
+                  )}
+                  
+                  {editingNickname ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={newNickname}
+                        onChange={(e) => setNewNickname(e.target.value)}
+                        className="text-sm bg-white border border-gray-300 rounded px-2 py-1 w-24"
+                        style={{
+                          fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                          fontSize: '13px',
+                          borderRadius: '6px'
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleNicknameSave();
+                          if (e.key === 'Escape') handleNicknameCancel();
+                        }}
+                        autoFocus
+                      />
+                      <button
+                        onClick={handleNicknameSave}
+                        className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                        style={{ fontSize: '11px' }}
+                      >
+                        Save
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <span
+                        onClick={handleNicknameEdit}
+                        className="flex items-center gap-1 text-sm font-medium text-gray-700 cursor-pointer hover:text-gray-900 group"
+                        style={{
+                          fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                          fontSize: '14px',
+                          fontWeight: '500'
+                        }}
+                      >
+                        {nickname}
+                        {isHost && (
+                          <span className="text-xs text-gray-500 ml-1" style={{ fontSize: '11px' }}>
+                            (Host)
+                          </span>
+                        )}
+                        <PencilSquareIcon className="w-3 h-3 text-gray-400 group-hover:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity ml-1" />
+                      </span>
+                      
+                      {/* Sync Status as part of user context */}
+                      <div className="flex items-center gap-1 ml-2">
+                        <div className={`w-1.5 h-1.5 rounded-full ${
+                          wsStatus === 'connected' ? 'bg-green-500' :
+                          wsStatus === 'connecting' ? 'bg-yellow-500 animate-pulse' :
+                          wsStatus === 'error' ? 'bg-red-500' : 'bg-gray-400'
+                        }`} />
+                        <span className={`text-xs ${
+                          wsStatus === 'connected' ? 'text-green-600' :
+                          wsStatus === 'connecting' ? 'text-yellow-600' :
+                          wsStatus === 'error' ? 'text-red-600' : 'text-gray-500'
+                        }`}
+                              style={{
+                                fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                                fontSize: '10px'
+                              }}>
+                          {wsStatus === 'connected' ? 'Synced' :
+                           wsStatus === 'connecting' ? 'Syncing...' :
+                           wsStatus === 'error' ? 'Error' : 'Offline'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            
+            {/* Right Side - Logout Only */}
+            <div>
+              {sessionStore.sessionPid && (
+                <button
+                  onClick={handleLogout}
+                  className="text-sm text-red-600 hover:text-red-700 transition-colors"
+                  style={{
+                    fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    fontSize: '13px',
+                    fontWeight: '500'
+                  }}
+                >
+                  Logout
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Members List */}
+          {members.length > 1 && (
+            <div className="bg-gray-50 rounded-lg p-3"
+                 style={{
+                   backgroundColor: 'rgba(249, 250, 251, 0.8)',
+                   borderRadius: '8px'
+                 }}>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-gray-600"
+                      style={{
+                        fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                        fontSize: '11px',
+                        fontWeight: '600'
+                      }}>
+                  SESSION MEMBERS ({members.length})
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {members.map((member) => (
+                  <div
+                    key={member.member_pid}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs ${
+                      member.member_pid === memberPid 
+                        ? 'bg-blue-100 text-blue-700 ring-1 ring-blue-200' 
+                        : 'bg-white text-gray-700 border border-gray-200'
+                    }`}
+                    style={{
+                      fontSize: '11px',
+                      fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                      fontWeight: '500',
+                      borderRadius: '8px'
+                    }}
+                  >
+                    {member.is_host ? (
+                      <StarIcon className="w-3 h-3 text-yellow-500" />
+                    ) : (
+                      <UserIcon className="w-3 h-3 text-gray-400" />
+                    )}
+                    <span className="max-w-20 truncate">
+                      {member.nickname || 'Guest'}
+                      {member.member_pid === memberPid && ' (You)'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Content */}
@@ -334,7 +357,7 @@ export function MyOrdersDrawer({ isOpen, onClose }) {
               </button>
             </div>
           ) : (
-            <div className="p-4 space-y-4">
+            <div className="p-4 space-y-3">
               {orders.map((order) => (
                 <div key={order.id} 
                      className="bg-white rounded-lg p-4 border border-gray-100"
