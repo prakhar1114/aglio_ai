@@ -121,6 +121,7 @@ To run only the test-wrapper demo (theme loader):
 
 ```bash
 pnpm --filter qrmenu-test-wrapper dev
+pnpm --filter=qrmenu-test-wrapper dev --host
 ```
 
 Future development commands for individual packages:
