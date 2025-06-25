@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
-import { useCartStore, setupConnection } from '@qrmenu/core';
+import { useCartStore, setupConnection, useChatStore } from '@qrmenu/core';
 import { MasonryFeed } from '../components/MasonryFeed.jsx';
 import { BottomBar } from '../components/BottomBar.jsx';
 import { CartDrawer } from '../components/CartDrawer.jsx';
@@ -36,7 +36,7 @@ function MenuPage() {
   const addOrder = useCartStore((state) => state.addOrder);
   
   // AI Chat methods from store
-  const openAIChatDrawer = useCartStore((state) => state.openAIChatDrawer);
+  const openAIChatDrawer = useChatStore((state) => state.openDrawer);
 
   // Setup connection on component mount
   useEffect(() => {
@@ -196,10 +196,10 @@ function MenuPage() {
 
       <AIChatDrawer />
 
-      <UpsellPopup
+      {/* <UpsellPopup
         isCartOpen={hasCartEverOpened}
         onClose={handleUpsellClose}
-      />
+      /> */}
 
       <OrderConfirmationSheet
         isOpen={isOrderConfirmationOpen}

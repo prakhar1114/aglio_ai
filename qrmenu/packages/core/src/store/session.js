@@ -1,14 +1,6 @@
 import { create } from 'zustand';
+import getDeviceId from '../utils/general.js';
 
-// Generate or get device ID from localStorage
-const getDeviceId = () => {
-  let id = localStorage.getItem("device_id");
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem("device_id", id);
-  }
-  return id;
-};
 
 // Helper to check if JWT is near expiry
 const isTokenNearExpiry = (token, minutes = 15) => {

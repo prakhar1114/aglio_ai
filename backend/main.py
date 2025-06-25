@@ -12,12 +12,12 @@ from models.schema import init_db
 
 from config import rdb, qd, root_dir, DEBUG_MODE, image_dir
 # from middleware.tenant_resolver import tenant_middleware, tenant_resolver, get_qdrant_collection
-from urls.filtered_recommendations import router as filtered_router
+# from urls.filtered_recommendations import router as filtered_router
 from urls.menu import router as menu_router
-from urls.chat import router as chat_router
+# from urls.chat import router as chat_router
 from urls.categories import router as categories_router
-from urls.featured import router as featured_router
-from urls.prev_orders import router as prev_orders_router
+# from urls.featured import router as featured_router
+# from urls.prev_orders import router as prev_orders_router
 from urls.upsell import router as upsell_router
 # from urls.settings import router as settings_router
 from urls.admin.dashboard import router as admin_router
@@ -78,9 +78,9 @@ if os.path.exists(admin_static_dir):
 # Include routers
 app.include_router(categories_router, tags=["categories"])  # No prefix - full path in router
 app.include_router(menu_router, tags=["menu"])  # No prefix - full path in router
-app.include_router(filtered_router, prefix="/filtered_recommendations", tags=["recommendations"])
-app.include_router(featured_router, prefix="/featured", tags=["featured"])
-app.include_router(prev_orders_router, prefix="/prev_orders", tags=["orders"])
+# app.include_router(filtered_router, prefix="/filtered_recommendations", tags=["recommendations"])
+# app.include_router(featured_router, prefix="/featured", tags=["featured"])
+# app.include_router(prev_orders_router, prefix="/prev_orders", tags=["orders"])
 app.include_router(upsell_router, prefix="/upsell", tags=["upsell"])
 # app.include_router(settings_router, prefix="/settings", tags=["settings"])
 app.include_router(admin_router, prefix="/admin", tags=["admin"])

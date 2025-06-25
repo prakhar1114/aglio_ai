@@ -44,7 +44,7 @@ RESP_KEY = lambda sid: f"resp:{sid}"   # redis key to store last response.id
 # ------------------------------------------------------------ #
 #  Public entry
 # ------------------------------------------------------------ #
-def generate_blocks(payload: Dict[str, Any], thread_id: str, collection_name: str) -> Blocks:
+def generate_blocks(payload: Dict[str, Any], thread_id: str, restaurant_slug: str) -> Blocks:
     """
     Main entry used by the WebSocket handler.
 
@@ -54,7 +54,7 @@ def generate_blocks(payload: Dict[str, Any], thread_id: str, collection_name: st
         User context + question.
     thread_id : str
         Socket thread ID (maps to redis key storing last response.id).
-    collection_name : str
+    restaurant_slug : str
         Tenant-specific Qdrant collection name.
 
     Returns
@@ -111,15 +111,14 @@ def generate_blocks(payload: Dict[str, Any], thread_id: str, collection_name: st
                 fn_name   = tool_call.name
                 fn_args   = json.loads(tool_call.arguments)
                 call_id = tool_call.call_id
-                logger.debug(f"Calling function {fn_name}")
 
                 if fn_name not in _TOOL_MAP:
                     logger.error("Unknown tool call requested: %s", fn_name)
                     raise Exception("Unknown tool call requested: %s" % fn_name)
 
-                # Add collection_name to all tool calls that need it
+                # Add restaurant_slug to all tool calls that need it
                 if fn_name in ["search_menu", "get_chefs_picks", "list_all_items", "find_similar_items", "budget_friendly_options", "get_cart_pairings"]:
-                    fn_args["collection_name"] = collection_name
+                    fn_args["restaurant_slug"] = restaurant_slug
 
                 # Call the local Python helper
                 if fn_name in ["search_menu", "get_chefs_picks", "list_all_items", "find_similar_items", "budget_friendly_options", "get_cart_pairings"]:
@@ -128,6 +127,7 @@ def generate_blocks(payload: Dict[str, Any], thread_id: str, collection_name: st
                 if fn_name == "get_cart_pairings":
                     fn_args["cart"] = cart
 
+                logger.debug(f"Calling tool {fn_name} with args {fn_args}")
                 result = _TOOL_MAP[fn_name](**fn_args)
 
                 msgs.append({"type": "function_call_output", "output": str(result), "call_id": call_id})

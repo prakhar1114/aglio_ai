@@ -1,6 +1,8 @@
 import { useSessionStore } from './store/session.js';
 import { useCartStore } from './store/cart.js';
+import { useChatStore } from './store/chat.js';
 import { getBaseApiCandidates, constructImageUrl } from './api/base.js';
+import { generateShortId } from './utils/general.js';
 
 /**
  * WebSocket and real-time connection management
@@ -103,6 +105,7 @@ export function setupWebSocket(sessionPid, wsToken) {
 function handleWebSocketMessage(data) {
   const sessionStore = useSessionStore.getState();
   const cartStore = useCartStore.getState();
+  const chatStore = useChatStore.getState();
   
   if ('item' in data && 'image_url' in data.item) {
     data.item.image_url = constructImageUrl(data.item.image_url);
@@ -117,6 +120,17 @@ function handleWebSocketMessage(data) {
     case 'cart_update':
       console.log('Cart update received:', data);
       cartStore.applyCartUpdate(data);
+      break;
+      
+    // Chat message types
+    case 'chat_user_message':
+      console.log('Chat user message received:', data);
+      chatStore.handleWebSocketMessage(data);
+      break;
+      
+    case 'chat_response':
+      console.log('Chat AI response received:', data);
+      chatStore.handleWebSocketMessage(data);
       break;
       
     case 'error':
@@ -214,7 +228,7 @@ async function attemptTokenRefreshAndReconnect(sessionPid) {
 }
 
 /**
- * Cart mutation helpers
+ * WebSocket message helpers
  */
 export function sendCartMutation(mutation) {
   const wsConnection = useSessionStore.getState().wsConnection;
@@ -222,6 +236,24 @@ export function sendCartMutation(mutation) {
     wsConnection.send(JSON.stringify(mutation));
   } else {
     console.error('WebSocket not connected');
+  }
+}
+
+export function sendChatMessage(message, senderName, threadId, messageId) {
+  const wsConnection = useSessionStore.getState().wsConnection;
+  if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
+    const chatMessage = {
+      type: 'chat_message',
+      sender_name: senderName,
+      message: message,
+      thread_id: threadId,
+      message_id: messageId
+    };
+    
+    console.log('Sending chat message:', chatMessage);
+    wsConnection.send(JSON.stringify(chatMessage));
+  } else {
+    console.error('WebSocket not connected - cannot send chat message');
   }
 }
 
@@ -236,7 +268,7 @@ export function addItemToCart(menuItem, qty = 1, note = '') {
   }
   
   // Generate temporary ID for optimistic update
-  const tmpId = crypto.randomUUID();
+  const tmpId = generateShortId();
   
   // Apply optimistic update
   cartStore.addItemOptimistic(menuItem, qty, note, tmpId);

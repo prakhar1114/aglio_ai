@@ -18,12 +18,13 @@ Internal helpers (prefixed with "_") keep the code DRY.
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
 from config import qd
+from models.schema import SessionLocal, MenuItem
 
 
 # ------------------------------------------------------------------#
@@ -44,86 +45,188 @@ def _embed(text: str) -> np.ndarray:
     return np.concatenate([t_vec, i_vec])
 
 
-def _payload_to_item(point) -> Dict[str, Any]:
-    """Convert a Qdrant point to the dict schema used in chat "dish_carousal"."""
-    pl = point.payload or {}
+def _get_collection_name(restaurant_slug: str) -> str:
+    """Get Qdrant collection name for a restaurant."""
+    return f"{restaurant_slug}_qdb"
+
+
+def _get_menu_items_by_public_ids(public_ids: List[str], restaurant_slug: str) -> Dict[str, Dict[str, Any]]:
+    """Fetch menu items from PostgreSQL by public_ids."""
+    if not public_ids:
+        return {}
+    
+    with SessionLocal() as db:
+        # Get restaurant_id from slug
+        from models.schema import Restaurant
+        restaurant = db.query(Restaurant).filter_by(slug=restaurant_slug).first()
+        if not restaurant:
+            return {}
+        
+        # Fetch menu items
+        menu_items = db.query(MenuItem).filter(
+            MenuItem.restaurant_id == restaurant.id,
+            MenuItem.public_id.in_(public_ids)
+        ).all()
+        
+        # Convert to dict keyed by public_id
+        result = {}
+        for item in menu_items:
+            result[item.public_id] = {
+                "id": item.id,
+                "public_id": item.public_id,
+                "name": item.name,
+                "description": item.description,
+                "category_brief": item.category_brief,
+                "group_category": item.group_category,
+                "price": float(item.price),
+                "image_path": item.image_path,
+                "veg_flag": item.veg_flag,
+                "is_bestseller": item.is_bestseller,
+                "is_recommended": item.is_recommended,
+                "kind": item.kind,
+                "priority": item.priority,
+                "promote": item.promote
+            }
+        return result
+
+
+def _qdrant_to_menu_item(point, menu_items_dict: Dict[str, Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Convert Qdrant point + PostgreSQL data to menu item dict."""
+    public_id = point.payload.get("public_id")
+    if not public_id or public_id not in menu_items_dict:
+        return None
+    
+    pg_data = menu_items_dict[public_id]
     return {
-        "id": point.id,
-        "name": pl.get("name"),
-        "description": pl.get("description"),
-        "category": pl.get("category_brief"),
+        "id": pg_data["id"],  # PostgreSQL ID for describe_dish compatibility
+        "public_id": public_id,
+        "name": pg_data["name"],
+        "description": pg_data["description"],
+        "category": pg_data["category_brief"],
+        "group_category": pg_data["group_category"],
+        "price": pg_data["price"],
+        "image_path": pg_data["image_path"],
+        "veg": pg_data["veg_flag"],
+        "is_bestseller": pg_data["is_bestseller"],
+        "is_recommended": pg_data["is_recommended"],
+        "kind": pg_data["kind"],
+        "priority": pg_data["priority"],
+        "promote": pg_data["promote"]
     }
 
 
-def _apply_filters(filters: Dict[str, Any]) -> List[Dict]:
-    """Translate UI filters into Qdrant 'must' clauses."""
-    must = []
-    if filters.get("veg") is True:
-        must.append({"key": "veg_flag", "match": {"value": 1}})
-    if price := filters.get("priceCap"):
-        must.append({"key": "price", "range": {"lte": float(price)}})
-    if cat := filters.get("category_brief"):
-        must.append({"key": "category_brief", "match": {"any": cat}})
-    return must
+def _apply_pg_filters(query, filters: Dict[str, Any]):
+    """Apply filters to PostgreSQL MenuItem query."""
+    if filters.get("isVeg") is True:
+        query = query.filter(MenuItem.veg_flag == True)
+    if filters.get("priceEnabled") and (priceRange := filters.get("priceRange")):
+        query = query.filter(MenuItem.price <= float(priceRange[1]))
+    if categories := filters.get("category"):
+        if isinstance(categories, list):
+            query = query.filter(MenuItem.category_brief.in_(categories))
+        else:
+            query = query.filter(MenuItem.category_brief == categories)
+    return query
 
 
 # ------------------------------------------------------------------#
 # Public API (exposed to the LLM) - now tenant-aware
 # ------------------------------------------------------------------#
-def search_menu(collection_name: str,
+def search_menu(restaurant_slug: str,
                 query: str,
                 filters: Dict[str, Any] | None = None,
-                limit: int = 8) -> List[Dict[str, Any]]:
+                limit: int = 10) -> List[Dict[str, Any]]:
     """Free‑text semantic search across name + description using embeddings."""
+    collection_name = _get_collection_name(restaurant_slug)
     vec = _embed(query).tolist()
-    must = _apply_filters(filters or {})
+    
+    limit = min(limit, 10)
+    # Search Qdrant for similar vectors
     points = qd.search(
-        collection_name,
+        collection_name=collection_name,
         query_vector=vec,
-        query_filter={"must": must} if must else None,
-        limit=limit,
+        limit=limit,  # Get more results to filter
+        with_payload=True
     )
-    return [_payload_to_item(p) for p in points]
+    
+    # Extract public_ids
+    public_ids = [p.payload.get("public_id") for p in points if p.payload.get("public_id")]
+    
+    # Get full menu item data from PostgreSQL with filters
+    with SessionLocal() as db:
+        from models.schema import Restaurant
+        restaurant = db.query(Restaurant).filter_by(slug=restaurant_slug).first()
+        if not restaurant:
+            return []
+        
+        query_obj = db.query(MenuItem).filter(
+            MenuItem.restaurant_id == restaurant.id,
+            MenuItem.public_id.in_(public_ids)
+        )
+        
+        # Apply filters
+        query_obj = _apply_pg_filters(query_obj, filters or {})
+        
+        menu_items = query_obj.limit(limit).all()
+        
+        # Convert to result format
+        result = []
+        for item in menu_items:
+            result.append({
+                "id": item.id,
+                "name": item.name,
+                "description": item.description,
+                "category": item.category_brief,
+                "group_category": item.group_category,
+            })
+        
+        return result
 
 
-def get_chefs_picks(collection_name: str,
+def get_chefs_picks(restaurant_slug: str,
                     filters: Dict[str, Any] | None = None,
                     limit: int = 6) -> List[Dict[str, Any]]:
     """Return dishes flagged as chef‑recommended (or bestsellers as fallback)."""
-    base = [
-        {"key": "is_chef_recommended", "match": {"value": 1}},
-    ]
-    alt  = [
-        {"key": "is_bestseller", "match": {"value": 1}},
-    ]
-    base.extend(_apply_filters(filters or {}))
-    alt.extend(_apply_filters(filters or {}))
+    with SessionLocal() as db:
+        from models.schema import Restaurant
+        restaurant = db.query(Restaurant).filter_by(slug=restaurant_slug).first()
+        if not restaurant:
+            return []
+        
+        # Try chef recommended first
+        query_obj = db.query(MenuItem).filter(
+            MenuItem.restaurant_id == restaurant.id,
+            MenuItem.is_recommended == True
+        )
+        query_obj = _apply_pg_filters(query_obj, filters or {})
+        items = query_obj.limit(limit).all()
+        
+        # Fallback to bestsellers if needed
+        if len(items) < limit:
+            bestseller_query = db.query(MenuItem).filter(
+                MenuItem.restaurant_id == restaurant.id,
+                MenuItem.is_bestseller == True
+            )
+            bestseller_query = _apply_pg_filters(bestseller_query, filters or {})
+            extra_items = bestseller_query.limit(limit - len(items)).all()
+            items.extend(extra_items)
+        
+        # Convert to result format
+        result = []
+        for item in items[:limit]:
+            result.append({
+                "id": item.id,
+                "name": item.name,
+                "description": item.description,
+                "category": item.category_brief,
+                "group_category": item.group_category,
+                "reason": "Chef's Pick" if item.is_recommended else "Bestseller"
+            })
+        
+        return result
 
-    points = qd.scroll(
-        collection_name,
-        scroll_filter={"must": base},
-        with_payload=True,
-        with_vectors=False,
-        limit=limit,
-    )[0]
 
-    # top‑up with bestsellers if needed
-    if len(points) < limit:
-        extra = qd.scroll(
-            collection_name,
-            scroll_filter={"must": alt},
-            with_payload=True,
-            with_vectors=False,
-            limit=limit - len(points),
-        )[0]
-        points.extend(extra)
-
-    items = [_payload_to_item(p) for p in points[:limit]]
-    return items
-
-
-
-def list_all_items(collection_name: str,
+def list_all_items(restaurant_slug: str,
                    filters: Dict[str, Any] | None = None,
                    page: int = 1,
                    page_size: int = 12) -> Tuple[List[Dict[str, Any]], bool]:
@@ -131,80 +234,194 @@ def list_all_items(collection_name: str,
     Paginated full‑menu listing.
     Returns (items, has_more).
     """
-    must = _apply_filters(filters or {})
-    offset = (page - 1) * page_size
-    points = qd.scroll(
-        collection_name,
-        scroll_filter={"must": must} if must else None,
-        with_payload=True,
-        with_vectors=False,
-        offset=offset,
-        limit=page_size,
-    )[0]
-    items = [_payload_to_item(p) for p in points]
-    has_more = len(points) == page_size
-    return items, has_more
+    with SessionLocal() as db:
+        from models.schema import Restaurant
+        restaurant = db.query(Restaurant).filter_by(slug=restaurant_slug).first()
+        if not restaurant:
+            return [], False
+        
+        query_obj = db.query(MenuItem).filter(MenuItem.restaurant_id == restaurant.id)
+        query_obj = _apply_pg_filters(query_obj, filters or {})
+        
+        offset = (page - 1) * page_size
+        items = query_obj.offset(offset).limit(page_size + 1).all()  # +1 to check has_more
+        
+        has_more = len(items) > page_size
+        if has_more:
+            items = items[:-1]  # Remove the extra item
+        
+        # Convert to result format
+        result = []
+        for item in items:
+            result.append({
+                "id": item.id,
+                "name": item.name,
+                "description": item.description,
+                "category": item.category_brief,
+                "group_category": item.group_category,
+            })
+        
+        return result, has_more
 
 
-def find_similar_items(collection_name: str,
+def find_similar_items(restaurant_slug: str,
                        dish_id: int,
                        filters: Dict[str, Any] | None = None,
                        limit: int = 6) -> List[Dict[str, Any]]:
     """Return dishes with embedding‑space proximity to a reference dish."""
-    ref = qd.retrieve(collection_name, ids=[dish_id], with_vectors=True)[0]
-    must = _apply_filters(filters or {})
-    must.append({"key": "id", "match": {"not": {"value": dish_id}}})
-    pts = qd.search(
-        collection_name,
-        query_vector=list(ref.vector),
-        query_filter={"must": must} if must else None,
-        limit=limit,
+    collection_name = _get_collection_name(restaurant_slug)
+    
+    with SessionLocal() as db:
+        from models.schema import Restaurant
+        restaurant = db.query(Restaurant).filter_by(slug=restaurant_slug).first()
+        if not restaurant:
+            return []
+        
+        # First, get the public_id of the reference dish from PostgreSQL
+        ref_dish = db.query(MenuItem).filter(
+            MenuItem.restaurant_id == restaurant.id,
+            MenuItem.id == dish_id
+        ).first()
+        
+        if not ref_dish:
+            return []
+        
+        ref_public_id = ref_dish.public_id
+    
+    # Find the Qdrant point with this public_id and get its vector
+    try:
+        from qdrant_client.models import Filter, FieldCondition, MatchValue
+        ref_points = qd.scroll(
+            collection_name=collection_name,
+            scroll_filter=Filter(
+                must=[FieldCondition(key="public_id", match=MatchValue(value=ref_public_id))]
+            ),
+            with_vectors=True,
+            limit=1
+        )[0]
+        
+        if not ref_points or not ref_points[0].vector:
+            return []
+        
+        ref_vector = ref_points[0].vector
+        
+    except Exception:
+        return []
+    
+    # Search for similar vectors
+    points = qd.search(
+        collection_name=collection_name,
+        query_vector=list(ref_vector),
+        limit=limit + 1,  # +1 to account for excluding reference
+        with_payload=True
     )
-    items = [_payload_to_item(p) for p in pts]
-    for it in items:
-        it["reason"] = "Similar taste profile"
-    return items
+    
+    # Filter out the reference dish and extract public_ids
+    public_ids = []
+    for p in points:
+        p_public_id = p.payload.get("public_id")
+        if p_public_id and p_public_id != ref_public_id:
+            public_ids.append(p_public_id)
+    
+    # Get filtered results from PostgreSQL
+    with SessionLocal() as db:
+        from models.schema import Restaurant
+        restaurant = db.query(Restaurant).filter_by(slug=restaurant_slug).first()
+        if not restaurant:
+            return []
+        
+        query_obj = db.query(MenuItem).filter(
+            MenuItem.restaurant_id == restaurant.id,
+            MenuItem.public_id.in_(public_ids[:limit])
+        )
+        query_obj = _apply_pg_filters(query_obj, filters or {})
+        items = query_obj.limit(limit).all()
+        
+        # Convert to result format
+        result = []
+        for item in items:
+            result.append({
+                "id": item.id,
+                "name": item.name,
+                "description": item.description,
+                "category": item.category_brief,
+                "group_category": item.group_category,
+                "reason": "Similar taste profile"
+            })
+        
+        return result
 
 
-def budget_friendly_options(collection_name: str,
+def budget_friendly_options(restaurant_slug: str,
                             priceCap: float,
                             filters: Dict[str, Any] | None = None,
                             limit: int = 8) -> List[Dict[str, Any]]:
     """Return dishes whose price <= priceCap, plus user filters."""
-    must = _apply_filters(filters or {})
-    must.append({"key": "price", "range": {"lte": float(priceCap)}})
-    pts = qd.scroll(
-        collection_name,
-        scroll_filter={"must": must},
-        with_payload=True,
-        with_vectors=False,
-        limit=limit,
-    )[0]
-    items = [_payload_to_item(p) for p in pts]
-    for it in items:
-        it["reason"] = f"₹{it['price']} only"
-    return items
+    with SessionLocal() as db:
+        from models.schema import Restaurant
+        restaurant = db.query(Restaurant).filter_by(slug=restaurant_slug).first()
+        if not restaurant:
+            return []
+        
+        query_obj = db.query(MenuItem).filter(
+            MenuItem.restaurant_id == restaurant.id,
+            MenuItem.price <= float(priceCap)
+        )
+        query_obj = _apply_pg_filters(query_obj, filters or {})
+        items = query_obj.limit(limit).all()
+        
+        # Convert to result format
+        result = []
+        for item in items:
+            result.append({
+                "id": item.id,
+                "public_id": item.public_id,
+                "name": item.name,
+                "description": item.description,
+                "category": item.category_brief,
+                "group_category": item.group_category,
+                "price": float(item.price),
+                "veg": item.veg_flag,
+                "reason": f"₹{item.price} only"
+            })
+        
+        return result
 
 
-def describe_dish(collection_name: str,
+def describe_dish(restaurant_slug: str,
                   dish_id: int) -> Dict[str, Any] | None:
     """Return detailed info about a specific dish."""
-    try:
-        point = qd.retrieve(collection_name, ids=[dish_id], with_payload=True)[0]
-        pl = point.payload or {}
+    with SessionLocal() as db:
+        from models.schema import Restaurant
+        restaurant = db.query(Restaurant).filter_by(slug=restaurant_slug).first()
+        if not restaurant:
+            return None
+        
+        # dish_id is the PostgreSQL MenuItem.id
+        item = db.query(MenuItem).filter(
+            MenuItem.restaurant_id == restaurant.id,
+            MenuItem.id == dish_id
+        ).first()
+        
+        if not item:
+            return None
+        
         return {
-            "id": point.id,
-            "name": pl.get("name"),
-            "description": pl.get("description"),
-            "category": pl.get("category_brief"),
-            "price": pl.get("price"),
-            "veg": bool(pl.get("veg_flag")),
+            "id": item.id,
+            "public_id": item.public_id,
+            "name": item.name,
+            "description": item.description,
+            "category": item.category_brief,
+            "group_category": item.group_category,
+            "price": float(item.price),
+            "veg": item.veg_flag,
+            "image_path": item.image_path,
+            "is_bestseller": item.is_bestseller,
+            "is_recommended": item.is_recommended
         }
-    except Exception:
-        return None
 
 
-def get_cart_pairings(collection_name: str,
+def get_cart_pairings(restaurant_slug: str,
                       cart: List[Dict[str, Any]],
                       filters: Dict[str, Any] | None = None,
                       limit: int = 6) -> List[Dict[str, Any]]:
@@ -215,27 +432,98 @@ def get_cart_pairings(collection_name: str,
     if not cart:
         return []
 
-    ids_in_cart = [item["id"] for item in cart if "id" in item]
-    if not ids_in_cart:
+    collection_name = _get_collection_name(restaurant_slug)
+    
+    # Extract dish IDs from cart (these should be PostgreSQL MenuItem.id values)
+    cart_dish_ids = [item["id"] for item in cart if "id" in item]
+    if not cart_dish_ids:
         return []
-
-    # get embeddings for cart items
-    recs = qd.retrieve(collection_name, ids=ids_in_cart, with_vectors=True)
-    cart_vecs = [np.array(rec.vector) for rec in recs]
-    avg_vec = np.mean(cart_vecs, axis=0)
-
-    must = _apply_filters(filters or {})
-    must.append({"key": "id", "match": {"not": {"any": ids_in_cart}}})
-    pts = qd.search(
-        collection_name,
-        query_vector=avg_vec.tolist(),
-        query_filter={"must": must} if must else None,
-        limit=limit,
-    )
-    items = [_payload_to_item(p) for p in pts]
-    for it in items:
-        it["reason"] = "Pairs well with your cart"
-    return items
+    
+    # Get public_ids for cart items from PostgreSQL
+    with SessionLocal() as db:
+        from models.schema import Restaurant
+        restaurant = db.query(Restaurant).filter_by(slug=restaurant_slug).first()
+        if not restaurant:
+            return []
+        
+        cart_items = db.query(MenuItem).filter(
+            MenuItem.restaurant_id == restaurant.id,
+            MenuItem.id.in_(cart_dish_ids)
+        ).all()
+        
+        cart_public_ids = [item.public_id for item in cart_items]
+    
+    if not cart_public_ids:
+        return []
+    
+    # Find Qdrant point IDs for cart items
+    try:
+        # We need to find the Qdrant point IDs that correspond to these public_ids
+        # This is a bit tricky - we'll search for exact matches by public_id
+        cart_vectors = []
+        for public_id in cart_public_ids:
+            # Search for the exact public_id in Qdrant
+            from qdrant_client.models import Filter, FieldCondition, MatchValue
+            points = qd.scroll(
+                collection_name=collection_name,
+                scroll_filter=Filter(
+                    must=[FieldCondition(key="public_id", match=MatchValue(value=public_id))]
+                ),
+                with_vectors=True,
+                limit=1
+            )[0]
+            
+            if points and points[0].vector:
+                cart_vectors.append(np.array(points[0].vector))
+        
+        if not cart_vectors:
+            return []
+        
+        # Calculate average vector
+        avg_vec = np.mean(cart_vectors, axis=0)
+        
+        # Search for similar items
+        points = qd.search(
+            collection_name=collection_name,
+            query_vector=avg_vec.tolist(),
+            limit=limit * 2,  # Get more to filter out cart items
+            with_payload=True
+        )
+        
+        # Extract public_ids, excluding cart items
+        public_ids = []
+        for p in points:
+            p_id = p.payload.get("public_id")
+            if p_id and p_id not in cart_public_ids:
+                public_ids.append(p_id)
+        
+        # Get filtered results from PostgreSQL
+        query_obj = db.query(MenuItem).filter(
+            MenuItem.restaurant_id == restaurant.id,
+            MenuItem.public_id.in_(public_ids[:limit])
+        )
+        query_obj = _apply_pg_filters(query_obj, filters or {})
+        items = query_obj.limit(limit).all()
+        
+        # Convert to result format
+        result = []
+        for item in items:
+            result.append({
+                "id": item.id,
+                "public_id": item.public_id,
+                "name": item.name,
+                "description": item.description,
+                "category": item.category_brief,
+                "group_category": item.group_category,
+                "price": float(item.price),
+                "veg": item.veg_flag,
+                "reason": "Pairs well with your cart"
+            })
+        
+        return result
+        
+    except Exception:
+        return []
 
 
 # # ------------------------------------------------------------------#

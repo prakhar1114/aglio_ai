@@ -1,5 +1,6 @@
 from recommender import Blocks
 from config import qd
+from models.schema import SessionLocal, MenuItem, Restaurant
 import os
 import requests
 import instaloader
@@ -8,35 +9,71 @@ from pathlib import Path
 import mimetypes
 from urllib.parse import urlparse
 
-def enrich_blocks(blocks: Blocks, collection_name: str) -> dict:
+def enrich_blocks(blocks: Blocks, restaurant_slug: str) -> dict:
     """
-    Enrich blocks with additional data from Qdrant.
+    Enrich blocks with additional data from PostgreSQL MenuItem table.
     
     Args:
         blocks: The blocks object to enrich
-        collection_name: The Qdrant collection name to use (tenant-specific)
+        restaurant_slug: The restaurant slug to identify the restaurant
+        tenant_id: The tenant subdomain for constructing image URLs
         
     Returns:
         dict: The enriched blocks as a dictionary
     """
     blocks = blocks.model_dump() if not isinstance(blocks, dict) else blocks
     
-    for block in blocks["blocks"]:
-        if block["type"] == "dish_carousal":
-            for option in block["options"]:
-                ## fetch dish from Qdrant
-                dish = qd.retrieve(collection_name, ids=[option["id"]], with_payload=True, with_vectors=False)[0]
-                option["image_url"] = dish.payload.get("image_path")
-                option["name"] = dish.payload.get("name")
-                option["price"] = dish.payload.get("price")
-                option["description"] = dish.payload.get("description")
+    with SessionLocal() as db:
+        # Get restaurant_id from slug
+        restaurant = db.query(Restaurant).filter_by(slug=restaurant_slug).first()
+        if not restaurant:
+            return blocks
         
-        if block["type"] == "dish_card":
-            dish = qd.retrieve(collection_name, ids=[block["id"]], with_payload=True, with_vectors=False)[0]
-            block["image_url"] = dish.payload.get("image_path")
-            block["name"] = dish.payload.get("name")
-            block["price"] = dish.payload.get("price")
-            block["description"] = dish.payload.get("description")
+        # Collect all dish IDs that need enrichment
+        dish_ids = []
+        for block in blocks["blocks"]:
+            if block["type"] == "dish_carousal":
+                for option in block["options"]:
+                    dish_ids.append(option["id"])
+            elif block["type"] == "dish_card":
+                dish_ids.append(block["id"])
+        
+        if not dish_ids:
+            return blocks
+        
+        # Fetch all menu items in one query
+        menu_items = db.query(MenuItem).filter(
+            MenuItem.restaurant_id == restaurant.id,
+            MenuItem.id.in_(dish_ids)
+        ).all()
+        
+        # Create lookup dict by MenuItem.id
+        menu_items_dict = {item.id: item for item in menu_items}
+        
+        # Enrich blocks with PostgreSQL data
+        for block in blocks["blocks"]:
+            if block["type"] == "dish_carousal":
+                for option in block["options"]:
+                    menu_item = menu_items_dict.get(option["id"])
+                    if menu_item:
+                        image_path = menu_item.image_path
+                        option["image_url"] = f"image_data/{restaurant_slug}/{image_path}" if restaurant_slug and image_path else None
+                        option["name"] = menu_item.name
+                        option["price"] = float(menu_item.price)
+                        option["description"] = menu_item.description
+                        # Overwrite option["id"] with public_id
+                        option["id"] = menu_item.public_id
+            
+            elif block["type"] == "dish_card":
+                menu_item = menu_items_dict.get(block["id"])
+                if menu_item:
+                    image_path = menu_item.image_path
+                    block["image_url"] = f"image_data/{restaurant_slug}/{image_path}" if restaurant_slug and image_path else None
+                    block["name"] = menu_item.name
+                    block["price"] = float(menu_item.price)
+                    block["description"] = menu_item.description
+                    # Overwrite block["id"] with public_id
+                    block["id"] = menu_item.public_id
 
     return blocks
 

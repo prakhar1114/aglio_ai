@@ -79,7 +79,7 @@ class TenantResolver:
 
 
 # Global tenant resolver instance
-tenant_resolver = TenantResolver()
+# tenant_resolver = TenantResolver()
 
 
 async def tenant_middleware(request: Request, call_next):

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Seed a single restaurant folder into Postgres.
+Seed a single restaurant folder into Postgres and Qdrant.
 
 Usage:
     python 1_onboard_restaurants.py /abs/path/to/restaurant_folder
@@ -10,6 +10,11 @@ import csv, json, uuid, hashlib, hmac, sys, os, shutil
 from pathlib import Path
 from datetime import datetime, date, time
 import pandas as pd
+import numpy as np
+import torch
+import clip
+from sentence_transformers import SentenceTransformer
+from PIL import Image
 from loguru import logger
 
 # Add parent directory to path to import config and models
@@ -19,7 +24,14 @@ from common.utils import download_instagram_content, download_url_content, is_ur
 from urls.admin.auth_utils import generate_api_key
 from utils.jwt_utils import create_qr_token  # Unified QR token generation
 from models.schema import Restaurant, RestaurantHours, Table, DailyPass, MenuItem
-from config import image_dir
+from config import image_dir, qd
+
+# Initialize ML models for embedding generation
+mps = torch.backends.mps.is_available()
+device = "mps" if mps else "cpu"
+
+txt_model = SentenceTransformer("all-mpnet-base-v2", device=device)
+clip_model, clip_preprocess = clip.load("ViT-B/32", device="cpu")
 
 # ---------- helpers -----------------------------------------------------------
 
@@ -73,7 +85,10 @@ def process_image_urls(df_menu: pd.DataFrame, image_directory: str) -> pd.DataFr
     processed_df = df_menu.copy()
     
     for idx, row in processed_df.iterrows():
-        if 'image_path' in row and pd.notna(row['image_path']) and is_url(str(row['image_path'])):
+        image_path_value = row.get('image_path')
+        has_url = pd.notna(image_path_value) and is_url(str(image_path_value))
+        
+        if has_url:
             image_url = str(row['image_path']).strip()
             logger.info(f"🔗 Found URL in image_path for {row['name']}: {image_url}")
             
@@ -111,10 +126,112 @@ def process_image_urls(df_menu: pd.DataFrame, image_directory: str) -> pd.DataFr
                 processed_df.at[idx, 'image_path'] = None
         else:
             # Not a URL, keep as is (should be a local filename)
-            if 'image_path' in row and pd.notna(row['image_path']):
-                logger.info(f"📁 Using local file for {row['name']}: {row['image_path']}")
+            image_path_value = row.get('image_path')
+            has_local_path = pd.notna(image_path_value)
+            if has_local_path:
+                logger.info(f"📁 Using local file for {row['name']}: {image_path_value}")
     
     return processed_df
+
+def generate_embeddings_for_menu_items(df_menu: pd.DataFrame, image_directory: str) -> pd.DataFrame:
+    """Generate embeddings for menu items using text and image data"""
+    logger.info(f"🏗️  Generating embeddings for {len(df_menu)} menu items...")
+    
+    processed_df = df_menu.copy()
+    vecs = []
+    image_dir_path = Path(image_directory)
+    
+    for idx, row in processed_df.iterrows():
+        # Create text embedding
+        text = f"{row['name']} - {row['category_brief']} - {row['group_category']} - {row['description']}"
+        t_vec = txt_model.encode(text)
+        
+        i_vec = np.zeros(512)  # Default zero vector
+        # Process image
+        try:
+            specified_image_path = image_dir_path / str(row['image_path'])
+            if specified_image_path.exists():
+                img = Image.open(specified_image_path)
+                img_tensor = clip_preprocess(img).unsqueeze(0)
+                with torch.no_grad():
+                    i_vec = clip_model.encode_image(img_tensor)[0].cpu().numpy()
+                logger.info(f"📷 Using specified image: {row['image_path']}")
+                
+        except Exception as e:
+            logger.warning(f"⚠️  Error processing image for {row['name']}: {e}")
+            i_vec = np.zeros(512)
+
+        # Concatenate text and image embeddings
+        vecs.append(np.concatenate([t_vec, i_vec]))
+    
+    # Add vectors to dataframe
+    processed_df["vector"] = vecs
+    
+    logger.success(f"✅ Generated embeddings for {len(processed_df)} menu items")
+    return processed_df
+
+def push_to_qdrant(restaurant_slug: str, df_with_embeddings: pd.DataFrame) -> bool:
+    """Push restaurant embeddings to Qdrant"""
+    collection_name = f"{restaurant_slug}_qdb"
+    logger.info(f"📤 Pushing embeddings to Qdrant collection: {collection_name}")
+    
+    if len(df_with_embeddings) == 0:
+        logger.info(f"⏭️  No items to upload to Qdrant")
+        return True
+    
+    try:
+        # Check if collection exists
+        collections = qd.get_collections().collections
+        collection_names = [col.name for col in collections]
+        collection_exists = collection_name in collection_names
+        
+        if not collection_exists:
+            logger.info(f"🆕 Creating new Qdrant collection: {collection_name}")
+            from qdrant_client.models import VectorParams
+            qd.create_collection(
+                collection_name=collection_name,
+                vectors_config=VectorParams(
+                    size=1280, distance="Cosine"
+                )
+            )
+            logger.success(f"✅ Created Qdrant collection: {collection_name}")
+        else:
+            logger.info(f"📋 Using existing Qdrant collection: {collection_name}")
+        
+        # Prepare points for upsert
+        points = []
+        from qdrant_client.models import PointStruct
+        
+        for idx, row in df_with_embeddings.iterrows():
+            # Create minimal payload - only essential fields for search
+            # Full details will be fetched from PostgreSQL using public_id
+            payload = {
+                'public_id': str(row['public_id']),
+                'name': str(row['name']),
+                'description': str(row['description']),
+                'category_brief': str(row['category_brief']),  # Use category_brief as the main category
+                'group_category': str(row['group_category']),
+            }
+            
+            point = PointStruct(
+                id=idx,  # Use pandas index as Qdrant point ID
+                vector=row["vector"].tolist(),
+                payload=payload
+            )
+            points.append(point)
+        
+        # Upsert points (this will add new points or update existing ones)
+        qd.upsert(
+            collection_name=collection_name,
+            points=points
+        )
+        
+        logger.success(f"✅ Uploaded {len(points)} embeddings to Qdrant collection: {collection_name}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ Error uploading to Qdrant: {e}")
+        return False
 
 # ---------- core loader -------------------------------------------------------
 
@@ -224,7 +341,18 @@ def seed_folder(folder: Path):
 
         # ---- menu items
         menu_items_processed = 0
-        for _, row in df_menu.iterrows():
+        # Generate unique public_ids for menu items if not present
+        for idx, row in df_menu.iterrows():
+            public_id_value = row.get('public_id')
+            has_public_id = pd.notna(public_id_value) and str(public_id_value).strip() != ''
+            if not has_public_id:
+                df_menu.at[idx, 'public_id'] = new_id()
+
+        # Generate embeddings for all menu items
+        logger.info("🧠 Generating embeddings for menu items...")
+        df_with_embeddings = generate_embeddings_for_menu_items(df_menu, image_directory)
+        
+        for idx, row in df_menu.iterrows():
             try:
                 mi = db.query(MenuItem).filter_by(
                     restaurant_id=rest.id,
@@ -267,9 +395,20 @@ def seed_folder(folder: Path):
                 db.rollback()
                 continue
 
-        logger.success(f"✅ Processed {menu_items_processed} menu items")
+        logger.success(f"✅ Processed {menu_items_processed} menu items in PostgreSQL")
+        
+        # Commit PostgreSQL changes before proceeding to Qdrant
         db.commit()
-        logger.success("Postgres seed complete ✔︎")
+        logger.success("PostgreSQL seed complete ✔︎")
+
+    # ---- Push embeddings to Qdrant
+    logger.info("🔗 Pushing embeddings to Qdrant...")
+    qdrant_success = push_to_qdrant(meta["slug"], df_with_embeddings)
+    
+    if qdrant_success:
+        logger.success("Qdrant seed complete ✔︎")
+    else:
+        logger.error("❌ Qdrant seed failed")
 
     logger.success(f"🎉 On‑boarding finished for {meta['restaurant_name']}")
 

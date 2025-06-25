@@ -23,7 +23,6 @@ from utils.jwt_utils import (
 )
 from utils.nickname_generator import generate_nickname
 from websocket.manager import connection_manager
-from middleware.tenant_resolver import get_tenant_from_request
 
 router = APIRouter()
 

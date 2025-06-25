@@ -3,6 +3,7 @@ import json
 import uuid
 from datetime import datetime
 from loguru import logger
+import uuid
 
 # SQLAlchemy models / DB session
 from models.schema import (
@@ -17,6 +18,11 @@ from models.cart_models import (
 # Utilities
 from utils.jwt_utils import decode_ws_token
 from websocket.manager import connection_manager
+
+# Import AI chat functionality
+from recommender.ai import generate_blocks
+from common.utils import enrich_blocks
+
 
 router = APIRouter()
 
@@ -78,9 +84,20 @@ async def websocket_endpoint(websocket: WebSocket):
                     )
                     continue
 
-                # Handle cart-mutation messages
-                if isinstance(message, dict) and "op" in message:
-                    await handle_cart_mutation(websocket, message, payload["sub"], session_pid)
+                # Handle different message types
+                if isinstance(message, dict):
+                    if "op" in message:
+                        # Cart mutation message
+                        await handle_cart_mutation(websocket, message, payload["sub"], session_pid)
+                    elif message.get("type") == "chat_message":
+                        # Chat message - handle and broadcast to AI
+                        await handle_chat_message(websocket, message, payload["sub"], session_pid)
+                    else:
+                        await connection_manager.send_error(
+                            websocket,
+                            "invalid_payload",
+                            "Unsupported message format",
+                        )
                 else:
                     await connection_manager.send_error(
                         websocket,
@@ -90,7 +107,7 @@ async def websocket_endpoint(websocket: WebSocket):
             except WebSocketDisconnect:
                 break
             except Exception as e:
-                logger.warning(f"WebSocket message error: {e}")
+                logger.warning(f"WebSocket message error: {e}", exc_info=True)
                 await connection_manager.send_error(
                     websocket, "message_error", "Error processing message"
                 )
@@ -102,6 +119,75 @@ async def websocket_endpoint(websocket: WebSocket):
     finally:
         if session_pid:
             connection_manager.disconnect(websocket)
+
+
+async def handle_chat_message(websocket: WebSocket, message: dict, member_pid: str, session_pid: str):
+    """Handle chat message and generate AI response"""
+    try:
+        # Extract message details
+        sender_name = message.get("sender_name", "Unknown")
+        user_message = message.get("message", "")
+        thread_id = message.get("thread_id")
+        message_id = message.get("message_id")
+        
+        if not user_message.strip():
+            await connection_manager.send_error(
+                websocket, "empty_message", "Message cannot be empty"
+            )
+            return
+        
+        logger.info(f"Chat message from {sender_name} in session {session_pid}: {user_message}")
+        
+        # Broadcast user message to all session members first
+        user_message_event = {
+            "type": "chat_user_message",
+            "sender_name": sender_name,
+            "message": user_message,
+            "thread_id": thread_id,
+            "message_id": message_id
+        }
+        await connection_manager.broadcast_to_session(session_pid, user_message_event)
+        
+        with SessionLocal() as db:
+            session_record = db.query(Session).filter(Session.public_id == session_pid).first()
+            if not session_record:
+                logger.error(f"Session {session_pid} not found for chat")
+                return
+                
+            restaurant = db.query(Restaurant).filter(Restaurant.id == session_record.restaurant_id).first()
+            if not restaurant:
+                logger.error(f"Restaurant not found for session {session_pid}")
+                return
+        
+        # Generate AI response using existing AI system
+        ai_payload = {
+            "text": user_message,
+            "filters": {},
+            "cart": [],
+            "more_context": {}
+        }
+        
+        # # Generate blocks using AI system
+        blocks = generate_blocks(ai_payload, thread_id, restaurant.slug)
+        enriched_blocks = enrich_blocks(blocks, restaurant.slug)
+        
+        # Broadcast AI response to all session members
+        ai_response_event = {
+            "type": "chat_response",
+            "sender_name": "AI Waiter",
+            "blocks": enriched_blocks.get("blocks", []),
+            "thread_id": thread_id,
+            "message_id": uuid.uuid4().hex[:6]
+        }
+        
+        logger.info(f"Sending AI response to session {session_pid}")
+        await connection_manager.broadcast_to_session(session_pid, ai_response_event)
+        
+    except Exception as e:
+        logger.error(f"Error handling chat message: {e}", exc_info=True)
+        await connection_manager.send_error(
+            websocket, "chat_error", "Error processing chat message"
+        )
 
 # ---------------------------------------------------------------------------
 # Cart-mutation helpers

@@ -14,8 +14,7 @@ openai_tools = [
         "parameters": {
             "type": "object",
             "properties": {
-                "query": {"type": "string", "description": "Search phrase"},
-                "limit": {"type": "integer"}
+                "query": {"type": "string", "description": "Search phrase"}
             },
             "required": ["query"],
             "additionalProperties": False

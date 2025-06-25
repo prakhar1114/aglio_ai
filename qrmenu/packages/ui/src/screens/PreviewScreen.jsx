@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useCartStore, useSessionStore, addItemToCart, updateCartItem, deleteCartItem } from '@qrmenu/core';
+import { useCartStore, useSessionStore, addItemToCart, updateCartItem, deleteCartItem, useChatStore } from '@qrmenu/core';
 import { useSwipeable } from 'react-swipeable';
 import { ItemCard } from '../components/ItemCard.jsx';
 import { SimpleMasonryGrid } from '../components/SimpleMasonryGrid.jsx';
@@ -367,7 +367,8 @@ export function PreviewScreen({
   isTopmost = true
 }) {
   // AI Chat method from store
-  const sendMessageAndOpenChat = useCartStore((state) => state.sendMessageAndOpenChat);
+  const sendMessageAndOpenDrawer = useChatStore((state) => state.sendMessageAndOpenDrawer);
+  const { nickname } = useSessionStore();
   
   // Define navigation functions
   const navigateToNext = () => {
@@ -423,7 +424,7 @@ export function PreviewScreen({
   // AI chat handler
   const handleAskAI = (item) => {
     const message = `Tell me more about ${item.name}`;
-    sendMessageAndOpenChat(message);
+    sendMessageAndOpenDrawer(message, nickname);
   };
 
   if (!isOpen || !item) return null;

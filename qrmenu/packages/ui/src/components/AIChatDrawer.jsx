@@ -1,15 +1,18 @@
 import { useState, useRef, useEffect } from 'react';
-import { useCartStore, getAIResponse } from '@qrmenu/core';
+import { useChatStore, useSessionStore } from '@qrmenu/core';
 import { XMarkIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
+import { BlockRenderer } from './BlockRenderer';
 
 export function AIChatDrawer() {
-  // Use Zustand store for everything
-  const isOpen = useCartStore((state) => state.isAIChatDrawerOpen);
-  const messages = useCartStore((state) => state.chatMessages);
-  const isTyping = useCartStore((state) => state.isChatTyping);
-  const addChatMessage = useCartStore((state) => state.addChatMessage);
-  const setChatTyping = useCartStore((state) => state.setChatTyping);
-  const closeAIChatDrawer = useCartStore((state) => state.closeAIChatDrawer);
+  // Use new chat store for all chat functionality
+  const isOpen = useChatStore((state) => state.isDrawerOpen);
+  const messages = useChatStore((state) => state.messages);
+  const isTyping = useChatStore((state) => state.isTyping);
+  const sendMessage = useChatStore((state) => state.sendMessage);
+  const closeDrawer = useChatStore((state) => state.closeDrawer);
+  const isMessageOptimistic = useChatStore((state) => state.isMessageOptimistic);
+  
+  const memberNickname = useSessionStore((state) => state.nickname) || 'Guest';
   
   const [inputMessage, setInputMessage] = useState('');
   const messagesEndRef = useRef(null);
@@ -25,7 +28,8 @@ export function AIChatDrawer() {
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
-      inputRef.current.focus();
+      // setTimeout(() => inputRef.current?.focus(), 100);
+      scrollToBottom();
     }
   }, [isOpen]);
 
@@ -35,28 +39,10 @@ export function AIChatDrawer() {
     const message = inputMessage.trim();
     setInputMessage('');
     
-    // Use the store method to send message and get AI response
+    // Use the new chat store method to send message
     // This will handle adding the user message and AI response
-    const userMessage = {
-      type: 'user',
-      content: message
-    };
-
-    addChatMessage(userMessage);
-    setChatTyping(true);
-
-    // Use the centralized AI response function
-    setTimeout(() => {
-      const aiResponse = {
-        type: 'ai',
-        content: getAIResponse(message)
-      };
-      addChatMessage(aiResponse);
-      setChatTyping(false);
-    }, 1500);
+    await sendMessage(message, memberNickname);
   };
-
-
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -71,57 +57,114 @@ export function AIChatDrawer() {
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-black bg-opacity-50 z-[100]"
-        onClick={closeAIChatDrawer}
+        className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[100]"
+        onClick={closeDrawer}
       />
       
       {/* Drawer */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white z-[110] rounded-t-2xl shadow-xl animate-slide-up max-h-[80vh] flex flex-col">
+      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl z-[110] rounded-t-3xl shadow-2xl animate-slide-up max-h-[85vh] flex flex-col border-t border-black/10">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b bg-red-500 text-white rounded-t-2xl">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-              🤖
+        <div className="flex items-center justify-between px-4 py-3 border-b border-black/8 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-t-3xl">
+          <div className="flex items-center space-x-3">
+            <div className="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center">
+              <span className="text-sm">🤖</span>
             </div>
             <div>
-              <h2 className="font-semibold">AI Food Assistant</h2>
-              <p className="text-sm opacity-90">Online now</p>
+              <h2 className="font-semibold text-sm" style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif" }}>
+                AI Waiter
+              </h2>
+              <p className="text-xs opacity-90" style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif" }}>
+                Online now
+              </p>
             </div>
           </div>
           <button
-            onClick={closeAIChatDrawer}
-            className="p-1 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
+            onClick={closeDrawer}
+            className="p-1.5 hover:bg-white/20 rounded-full transition-all duration-200"
           >
-            <XMarkIcon className="w-6 h-6" />
+            <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-[80%] p-3 rounded-2xl ${
-                  message.type === 'user'
-                    ? 'bg-red-500 text-white'
-                    : 'bg-gray-100 text-gray-900'
-                }`}
-              >
-                <p className="text-sm">{message.content}</p>
+        {/* Messages - Optimized for group chat */}
+        <div className="flex-1 overflow-y-auto px-3 py-2 space-y-3">
+          {messages.map((message) => {
+            const isOptimistic = isMessageOptimistic(message.id);
+            const isCurrentUser = message.type === 'user' && message.sender === memberNickname;
+            
+            return (
+              <div key={message.id} className={`transition-opacity duration-300`}>
+                {message.type === 'user' ? (
+                  /* User message - current user right-aligned, others left-aligned */
+                  <div className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
+                    <div className="max-w-[75%]">
+                      {message.sender && (
+                        <p 
+                          className={`text-xs text-gray-500 mb-1 ${isCurrentUser ? 'text-right' : 'text-left'}`} 
+                          style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif" }}
+                        >
+                          {message.sender}
+                        </p>
+                      )}
+                      <div className={`px-4 py-3 rounded-2xl shadow-sm ${
+                        isCurrentUser 
+                          ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white' 
+                          : 'bg-white border border-gray-200 text-gray-800'
+                      }`}>
+                        <p className="text-sm leading-[1.4]" style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif" }}>
+                          {message.content}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* AI message - full width, left-aligned */
+                  <div className="w-full">
+                    {/* AI Header */}
+                    <div className="flex items-center space-x-2 mb-2">
+                      <div className="w-6 h-6 bg-gradient-to-r from-red-500 to-red-600 rounded-full flex items-center justify-center">
+                        <span className="text-xs text-white">🤖</span>
+                      </div>
+                      <span className="text-xs font-medium text-gray-600" style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif" }}>
+                        AI Waiter
+                      </span>
+                    </div>
+                    
+                    {/* AI Content */}
+                    <div className="space-y-2">
+                      {message.blocks ? (
+                        message.blocks.map((block, index) => (
+                          <BlockRenderer key={`${message.id}-block-${index}`} block={block} />
+                        ))
+                      ) : message.content ? (
+                        <div className="bg-gray-50/80 backdrop-blur-sm border-l-2 border-red-500 pl-4 pr-4 py-3 rounded-r-xl">
+                          <p className="text-sm leading-[1.5] text-gray-800" style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif" }}>
+                            {message.content}
+                          </p>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
           
           {isTyping && (
-            <div className="flex justify-start">
-              <div className="bg-gray-100 p-3 rounded-2xl">
+            <div className="w-full">
+              <div className="flex items-center space-x-2 mb-2">
+                <div className="w-6 h-6 bg-gradient-to-r from-red-500 to-red-600 rounded-full flex items-center justify-center">
+                  <span className="text-xs text-white">🤖</span>
+                </div>
+                <span className="text-xs font-medium text-gray-600" style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif" }}>
+                  AI Waiter is typing...
+                </span>
+              </div>
+              <div className="bg-gray-50/80 backdrop-blur-sm border-l-2 border-red-500 pl-4 pr-4 py-3 rounded-r-xl">
                 <div className="flex space-x-1">
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                  <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" />
+                  <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+                  <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
                 </div>
               </div>
             </div>
@@ -130,23 +173,36 @@ export function AIChatDrawer() {
         </div>
 
         {/* Input */}
-        <div className="p-4 border-t bg-gray-50">
-          <div className="flex items-center space-x-2">
+        <div className="px-4 py-3 border-t border-black/8 bg-gray-50/80 backdrop-blur-xl">
+          <div className="flex items-center space-x-3">
             <input
               ref={inputRef}
               type="text"
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Ask me about menu items, dietary needs..."
-              className="flex-1 p-3 border border-gray-300 rounded-full focus:outline-none focus:border-red-500 text-sm"
+              placeholder="Ask the AI Waiter about menu items, dietary needs..."
+              className="
+                flex-1 px-4 py-3 
+                border border-black/10 rounded-2xl 
+                focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100
+                text-sm bg-white/90 backdrop-blur-xl
+                transition-all duration-200
+                placeholder:text-gray-400
+              "
+              style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif" }}
             />
             <button
               onClick={handleSendMessage}
               disabled={!inputMessage.trim() || isTyping}
-              className="p-3 bg-red-500 text-white rounded-full hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="
+                p-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white 
+                rounded-2xl shadow-sm transition-all duration-200 
+                hover:scale-105 active:scale-95
+                disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100
+              "
             >
-              <PaperAirplaneIcon className="w-5 h-5" />
+              <PaperAirplaneIcon className="w-4 h-4" />
             </button>
           </div>
         </div>

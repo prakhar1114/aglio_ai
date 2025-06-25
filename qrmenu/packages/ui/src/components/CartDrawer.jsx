@@ -3,8 +3,8 @@ import { XMarkIcon, MinusIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/o
 import { useCartStore, useSessionStore, updateCartItem, deleteCartItem } from '@qrmenu/core';
 
 export function CartDrawer({ isOpen, onClose, onCheckout }) {
-  const { items, members, getTotalAmount, getItemsByMember, canEditItem } = useCartStore();
-  const { memberPid, isHost, sessionValidated } = useSessionStore();
+  const { items, getTotalAmount, getItemsByMember, canEditItem } = useCartStore();
+  const { memberPid, isHost, sessionValidated, members } = useSessionStore();
   
   const isEmpty = items.length === 0;
   const subtotal = getTotalAmount();

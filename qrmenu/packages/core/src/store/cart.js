@@ -1,31 +1,16 @@
 import { create } from 'zustand';
-import { getAIResponse } from '../utils/aiResponses.js';
 import { useSessionStore } from './session.js';
+import { generateShortId } from '../utils/general.js';
 
 export const useCartStore = create((set, get) => ({
   // Cart data - new shared cart structure
   items: [], // Array of CartItem objects
-  members: [], // Array of Member objects  
   orders: [], // Array of completed orders
   cart_version: 0, // Overall cart version for optimistic locking
   
   // UI state
   isPasswordRequired: false,
   pendingMutations: [], // Queue for mutations when password is required
-  
-  // Existing AI chat state (keep as is)
-  chatMessages: [
-    {
-      id: 1,
-      type: 'ai',
-      content: "Hi! I'm your AI food assistant. How can I help you with your order today? 🍔",
-      timestamp: Date.now()
-    }
-  ],
-  isChatTyping: false,
-  
-  // Global AI Chat Drawer state
-  isAIChatDrawerOpen: false,
   
   // Legacy filter state (keep for backward compatibility)
   filters: {},
@@ -42,11 +27,12 @@ export const useCartStore = create((set, get) => ({
     
     set((state) => {
       const newItem = {
-        public_id: tmpId || crypto.randomUUID(), // Use tmpId or generate one
+        public_id: tmpId || generateShortId(), // Use tmpId or generate one
         member_pid: memberPid,
         menu_item_pid: menuItem.id, // Use dish.id which corresponds to menu_item.public_id
         name: menuItem.name,
         price: menuItem.price,
+        image_url: menuItem.image_url || null, // Include image_url for cart display
         qty,
         note: note || '',
         version: 1,
@@ -86,7 +72,6 @@ export const useCartStore = create((set, get) => ({
   applyCartUpdate: (update) => {
     set((state) => {
       let newItems = [...state.items];
-      let newMembers = [...state.members];
       
       // Handle individual cart operations (create/update/delete)
       if (update.op && update.item) {
@@ -127,7 +112,6 @@ export const useCartStore = create((set, get) => ({
       
       return {
         items: newItems,
-        members: newMembers,
         cart_version: update.cart_version || state.cart_version
       };
     });
@@ -145,9 +129,16 @@ export const useCartStore = create((set, get) => ({
   loadCartSnapshot: (snapshot) => {
     set({
       items: snapshot.items || [],
-      members: snapshot.members || [],
       cart_version: snapshot.cart_version || 0
     });
+    
+    // Update session store with member data from snapshot
+    if (snapshot.members) {
+      const sessionStore = useSessionStore.getState();
+      snapshot.members.forEach(member => {
+        sessionStore.updateMembers(member);
+      });
+    }
   },
   
   // Password & queue methods
@@ -168,7 +159,8 @@ export const useCartStore = create((set, get) => ({
   // Utility methods
   getItemsByMember: () => {
     const items = get().items;
-    const members = get().members;
+    const sessionStore = useSessionStore.getState();
+    const members = sessionStore.members;
     
     const groupedItems = {};
     
@@ -244,65 +236,7 @@ export const useCartStore = create((set, get) => ({
     return items.reduce((acc, item) => acc + item.qty, 0);
   },
   
-  // Chat methods (keep unchanged)
-  addChatMessage: (message) => {
-    set((state) => ({
-      chatMessages: [...state.chatMessages, {
-        ...message,
-        id: Date.now() + Math.random(), // Ensure unique ID
-        timestamp: Date.now()
-      }]
-    }));
-  },
-  setChatTyping: (isTyping) => set({ isChatTyping: isTyping }),
-  clearChat: () => set({ 
-    chatMessages: [
-      {
-        id: 1,
-        type: 'ai',
-        content: "Hi! I'm your AI food assistant. How can I help you with your order today? 🍔",
-        timestamp: Date.now()
-      }
-    ]
-  }),
-  
-  // Global AI Chat Drawer methods (keep unchanged)
-  openAIChatDrawer: () => set({ isAIChatDrawerOpen: true }),
-  closeAIChatDrawer: () => set({ isAIChatDrawerOpen: false }),
-  sendMessageAndOpenChat: (message) => {
-    const userMessage = {
-      type: 'user',
-      content: message
-    };
-    
-    // Add user message immediately
-    set((state) => ({
-      isAIChatDrawerOpen: true,
-      isChatTyping: true,
-      chatMessages: [...state.chatMessages, {
-        ...userMessage,
-        id: Date.now() + Math.random(),
-        timestamp: Date.now()
-      }]
-    }));
-    
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse = {
-        type: 'ai',
-        content: getAIResponse(message)
-      };
-      
-      set((state) => ({
-        isChatTyping: false,
-        chatMessages: [...state.chatMessages, {
-          ...aiResponse,
-          id: Date.now() + Math.random(),
-          timestamp: Date.now()
-        }]
-      }));
-    }, 1500);
-  },
+
   
   // Order methods (updated for new structure)
   addOrder: () => {
