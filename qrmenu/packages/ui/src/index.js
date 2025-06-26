@@ -10,6 +10,7 @@ export { PromotionBanner } from './components/PromotionBanner.jsx';
 export { FullBleedVideo } from './components/FullBleedVideo.jsx';
 export { BottomBar } from './components/BottomBar.jsx';
 export { UpsellPopup } from './components/UpsellPopup.jsx';
+export { OptimizedMedia } from './components/OptimizedMedia.jsx';
 export { AIChatDrawer } from './components/AIChatDrawer.jsx';
 export { BlockRenderer } from './components/BlockRenderer.jsx';
 export { TextBlock } from './components/TextBlock.jsx';

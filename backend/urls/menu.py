@@ -17,6 +17,8 @@ class MenuItem(BaseModel):
     price: float
     veg_flag: bool
     image_url: Optional[str]
+    cloudflare_image_id: Optional[str]
+    cloudflare_video_id: Optional[str]
     category_brief: Optional[str]
 
 class MenuResponse(BaseModel):
@@ -87,6 +89,8 @@ def read_menu(
                         price=item.price,
                         veg_flag=item.veg_flag,
                         image_url=f"image_data/{restaurant.slug}/{item.image_path}" if item.image_path else None,
+                        cloudflare_image_id=item.cloudflare_image_id,
+                        cloudflare_video_id=item.cloudflare_video_id,
                         category_brief="Recommendations"  # Set category as Recommendations for promoted items
                     )
                     for item in promoted_items_db
@@ -110,6 +114,8 @@ def read_menu(
                         price=item.price,
                         veg_flag=item.veg_flag,
                         image_url=f"image_data/{restaurant.slug}/{item.image_path}" if item.image_path else None,
+                        cloudflare_image_id=item.cloudflare_image_id,
+                        cloudflare_video_id=item.cloudflare_video_id,
                         category_brief=item.category_brief
                     )
                     for item in regular_items_db
@@ -141,6 +147,8 @@ def read_menu(
                         price=item.price,
                         veg_flag=item.veg_flag,
                         image_url=f"image_data/{restaurant.slug}/{item.image_path}" if item.image_path else None,
+                        cloudflare_image_id=item.cloudflare_image_id,
+                        cloudflare_video_id=item.cloudflare_video_id,
                         category_brief=item.category_brief
                     )
                     for item in items_db

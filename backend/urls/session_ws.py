@@ -284,6 +284,8 @@ async def handle_cart_create(
             note=cart_item.note or "",
             version=cart_item.version,
             image_url=f"image_data/{restaurant.slug}/{menu_item.image_path}" if restaurant and menu_item.image_path else None,
+            cloudflare_image_id=menu_item.cloudflare_image_id,
+            cloudflare_video_id=menu_item.cloudflare_video_id,
             veg_flag=menu_item.veg_flag,
         )
 
@@ -368,6 +370,8 @@ async def handle_cart_update(
             note=cart_item.note or "",
             version=cart_item.version,
             image_url=f"image_data/{restaurant.slug}/{menu_item.image_path}" if restaurant and menu_item.image_path else None,
+            cloudflare_image_id=menu_item.cloudflare_image_id,
+            cloudflare_video_id=menu_item.cloudflare_video_id,
             veg_flag=menu_item.veg_flag,
         )
 
@@ -430,6 +434,8 @@ async def handle_cart_delete(
             note=cart_item.note or "",
             version=cart_item.version,
             image_url=f"image_data/{restaurant.slug}/{menu_item.image_path}" if restaurant and menu_item.image_path else None,
+            cloudflare_image_id=menu_item.cloudflare_image_id,
+            cloudflare_video_id=menu_item.cloudflare_video_id,
             veg_flag=menu_item.veg_flag,
         )
 

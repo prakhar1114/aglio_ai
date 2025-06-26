@@ -1,6 +1,6 @@
-import { useState } from 'react';
 import { XMarkIcon, MinusIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useCartStore, useSessionStore, updateCartItem, deleteCartItem } from '@qrmenu/core';
+import { OptimizedMedia } from './OptimizedMedia.jsx';
 
 export function CartDrawer({ isOpen, onClose, onCheckout }) {
   const { items, getTotalAmount, getItemsByMember, canEditItem } = useCartStore();
@@ -41,13 +41,6 @@ export function CartDrawer({ isOpen, onClose, onCheckout }) {
     } else {
       handleQtyChange(item, item.qty - 1);
     }
-  };
-
-  // Helper function to check if URL is a video
-  const isVideoUrl = (url) => {
-    if (!url) return false;
-    const videoExtensions = ['.mp4', '.webm', '.ogg', '.mov', '.avi'];
-    return videoExtensions.some(ext => url.toLowerCase().includes(ext));
   };
 
   if (!isOpen) return null;
@@ -206,40 +199,23 @@ export function CartDrawer({ isOpen, onClose, onCheckout }) {
                           <div className="flex items-center space-x-3">
                             {/* Compact Image */}
                             <div className="flex-shrink-0">
-                              {item.image_url ? (
+                              {item.image_url || item.cloudflare_image_id || item.cloudflare_video_id ? (
                                 <div className="w-12 h-12 rounded-lg overflow-hidden"
                                      style={{
                                        borderRadius: '8px',
                                        backgroundColor: '#F3F4F6'
                                      }}>
-                                  {isVideoUrl(item.image_url) ? (
-                                    <video
-                                      src={item.image_url}
-                                      className="w-12 h-12 object-cover"
-                                      autoPlay
-                                      loop
-                                      muted={true}
-                                      playsInline
-                                      controls={false}
-                                      style={{
-                                        objectFit: 'cover',
-                                        width: '48px',
-                                        height: '48px'
-                                      }}
-                                    />
-                                  ) : (
-                                    <img
-                                      src={item.image_url}
-                                      alt={item.name}
-                                      className="w-12 h-12 object-cover"
-                                      loading="lazy"
-                                      style={{
-                                        objectFit: 'cover',
-                                        width: '48px',
-                                        height: '48px'
-                                      }}
-                                    />
-                                  )}
+                                  <OptimizedMedia
+                                    imageUrl={item.image_url}
+                                    cloudflareImageId={item.cloudflare_image_id}
+                                    cloudflareVideoId={item.cloudflare_video_id}
+                                    alt={item.name}
+                                    containerWidth={48}
+                                    containerHeight={48}
+                                    enableHoverVideo={false} // Disable hover for thumbnails
+                                    showThumbnailFirst={true}
+                                    className="w-12 h-12 object-cover"
+                                  />
                                 </div>
                               ) : (
                                 <div className="w-12 h-12 rounded-lg flex items-center justify-center"

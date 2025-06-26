@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { useCartStore, useSessionStore, addItemToCart, updateCartItem, deleteCartItem, constructImageUrl } from '@qrmenu/core';
+import { useCartStore, useSessionStore, addItemToCart, updateCartItem, deleteCartItem, constructImageUrl, getOptimalVariant } from '@qrmenu/core';
+import { OptimizedMedia } from './OptimizedMedia.jsx';
 
-export function DishCard({ id, name, price, image_url, tags = [], description = '', className = '' }) {
+export function DishCard({ id, name, price, image_url, cloudflare_image_id, cloudflare_video_id, tags = [], description = '', className = '' }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -43,17 +44,13 @@ export function DishCard({ id, name, price, image_url, tags = [], description = 
     setIsModalOpen(true);
   };
 
-  // Helper function to check if URL is a video
-  const isVideoUrl = (url) => {
-    if (!url) return false;
-    const videoExtensions = ['.mp4', '.webm', '.ogg', '.mov', '.avi'];
-    return videoExtensions.some(ext => url.toLowerCase().includes(ext));
-  };
+
 
   const formattedPrice = price ? `₹${price}` : 'Price not available';
-  const fullImageUrl = constructImageUrl(image_url);
-  const hasImage = fullImageUrl && !imageError;
-  const isVideo = hasImage && isVideoUrl(fullImageUrl);
+  
+  // Get optimal variant for this card size
+  const cardWidth = 240;  
+  const hasMedia = image_url !== null;
 
   return (
     <>
@@ -73,36 +70,24 @@ export function DishCard({ id, name, price, image_url, tags = [], description = 
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        {/* Image/Video Container - More compact */}
-        {hasImage ? (
+        {/* Optimized Media Container */}
+        {hasMedia ? (
           <div className="relative w-full h-28 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
-            {isVideo ? (
-              <video
-                src={fullImageUrl}
-                className={`
-                  w-full h-full object-cover
-                  transition-transform duration-500 ease-out
-                  ${isHovered ? 'scale-105' : 'scale-100'}
-                `}
-                autoPlay
-                loop
-                muted={true}
-                playsInline
-                controls={false}
-                onError={() => setImageError(true)}
-              />
-            ) : (
-              <img 
-                src={fullImageUrl} 
+            <OptimizedMedia
+              imageUrl={image_url}
+              cloudflareImageId={cloudflare_image_id}
+              cloudflareVideoId={cloudflare_video_id}
                 alt={name}
+              containerWidth={cardWidth}
+              containerHeight={112} // h-28 = 112px
+              enableHoverVideo={true}
+              showThumbnailFirst={true}
                 className={`
-                  w-full h-full object-cover
                   transition-transform duration-500 ease-out
                   ${isHovered ? 'scale-105' : 'scale-100'}
                 `}
                 onError={() => setImageError(true)}
               />
-            )}
           </div>
         ) : (
           <div className="relative w-full h-16 bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center">

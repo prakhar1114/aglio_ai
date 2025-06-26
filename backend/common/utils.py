@@ -58,6 +58,8 @@ def enrich_blocks(blocks: Blocks, restaurant_slug: str) -> dict:
                     if menu_item:
                         image_path = menu_item.image_path
                         option["image_url"] = f"image_data/{restaurant_slug}/{image_path}" if restaurant_slug and image_path else None
+                        option["cloudflare_image_id"] = menu_item.cloudflare_image_id
+                        option["cloudflare_video_id"] = menu_item.cloudflare_video_id
                         option["name"] = menu_item.name
                         option["price"] = float(menu_item.price)
                         option["description"] = menu_item.description
@@ -69,6 +71,8 @@ def enrich_blocks(blocks: Blocks, restaurant_slug: str) -> dict:
                 if menu_item:
                     image_path = menu_item.image_path
                     block["image_url"] = f"image_data/{restaurant_slug}/{image_path}" if restaurant_slug and image_path else None
+                    block["cloudflare_image_id"] = menu_item.cloudflare_image_id
+                    block["cloudflare_video_id"] = menu_item.cloudflare_video_id
                     block["name"] = menu_item.name
                     block["price"] = float(menu_item.price)
                     block["description"] = menu_item.description

@@ -26,6 +26,8 @@ export function DishCarousel({ options, className = '' }) {
           name={dish.name}
           price={dish.price}
           image_url={dish.image_url}
+          cloudflare_image_id={dish.cloudflare_image_id}
+          cloudflare_video_id={dish.cloudflare_video_id}
           tags={dish.tags}
           description={dish.description}
         />

@@ -30,6 +30,8 @@ class CartItemResponse(BaseModel):
     note: str
     version: int
     image_url: Optional[str] = None  # Add image URL for cart rendering
+    cloudflare_image_id: Optional[str] = None  # Cloudflare Images ID
+    cloudflare_video_id: Optional[str] = None  # Cloudflare Stream video ID
     veg_flag: bool = False  # Add veg flag for dietary indicators
 
 class MemberInfo(BaseModel):

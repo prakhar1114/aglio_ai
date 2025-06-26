@@ -1,15 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useCartStore, useSessionStore, addItemToCart, updateCartItem, deleteCartItem, useChatStore } from '@qrmenu/core';
 import { useSwipeable } from 'react-swipeable';
-import { ItemCard } from '../components/ItemCard.jsx';
 import { SimpleMasonryGrid } from '../components/SimpleMasonryGrid.jsx';
+import { OptimizedMedia } from '../components/OptimizedMedia.jsx';
 
-// Helper function to check if URL is a video
-const isVideoUrl = (url) => {
-  if (!url) return false;
-  const videoExtensions = ['.mp4', '.webm', '.ogg', '.mov', '.avi'];
-  return videoExtensions.some(ext => url.toLowerCase().includes(ext));
-};
+
 
 // Header Component - Minimal design
 function Header({ onClose }) {
@@ -80,31 +75,41 @@ function ProgressDots({ currentIndex, totalItems }) {
 
 // Media Section Component
 function MediaSection({ item, currentIndex, totalItems }) {
-  const isVideo = isVideoUrl(item.image_url);
-  
+  // Calculate dynamic viewport width for optimal media sizing
+  const getViewportWidth = () => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth;
+    }
+    return 428; // Fallback for SSR
+  };
+
+  const [viewportWidth, setViewportWidth] = useState(getViewportWidth());
+  console.log("viewportWidth media ", viewportWidth)
+
+  // Update viewport width on resize
+  useEffect(() => {
+    const handleResize = () => {
+      setViewportWidth(getViewportWidth());
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   return (
-    <div className="relative aspect-[3/2] w-full bg-gray-100 flex items-center justify-center">
-      {item.image_url ? (
-        isVideo ? (
-          <video
-            src={item.image_url}
-            className="w-full h-full object-cover"
-            autoPlay
-            loop
-            muted
-            playsInline
-            controls={false}
-          />
-        ) : (
-          <img
-            src={item.image_url}
-            alt={item.name}
-            className="w-full h-full object-cover"
-            loading="lazy"
-          />
-        )
+    <div className="relative w-full bg-gray-100 flex items-center justify-center">
+      {(item.image_url || item.cloudflare_image_id || item.cloudflare_video_id) ? (
+        <OptimizedMedia
+          imageUrl={item.image_url}
+          cloudflareImageId={item.cloudflare_image_id}
+          cloudflareVideoId={item.cloudflare_video_id}
+          alt={item.name}
+          containerWidth={viewportWidth}
+          containerHeight={viewportWidth * (9 / 16)}
+          className="w-full h-auto"
+        />
       ) : (
-        <div className="text-gray-400 text-6xl">🍽️</div>
+        <div className="text-gray-400 text-6xl py-16">🍽️</div>
       )}
       
       {/* Progress Dots */}
@@ -342,8 +347,32 @@ function CategorySection({ categoryItems, currentItem, onItemClick }) {
     e.stopPropagation();
   };
 
+  const handleWrapperTouch = (e) => {
+    // Only stop propagation for vertical touch events (taps and vertical scrolling)
+    // Let horizontal swipes bubble up to parent swipe handlers
+    if (e.type === 'touchstart') {
+      // Store initial touch position to determine if this is a vertical or horizontal gesture
+      e.currentTarget._touchStartY = e.touches[0].clientY;
+      e.currentTarget._touchStartX = e.touches[0].clientX;
+    } else if (e.type === 'touchmove') {
+      const deltaY = Math.abs(e.touches[0].clientY - e.currentTarget._touchStartY);
+      const deltaX = Math.abs(e.touches[0].clientX - e.currentTarget._touchStartX);
+      
+      // If this is primarily a vertical gesture, stop propagation
+      // If it's primarily horizontal, let it bubble up for swipe detection
+      if (deltaY > deltaX) {
+        e.stopPropagation();
+      }
+    }
+  };
+
   return (
-    <div onClick={handleWrapperClick} onTouchStart={handleWrapperClick} className="mt-6">
+    <div 
+      onClick={handleWrapperClick} 
+      onTouchStart={handleWrapperTouch}
+      onTouchMove={handleWrapperTouch}
+      className="mt-6"
+    >
       <SimpleMasonryGrid
         items={otherItems}
         onItemClick={handleItemClick}
@@ -372,14 +401,17 @@ export function PreviewScreen({
   
   // Define navigation functions
   const navigateToNext = () => {
-    if (!isTopmost || !onItemChange) return;
-    console.log('Navigating to next item, current index:', currentIndex, 'total items:', categoryItems.length);
+    if (!isTopmost || !onItemChange) {
+      return;
+    }
     const nextIndex = (currentIndex + 1) % categoryItems.length;
     onItemChange(nextIndex);
   };
 
   const navigateToPrevious = () => {
-    if (!isTopmost || !onItemChange) return;
+    if (!isTopmost || !onItemChange) {
+      return;
+    }
     console.log('Navigating to previous item, current index:', currentIndex, 'total items:', categoryItems.length);
     const prevIndex = currentIndex === 0 
       ? categoryItems.length - 1 
@@ -389,21 +421,27 @@ export function PreviewScreen({
 
   // Swipe handlers using react-swipeable
   const swipeHandlers = useSwipeable({
-    onSwipedLeft: () => {
+    onSwipedLeft: (eventData) => {
       if (isTopmost && categoryItems.length > 1) {
         navigateToNext();
       }
     },
-    onSwipedRight: () => {
+    onSwipedRight: (eventData) => {
       if (isTopmost && categoryItems.length > 1) {
         navigateToPrevious();
       }
     },
-    trackMouse: true, // Enable mouse dragging for desktop testing
+    onSwiping: (eventData) => {
+    },
+    onTouchStartOrOnMouseDown: (eventData) => {
+    },
+    trackMouse: true,
     trackTouch: true,
-    delta: 50, // Minimum distance for swipe
+    delta: 40, // Minimum distance for swipe
     preventScrollOnSwipe: false, // Allow vertical scrolling
     rotationAngle: 0,
+    swipeDuration: 1000, // Max time for swipe
+    touchEventOptions: { passive: false },
   });
 
   // Handle category item click
@@ -442,7 +480,10 @@ export function PreviewScreen({
       <div 
         {...swipeHandlers}
         className="fixed inset-0 bg-white flex flex-col animate-slide-in-right overflow-y-auto"
-        style={{ zIndex: zIndex }}
+        style={{ 
+          zIndex: zIndex,
+          touchAction: 'manipulation' // More permissive than pan-y
+        }}
       >
         {/* Header */}
         <Header onClose={onClose} />

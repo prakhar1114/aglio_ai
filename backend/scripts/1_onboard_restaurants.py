@@ -21,6 +21,7 @@ from loguru import logger
 sys.path.append(str(Path(__file__).parent.parent))
 from models.schema import SessionLocal
 from common.utils import download_instagram_content, download_url_content, is_url, is_instagram_url
+from common.cloudflare_utils import upload_media_to_cloudflare
 from urls.admin.auth_utils import generate_api_key
 from utils.jwt_utils import create_qr_token  # Unified QR token generation
 from models.schema import Restaurant, RestaurantHours, Table, DailyPass, MenuItem
@@ -75,18 +76,24 @@ def validate_and_clean_csv(df_menu: pd.DataFrame) -> pd.DataFrame:
     logger.info(f"📋 CSV validated and cleaned: {len(df_cleaned)} rows, {len(available_columns)} columns")
     return df_cleaned
 
-def process_image_urls(df_menu: pd.DataFrame, image_directory: str) -> pd.DataFrame:
-    """Process image_path URLs and download them to the local directory"""
-    logger.info(f"📷 Processing image URLs, target directory: {image_directory}")
+def process_image_urls_and_upload_to_cloudflare(df_menu: pd.DataFrame, image_directory: str, restaurant_slug: str) -> pd.DataFrame:
+    """Process image_path URLs, download them, and upload to Cloudflare"""
+    logger.info(f"📷 Processing image URLs and uploading to Cloudflare, target directory: {image_directory}")
     
     # Ensure image directory exists
     os.makedirs(image_directory, exist_ok=True)
     
     processed_df = df_menu.copy()
     
+    # Initialize Cloudflare columns
+    processed_df['cloudflare_image_id'] = None
+    processed_df['cloudflare_video_id'] = None
+    
     for idx, row in processed_df.iterrows():
         image_path_value = row.get('image_path')
         has_url = pd.notna(image_path_value) and is_url(str(image_path_value))
+        
+        local_file_path = None
         
         if has_url:
             image_url = str(row['image_path']).strip()
@@ -112,10 +119,11 @@ def process_image_urls(df_menu: pd.DataFrame, image_directory: str) -> pd.DataFr
                     )
                 
                 if success and downloaded_path:
-                    # Update the image_path in the dataframe with just the filename
+                    local_file_path = downloaded_path
+                    # Update the image_path in the dataframe with just the filename (for fallback)
                     new_filename = Path(downloaded_path).name
                     processed_df.at[idx, 'image_path'] = new_filename
-                    logger.success(f"✅ Downloaded and updated image_path for {row['name']}: {new_filename}")
+                    logger.success(f"✅ Downloaded {row['name']}: {new_filename}")
                 else:
                     # Download failed, set image_path to null
                     processed_df.at[idx, 'image_path'] = None
@@ -125,11 +133,36 @@ def process_image_urls(df_menu: pd.DataFrame, image_directory: str) -> pd.DataFr
                 logger.error(f"❌ Error downloading URL for {row['name']}: {e}")
                 processed_df.at[idx, 'image_path'] = None
         else:
-            # Not a URL, keep as is (should be a local filename)
+            # Not a URL, check if local file exists
             image_path_value = row.get('image_path')
             has_local_path = pd.notna(image_path_value)
             if has_local_path:
+                local_file_path = Path(image_directory) / str(image_path_value)
+                if local_file_path.exists():
                 logger.info(f"📁 Using local file for {row['name']}: {image_path_value}")
+                else:
+                    logger.warning(f"⚠️  Local file not found for {row['name']}: {image_path_value}")
+                    local_file_path = None
+        
+        # Upload to Cloudflare if we have a local file
+        if local_file_path and Path(local_file_path).exists():
+            try:
+                logger.info(f"☁️  Uploading {row['name']} to Cloudflare...")
+                cf_image_id, cf_video_id, cf_success, cf_message = upload_media_to_cloudflare(
+                    str(local_file_path), 
+                    str(row['name']), 
+                    restaurant_slug
+                )
+                
+                if cf_success:
+                    processed_df.at[idx, 'cloudflare_image_id'] = cf_image_id
+                    processed_df.at[idx, 'cloudflare_video_id'] = cf_video_id
+                    logger.success(f"✅ Cloudflare upload successful for {row['name']}")
+                else:
+                    logger.warning(f"⚠️  Cloudflare upload failed for {row['name']}: {cf_message}")
+                    
+            except Exception as e:
+                logger.error(f"❌ Exception uploading {row['name']} to Cloudflare: {e}")
     
     return processed_df
 
@@ -256,7 +289,7 @@ def seed_folder(folder: Path):
     # Always use images/ subfolder in the restaurant folder
     image_directory = str(folder / "images")
     logger.info(f"🖼️  Using images directory: {image_directory}")
-    df_menu = process_image_urls(df_menu, image_directory)
+    df_menu = process_image_urls_and_upload_to_cloudflare(df_menu, image_directory, meta["slug"])
     
     # Save the updated CSV with processed image paths (only expected columns)
     df_menu.to_csv(folder / "menu_processed.csv", index=False)
@@ -379,6 +412,8 @@ def seed_folder(folder: Path):
                     mi.price = 0.0
                 
                 mi.image_path      = row["image_path"] if pd.notna(row["image_path"]) else None
+                mi.cloudflare_image_id = row["cloudflare_image_id"] if pd.notna(row["cloudflare_image_id"]) else None
+                mi.cloudflare_video_id = row["cloudflare_video_id"] if pd.notna(row["cloudflare_video_id"]) else None
                 mi.veg_flag        = bool(row["veg_flag"]) if pd.notna(row["veg_flag"]) else False
                 mi.is_bestseller   = bool(row["is_bestseller"]) if pd.notna(row["is_bestseller"]) else False
                 mi.is_recommended  = bool(row["is_recommended"]) if pd.notna(row["is_recommended"]) else False

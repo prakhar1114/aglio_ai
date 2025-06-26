@@ -16,10 +16,7 @@ export async function loadCartSnapshot(sessionPid, wsToken) {
       
       if (response.ok) {
         const snapshot = await response.json();
-        snapshot.items = snapshot.items.map((item) => ({
-          ...item,
-          image_url: constructImageUrl(item.image_url)
-        }));
+
         console.log('Cart snapshot loaded:', snapshot);
         return { success: true, data: snapshot };
       } else {

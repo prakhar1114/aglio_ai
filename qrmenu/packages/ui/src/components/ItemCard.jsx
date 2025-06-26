@@ -1,7 +1,8 @@
 import React from 'react';
-import { useCartStore, useSessionStore, addItemToCart, updateCartItem, deleteCartItem } from '@qrmenu/core';
+import { useCartStore, useSessionStore, addItemToCart, updateCartItem, deleteCartItem, constructImageUrl, getOptimalVariant } from '@qrmenu/core';
+import { OptimizedMedia } from './OptimizedMedia.jsx';
 
-export function ItemCard({ item, onItemClick }) {
+export function ItemCard({ item, containerWidth, onItemClick }) {
   // Calculate current quantity for this menu item from shared cart
   const { items } = useCartStore();
   const { memberPid } = useSessionStore();
@@ -84,12 +85,7 @@ export function ItemCard({ item, onItemClick }) {
     display: 'block'
   };
 
-  // Helper function to check if URL is a video
-  const isVideoUrl = (url) => {
-    if (!url) return false;
-    const videoExtensions = ['.mp4', '.webm', '.ogg', '.mov', '.avi'];
-    return videoExtensions.some(ext => url.toLowerCase().includes(ext));
-  };
+  
 
   const contentStyle = {
     padding: '8px 12px', // theme spacing sm + md
@@ -132,7 +128,7 @@ export function ItemCard({ item, onItemClick }) {
     position: 'absolute',
     bottom: '6px', // Closer to corner, Apple-style
     right: '6px', // Closer to corner, Apple-style
-    zIndex: 10
+    zIndex: 20 // Increased z-index to ensure it's above iframe
   };
 
   const addButtonStyle = {
@@ -275,6 +271,13 @@ export function ItemCard({ item, onItemClick }) {
     fontSize: '12px' // theme typography.sizes.xs
   };
 
+  // Use passed containerWidth or fallback
+  const cardWidth = containerWidth || 180;
+
+
+  
+  const hasMedia = item.image_url !== null;
+
   return (
     <div 
       style={cardStyle}
@@ -283,31 +286,26 @@ export function ItemCard({ item, onItemClick }) {
       tabIndex={0}
       className="cursor-pointer"
     >
-      {item.image_url ? (
-        // Card with image or video
+      {hasMedia ? (
+        // Card with optimized image or video
         <div style={imageContainerStyle}>
-          {isVideoUrl(item.image_url) ? (
-            <video
-              src={item.image_url}
-              style={videoStyle}
-              autoPlay
-              loop
-              muted={true}
-              playsInline
-              controls={false}
-            />
-          ) : (
-            <img
-              src={item.image_url}
-              alt={item.name}
-              style={imageStyle}
-              loading="lazy"
-            />
-          )}
+          <OptimizedMedia
+            imageUrl={item.image_url}
+            cloudflareImageId={item.cloudflare_image_id}
+            cloudflareVideoId={item.cloudflare_video_id}
+            alt={item.name}
+            containerWidth={cardWidth}
+            containerHeight={cardWidth} // Square aspect ratio
+            className="w-full h-full"
+            onClick={handleCardClick}
+          />
           <div style={buttonOverlayStyle}>
             {qty === 0 ? (
               <button
-                onClick={handleAdd}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAdd();
+                }}
                 style={addButtonStyle}
               >
                 <svg
@@ -329,14 +327,20 @@ export function ItemCard({ item, onItemClick }) {
             ) : (
               <div style={quantityPillStyle}>
                 <button
-                  onClick={handleRemove}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRemove();
+                  }}
                   style={quantityButtonStyle}
                 >
                   −
                 </button>
                 <span style={quantityStyle}>{qty}</span>
                 <button
-                  onClick={handleAdd}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleAdd();
+                  }}
                   style={quantityButtonStyle}
                 >
                   +
@@ -355,7 +359,10 @@ export function ItemCard({ item, onItemClick }) {
           <div style={noImageButtonOverlayStyle}>
             {qty === 0 ? (
               <button
-                onClick={handleAdd}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAdd();
+                }}
                 style={noImageButtonStyle}
               >
                 <svg
@@ -377,14 +384,20 @@ export function ItemCard({ item, onItemClick }) {
             ) : (
               <div style={noImageQuantityPillStyle}>
                 <button
-                  onClick={handleRemove}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRemove();
+                  }}
                   style={quantityButtonStyle}
                 >
                   −
                 </button>
                 <span style={quantityStyle}>{qty}</span>
                 <button
-                  onClick={handleAdd}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleAdd();
+                  }}
                   style={quantityButtonStyle}
                 >
                   +
@@ -394,7 +407,7 @@ export function ItemCard({ item, onItemClick }) {
           </div>
         </div>
       )}
-      {item.image_url && (
+      {hasMedia && (
         <div style={contentStyle}>
           <h3 style={titleStyle}>{item.name}</h3>
           <p style={priceStyle}>₹{item.price}</p>

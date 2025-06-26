@@ -13,4 +13,23 @@ export default function getDeviceId() {
   // Generate short thread ID (6 characters)
 export function generateShortId() {
   return uuidv4().replace(/-/g, '').substring(0, 6);
+  
+}
+
+/**
+ * Check if a URL is a video based on Cloudflare Stream URLs or file extensions
+ * @param {string} url - The URL to check
+ * @returns {boolean} - True if the URL is a video
+ */
+export function isVideoUrl(url) {
+  if (!url) return false;
+  
+  // Check for Cloudflare Stream URLs
+  if (url.includes('videodelivery.net') || url.includes('.m3u8')) {
+    return true;
+  }
+  
+  // Check for traditional video file extensions
+  const videoExtensions = ['.mp4', '.webm', '.ogg', '.mov', '.avi'];
+  return videoExtensions.some(ext => url.toLowerCase().includes(ext));
 }

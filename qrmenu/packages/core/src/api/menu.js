@@ -70,13 +70,8 @@ export const useMenu = (filters = {}) => {
       if (!res.ok) throw new Error('Failed to fetch menu');
       const data = await res.json();
       
-      // Transform image URLs to include base API
-      if (data.items) {
-        data.items = data.items.map(item => ({
-          ...item,
-          image_url: constructImageUrl(item.image_url)
-        }));
-      }
+      // Don't transform image URLs here - let components handle Cloudflare URL construction
+      // The components (ItemCard -> OptimizedMedia) will call constructImageUrl with the raw fields
       
       return data;
     },

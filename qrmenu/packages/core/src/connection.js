@@ -107,9 +107,7 @@ function handleWebSocketMessage(data) {
   const cartStore = useCartStore.getState();
   const chatStore = useChatStore.getState();
   
-  if ('item' in data && 'image_url' in data.item) {
-    data.item.image_url = constructImageUrl(data.item.image_url);
-  }
+
 
   switch (data.type) {
     case 'member_join':

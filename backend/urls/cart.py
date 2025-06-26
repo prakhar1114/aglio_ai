@@ -120,6 +120,8 @@ async def get_cart_snapshot(
                     note=cart_item.note or "",
                     version=cart_item.version,
                     image_url=f"image_data/{restaurant.slug}/{menu_item.image_path}" if menu_item.image_path else None,
+                    cloudflare_image_id=menu_item.cloudflare_image_id,
+                    cloudflare_video_id=menu_item.cloudflare_video_id,
                     veg_flag=menu_item.veg_flag
                 )
                 for cart_item, menu_item in cart_items

@@ -74,22 +74,43 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
   // Calculate responsive column count based on viewport width
   const getColumnCount = () => {
     if (typeof window !== 'undefined') {
-      const containerWidth = Math.min(window.innerWidth - 8, 396); // Account for minimal padding (4px * 2)
-      // Dynamic columns based on width for optimal item sizes
-      if (containerWidth < 250) return 1;
-      if (containerWidth < 350) return 2;
-      return Math.min(Math.floor(containerWidth / 180), 3); // Max 3 columns, min 180px per column
+      const viewportWidth = window.innerWidth - 8; // Account for minimal padding (4px * 2)
+      // Dynamic columns - each column should be ~180-200px wide, max 396px per card
+      if (viewportWidth < 250) return 1;
+      if (viewportWidth < 450) return 2;
+      if (viewportWidth < 650) return 3;
+      return Math.min(Math.floor(viewportWidth / 200), 4); // Max 4 columns, ~200px per column
     }
     return 2;
   };
 
-  // State to track column count and trigger re-renders on resize
-  const [columnCount, setColumnCount] = useState(getColumnCount());
+  // Calculate optimal card width (max 396px per card)
+  const getCardWidth = () => {
+    if (typeof window !== 'undefined') {
+      const viewportWidth = window.innerWidth - 8;
+      const columnCount = getColumnCount();
+      const gapWidth = (columnCount - 1) * 4; // 4px gap between columns
+      const paddingWidth = 2 * 4; // 4px padding on each side
+      const availableWidth = viewportWidth - gapWidth - paddingWidth;
+      const calculatedWidth = Math.floor(availableWidth / columnCount);
+      
+      // Ensure each card is maximum 396px
+      return Math.min(calculatedWidth, 396);
+    }
+    return 180; // Fallback
+  };
 
-  // Update column count on window resize
+  // State to track column count and card width, trigger re-renders on resize
+  const [columnCount, setColumnCount] = useState(getColumnCount());
+  const [cardWidth, setCardWidth] = useState(getCardWidth());
+  console.log("cardWidth", cardWidth)
+  console.log("columnCount", columnCount)
+
+  // Update column count and card width on window resize
   React.useEffect(() => {
     const handleResize = () => {
       setColumnCount(getColumnCount());
+      setCardWidth(getCardWidth());
     };
 
     window.addEventListener('resize', handleResize);
@@ -177,7 +198,6 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
       <div
         style={{
           width: '100%',
-          maxWidth: '428px',
           margin: '0 auto',
           height: '100vh', // Full height for virtualization
           boxSizing: 'border-box',
@@ -338,6 +358,7 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
                     >
                       <FeedItemSwitcher 
                         item={item} 
+                        containerWidth={cardWidth}
                         onItemClick={() => {
                           const allCurrentItems = data ? data.pages.flatMap(p => p.items) : [];
                           onItemClick?.(item, allCurrentItems);

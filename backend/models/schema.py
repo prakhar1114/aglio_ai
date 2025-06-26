@@ -217,6 +217,8 @@ class MenuItem(Base):
     description = Column(Text)
     price = Column(Float, nullable=False)
     image_path = Column(String)
+    cloudflare_image_id = Column(String, nullable=True)  # Cloudflare Images ID
+    cloudflare_video_id = Column(String, nullable=True)  # Cloudflare Stream video ID
     veg_flag = Column(Boolean, default=False)
     is_bestseller = Column(Boolean, default=False)
     is_recommended = Column(Boolean, default=False)
