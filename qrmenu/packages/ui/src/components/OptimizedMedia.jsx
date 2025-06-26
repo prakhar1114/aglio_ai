@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { constructImageUrl, getOptimalVariant } from '@qrmenu/core';
+import Hls from 'hls.js';
 
 export function OptimizedMedia({ 
   imageUrl,
@@ -52,31 +53,18 @@ export function OptimizedMedia({
     );
   }
   
-  // Handle video with iframe
+  // Handle video with HLS
   if (mediaResult.type === 'video') {
     return (
-      <div 
-        className={`relative ${className} ${onClick ? 'cursor-pointer' : ''}`}
-        style={{ 
-          width: containerWidth,
-          height: containerHeight,
-          maxWidth: '100%'
-        }}
+      <VideoPlayer 
+        hlsUrl={mediaResult.hls}
+        thumbnailUrl={mediaResult.thumbnail}
+        className={className}
+        containerWidth={containerWidth}
+        containerHeight={containerHeight}
         onClick={onClick}
-      >
-        <iframe
-          src={`${mediaResult.iframe}`}
-          className="absolute inset-0 w-full h-full"
-          style={{ 
-            border: 'none', 
-            pointerEvents: 'none', // Always disable pointer events to allow parent swipe detection
-            zIndex: 1 // Lower z-index to allow buttons to be on top
-          }}
-          allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
-          allowFullScreen
-          loading="lazy"
-        />
-      </div>
+        alt={alt}
+      />
     );
   }
   
@@ -93,5 +81,102 @@ export function OptimizedMedia({
       }}
       onClick={onClick}
     />
+  );
+}
+
+// VideoPlayer component with HLS support and thumbnail optimization
+function VideoPlayer({ hlsUrl, thumbnailUrl, className, containerWidth, containerHeight, onClick, alt }) {
+  const videoRef = useRef(null);
+  const hlsRef = useRef(null);
+  const [showThumbnail, setShowThumbnail] = useState(true);
+  const [videoLoaded, setVideoLoaded] = useState(false);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !hlsUrl) return;
+
+    // Check if browser supports HLS natively (Safari)
+    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      // Native HLS support
+      video.src = hlsUrl;
+      video.addEventListener('canplay', handleVideoCanPlay);
+    } else if (Hls.isSupported()) {
+      // Use HLS.js for other browsers
+      const hls = new Hls({
+        enableWorker: false // Disable worker to avoid CORS issues in some environments
+      });
+      hlsRef.current = hls;
+      
+      hls.loadSource(hlsUrl);
+      hls.attachMedia(video);
+      
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        // HLS manifest loaded, video is ready to play
+      });
+
+      video.addEventListener('canplay', handleVideoCanPlay);
+    } else {
+      console.warn('HLS is not supported in this browser');
+      // Keep thumbnail visible as fallback
+    }
+
+    function handleVideoCanPlay() {
+      setVideoLoaded(true);
+      // Small delay to ensure smooth transition
+      setTimeout(() => {
+        setShowThumbnail(false);
+      }, 100);
+    }
+
+    // Cleanup
+    return () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+      }
+      if (video) {
+        video.removeEventListener('canplay', handleVideoCanPlay);
+      }
+    };
+  }, [hlsUrl]);
+
+  return (
+    <div 
+      className={`relative ${className} ${onClick ? 'cursor-pointer' : ''}`}
+      style={{ 
+        width: containerWidth,
+        height: containerHeight,
+        maxWidth: '100%'
+      }}
+      onClick={onClick}
+    >
+      {/* Thumbnail - shown initially and hidden when video loads */}
+      {showThumbnail && (
+        <img
+          src={thumbnailUrl}
+          alt={alt}
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ 
+            zIndex: 2,
+            transition: 'opacity 0.3s ease-in-out'
+          }}
+        />
+      )}
+      
+      {/* Video element */}
+      <video
+        ref={videoRef}
+        className="absolute inset-0 w-full h-full object-cover"
+        style={{ 
+          pointerEvents: 'none', // Disable pointer events to allow parent swipe detection
+          zIndex: 1,
+          opacity: videoLoaded && !showThumbnail ? 1 : 0,
+          transition: 'opacity 0.3s ease-in-out'
+        }}
+        muted
+        autoPlay
+        loop
+        playsInline
+      />
+    </div>
   );
 } 

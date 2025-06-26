@@ -105,7 +105,7 @@ function MediaSection({ item, currentIndex, totalItems }) {
           cloudflareVideoId={item.cloudflare_video_id}
           alt={item.name}
           containerWidth={viewportWidth}
-          containerHeight={viewportWidth * (9 / 16)}
+          containerHeight={viewportWidth}
           className="w-full h-auto"
         />
       ) : (
@@ -412,7 +412,7 @@ export function PreviewScreen({
     if (!isTopmost || !onItemChange) {
       return;
     }
-    console.log('Navigating to previous item, current index:', currentIndex, 'total items:', categoryItems.length);
+    // console.log('Navigating to previous item, current index:', currentIndex, 'total items:', categoryItems.length);
     const prevIndex = currentIndex === 0 
       ? categoryItems.length - 1 
       : currentIndex - 1;

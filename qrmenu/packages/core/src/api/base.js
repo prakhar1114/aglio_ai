@@ -10,13 +10,14 @@ export const getBaseApiCandidates = () => {
 }; 
 
 export function constructImageUrl(imageUrl, cloudflareImageId, cloudflareVideoId, variant = 'medium', options = {}) {
-  // 1. If we have a Cloudflare Video ID, return iframe URL
+  // 1. If we have a Cloudflare Video ID, return HLS URL and thumbnail
   if (cloudflareVideoId) {
     const customerCode = import.meta.env?.VITE_CLOUDFLARE_STREAM_CUSTOMER_CODE || process.env.CLOUDFLARE_STREAM_CUSTOMER_CODE;
     
     return {
       type: 'video',
-      iframe: `https://customer-${customerCode}.cloudflarestream.com/${cloudflareVideoId}/iframe?muted=true&autoplay=true&controls=false&loop=true`,
+      hls: `https://customer-${customerCode}.cloudflarestream.com/${cloudflareVideoId}/manifest/video.m3u8`,
+      thumbnail: `https://customer-${customerCode}.cloudflarestream.com/${cloudflareVideoId}/thumbnails/thumbnail.jpg`,
       id: cloudflareVideoId
     };
   }
