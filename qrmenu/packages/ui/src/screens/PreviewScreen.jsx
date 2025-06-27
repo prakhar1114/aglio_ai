@@ -84,7 +84,7 @@ function MediaSection({ item, currentIndex, totalItems }) {
   };
 
   const [viewportWidth, setViewportWidth] = useState(getViewportWidth());
-  console.log("viewportWidth media ", viewportWidth)
+  // console.log("viewportWidth media ", viewportWidth)
 
   // Update viewport width on resize
   useEffect(() => {
@@ -107,6 +107,7 @@ function MediaSection({ item, currentIndex, totalItems }) {
           containerWidth={viewportWidth}
           containerHeight={viewportWidth}
           className="w-full h-auto"
+          addControls={true}
         />
       ) : (
         <div className="text-gray-400 text-6xl py-16">🍽️</div>
@@ -321,6 +322,7 @@ function DetailsSection({ item, onAskAI }) {
 // Category Section Component
 function CategorySection({ categoryItems, currentItem, onItemClick }) {
   const otherItems = categoryItems.filter(item => item.id !== currentItem.id);
+  const [showGrid, setShowGrid] = useState(false);
   
   // Debug logging
   console.log('CategorySection render:', {
@@ -330,6 +332,13 @@ function CategorySection({ categoryItems, currentItem, onItemClick }) {
     otherItems: otherItems?.length || 0,
     category_brief: currentItem?.category_brief
   });
+  
+  // Defer grid rendering after swipe animation completes
+  useEffect(() => {
+    setShowGrid(false); // Hide grid immediately when item changes
+    const timer = setTimeout(() => setShowGrid(true), 300); // Show after 150ms
+    return () => clearTimeout(timer);
+  }, [currentItem.id]);
   
   if (otherItems.length === 0) {
     console.log('CategorySection: No other items to show, returning null');
@@ -373,12 +382,18 @@ function CategorySection({ categoryItems, currentItem, onItemClick }) {
       onTouchMove={handleWrapperTouch}
       className="mt-6"
     >
-      <SimpleMasonryGrid
-        items={otherItems}
-        onItemClick={handleItemClick}
-        title={`Other ${currentItem.category_brief}`}
-        className="flex-1"
-      />
+      {showGrid ? (
+        <SimpleMasonryGrid
+          items={otherItems}
+          onItemClick={handleItemClick}
+          title={`Other ${currentItem.category_brief}`}
+          className="flex-1"
+        />
+      ) : (
+        <div style={{ height: 200 }} className="flex items-center justify-center">
+          <div className="text-gray-400">Loading more items...</div>
+        </div>
+      )}
     </div>
   );
 }

@@ -103,8 +103,8 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
   // State to track column count and card width, trigger re-renders on resize
   const [columnCount, setColumnCount] = useState(getColumnCount());
   const [cardWidth, setCardWidth] = useState(getCardWidth());
-  console.log("cardWidth", cardWidth)
-  console.log("columnCount", columnCount)
+  // console.log("cardWidth", cardWidth)
+  // console.log("columnCount", columnCount)
 
   // Update column count and card width on window resize
   React.useEffect(() => {

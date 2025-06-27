@@ -65,7 +65,7 @@ export function SimpleMasonryGrid({
     return null;
   }
 
-  console.log('SimpleMasonryGrid: Rendering grid with', items.length, 'items and', columnCount, 'columns');
+  // console.log('SimpleMasonryGrid: Rendering grid with', items.length, 'items and', columnCount, 'columns');
 
   return (
     <div 

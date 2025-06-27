@@ -297,7 +297,6 @@ export function ItemCard({ item, containerWidth, onItemClick }) {
             containerWidth={cardWidth}
             containerHeight={cardWidth} // Square aspect ratio
             className="w-full h-full"
-            onClick={handleCardClick}
           />
           <div style={buttonOverlayStyle}>
             {qty === 0 ? (
