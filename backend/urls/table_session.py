@@ -24,6 +24,9 @@ from utils.jwt_utils import (
 from utils.nickname_generator import generate_nickname
 from websocket.manager import connection_manager
 
+# Import dashboard manager for admin notifications
+from urls.admin.dashboard_ws import dashboard_manager
+
 router = APIRouter()
 
 def get_current_time(tz: str) -> datetime:
@@ -106,8 +109,10 @@ async def create_table_session(
                 Session.state == 'active'
             ).first()
             
+            is_new_session = False
             if not session:
                 # Create new session
+                is_new_session = True
                 session_pid = f"s_{uuid.uuid4().hex[:6]}"
                 session = Session(
                     public_id=session_pid,
@@ -182,6 +187,18 @@ async def create_table_session(
                     session_pid, 
                     join_event.model_dump()
                 )
+            
+            # 11. Notify admin dashboards of table update (if new session was created)
+            if is_new_session:
+                # Get updated table info for admin notification
+                updated_table = db.query(Table).filter(Table.id == table.id).first()
+                if updated_table:
+                    from services.table_service import TableInfo
+                    table_info = TableInfo.from_table(updated_table, db)
+                    await dashboard_manager.broadcast_table_update(
+                        restaurant.slug, 
+                        table_info.to_dict()
+                    )
             
             return TableSessionResponse(
                 session_pid=session.public_id,

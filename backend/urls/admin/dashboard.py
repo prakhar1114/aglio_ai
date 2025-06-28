@@ -1,15 +1,15 @@
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Form
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Form, Query, Header
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
-from models.schema import SessionLocal, Restaurant, Table, Session as TableSession
-from .auth_utils import auth, get_restaurant_api_keys
+from models.schema import SessionLocal, Restaurant, Table, Session as TableSession, Member, CartItem, MenuItem, Order
+from .auth_utils import auth, get_restaurant_api_keys, validate_api_key, create_admin_jwt_token, decode_admin_jwt_token
 
 import os
 
@@ -92,20 +92,17 @@ def login_page(request: Request):
 @router.post("/login", response_class=HTMLResponse)
 def login_submit(request: Request, api_key: str = Form(...)):
     """Handle login form submission"""
-    # Validate API key
-    api_keys = get_restaurant_api_keys()
+    # Validate API key using shared utility
     
-    restaurant_slug = None
-    for slug, key in api_keys.items():
-        if api_key == key:
-            restaurant_slug = slug
-            break
-    
+    restaurant_slug = validate_api_key(api_key)
     if not restaurant_slug:
         return templates.TemplateResponse(
             "admin/login.html", 
             {"request": request, "error": "Invalid API Key"}
         )
+    
+    # Create JWT token for dashboard access
+    jwt_token = create_admin_jwt_token(restaurant_slug, hours=24)
     
     # Get restaurant info
     db = SessionLocal()
@@ -116,7 +113,7 @@ def login_submit(request: Request, api_key: str = Form(...)):
             {
                 "request": request, 
                 "restaurant_name": restaurant.name,
-                "api_key": api_key
+                "api_key": jwt_token  # Pass JWT token instead of raw API key
             }
         )
     finally:
@@ -245,14 +242,17 @@ def get_tables_api(
     return result
 
 
-@router.post("/table/{table_id}/close")
+@router.post("/table/{table_id}/close", deprecated=True)
 def close_table(
     table_id: int,
     request: Request,
     auth_data: dict = Depends(auth),
     db: Session = Depends(get_db)
 ):
-    """Close active session and mark table dirty."""
+    """Close active session and mark table dirty.
+    
+    DEPRECATED: Use WebSocket endpoint /admin/ws/dashboard with action 'close_table' instead.
+    """
     restaurant_slug = auth_data["restaurant_slug"]
     restaurant = get_restaurant_by_slug(db, restaurant_slug)
     
@@ -290,14 +290,17 @@ def close_table(
     )
 
 
-@router.post("/table/{table_id}/disable")
+@router.post("/table/{table_id}/disable", deprecated=True)
 def disable_table(
     table_id: int,
     request: Request,
     auth_data: dict = Depends(auth),
     db: Session = Depends(get_db)
 ):
-    """Disable table (only when free)."""
+    """Disable table (only when free).
+    
+    DEPRECATED: Use WebSocket endpoint /admin/ws/dashboard with action 'disable_table' instead.
+    """
     restaurant_slug = auth_data["restaurant_slug"]
     restaurant = get_restaurant_by_slug(db, restaurant_slug)
     
@@ -338,14 +341,17 @@ def disable_table(
     )
 
 
-@router.post("/table/{table_id}/enable")
+@router.post("/table/{table_id}/enable", deprecated=True)
 def enable_table(
     table_id: int,
     request: Request,
     auth_data: dict = Depends(auth),
     db: Session = Depends(get_db)
 ):
-    """Re-open a disabled table or clean a dirty table."""
+    """Re-open a disabled table or clean a dirty table.
+    
+    DEPRECATED: Use WebSocket endpoint /admin/ws/dashboard with action 'enable_table' instead.
+    """
     restaurant_slug = auth_data["restaurant_slug"]
     restaurant = get_restaurant_by_slug(db, restaurant_slug)
     
@@ -392,13 +398,16 @@ def enable_table(
     )
 
 
-@router.post("/table/{table_id}/restore", response_model=StandardResponse)
+@router.post("/table/{table_id}/restore", response_model=StandardResponse, deprecated=True)
 def restore_table(
     table_id: int,
     auth_data: dict = Depends(auth),
     db: Session = Depends(get_db)
 ):
-    """Reopen the most recent closed/expired session."""
+    """Reopen the most recent closed/expired session.
+    
+    DEPRECATED: Use WebSocket endpoint /admin/ws/dashboard with action 'restore_table' instead.
+    """
     restaurant_slug = auth_data["restaurant_slug"]
     restaurant = get_restaurant_by_slug(db, restaurant_slug)
     
@@ -447,7 +456,24 @@ def restore_table(
     return StandardResponse(success=True, data={"session_id": last_session.id})
 
 
-@router.post("/table/{table_id}/move")
+@router.post("/api/token", response_model=StandardResponse)
+def create_dashboard_token(auth_data: dict = Depends(auth)):
+    """Create a temporary JWT token for WebSocket dashboard access"""
+    restaurant_slug = auth_data["restaurant_slug"]
+    
+    # Create a short-lived token for WebSocket access (2 hours)
+    jwt_token = create_admin_jwt_token(restaurant_slug, hours=2)
+    
+    return StandardResponse(
+        success=True,
+        data={
+            "token": jwt_token,
+            "expires_in": 7200  # 2 hours in seconds
+        }
+    )
+
+
+@router.post("/table/{table_id}/move", deprecated=True)
 def move_table(
     table_id: int,
     request: Request,
@@ -455,7 +481,10 @@ def move_table(
     auth_data: dict = Depends(auth),
     db: Session = Depends(get_db)
 ):
-    """Move current party to another empty table."""
+    """Move current party to another empty table.
+    
+    DEPRECATED: Use WebSocket endpoint /admin/ws/dashboard with action 'move_table' instead.
+    """
     restaurant_slug = auth_data["restaurant_slug"]
     restaurant = get_restaurant_by_slug(db, restaurant_slug)
     
@@ -526,4 +555,166 @@ def move_table(
     
     return HTMLResponse(
         toast_response(True, f"Party moved from table {source_table.number} to table {target_table.number}")
-    ) 
+    )
+
+
+@router.get("/api/session/{table_id}")
+async def get_session_details(
+    table_id: int,
+    authorization: str = Header(None)
+):
+    """
+    Get session details for a specific table (admin only)
+    Returns session info similar to cart_snapshot structure
+    """
+    try:
+        # Extract token from Authorization header
+        if not authorization:
+            raise HTTPException(
+                status_code=401,
+                detail={"success": False, "code": "missing_auth", "detail": "Authorization header required"}
+            )
+        
+        # Handle both Bearer token format and raw token
+        token = authorization
+        if authorization.startswith("Bearer "):
+            token = authorization.split()[1]
+        
+        # Try to decode as JWT token first, fallback to raw API key
+        restaurant_slug = None
+        
+        # First try JWT token
+        jwt_data = decode_admin_jwt_token(token)
+        if jwt_data:
+            restaurant_slug = jwt_data["restaurant_slug"]
+        else:
+            # Fallback to raw API key validation
+            restaurant_slug = validate_api_key(token)
+        
+        if not restaurant_slug:
+            raise HTTPException(
+                status_code=403,
+                detail={"success": False, "code": "invalid_auth", "detail": "Invalid API key or token"}
+            )
+        
+        with SessionLocal() as db:
+            # Get restaurant
+            restaurant = db.query(Restaurant).filter(Restaurant.slug == restaurant_slug).first()
+            if not restaurant:
+                raise HTTPException(
+                    status_code=404,
+                    detail={"success": False, "code": "restaurant_not_found", "detail": "Restaurant not found"}
+                )
+            
+            # Get table
+            table = db.query(Table).filter(
+                Table.id == table_id,
+                Table.restaurant_id == restaurant.id
+            ).first()
+            if not table:
+                raise HTTPException(
+                    status_code=404,
+                    detail={"success": False, "code": "table_not_found", "detail": "Table not found"}
+                )
+            
+            # Get active session for this table
+            session = db.query(TableSession).filter(
+                TableSession.table_id == table.id,
+                TableSession.state == 'active'
+            ).first()
+            
+            if not session:
+                return {
+                    "success": True,
+                    "table_number": table.number,
+                    "table_status": table.status,
+                    "session": None,
+                    "members": [],
+                    "cart_items": [],
+                    "orders": []
+                }
+            
+            # Get all members in this session
+            members = db.query(Member).filter(Member.session_id == session.id).all()
+            member_infos = [
+                {
+                    "member_pid": m.public_id,
+                    "nickname": m.nickname,
+                    "is_host": m.is_host,
+                    "active": m.active,
+                    "device_id": m.device_id
+                }
+                for m in members
+            ]
+            
+            # Get all pending cart items
+            cart_items = db.query(CartItem, MenuItem).join(
+                MenuItem, CartItem.menu_item_id == MenuItem.id
+            ).filter(
+                CartItem.session_id == session.id,
+                CartItem.state == 'pending'
+            ).all()
+            
+            cart_item_infos = [
+                {
+                    "public_id": cart_item.public_id,
+                    "member_pid": db.query(Member).filter(Member.id == cart_item.member_id).first().public_id,
+                    "menu_item_name": menu_item.name,
+                    "price": menu_item.price,
+                    "qty": cart_item.qty,
+                    "note": cart_item.note or "",
+                    "version": cart_item.version,
+                    "image_url": f"image_data/{restaurant.slug}/{menu_item.image_path}" if menu_item.image_path else None,
+                    "veg_flag": menu_item.veg_flag
+                }
+                for cart_item, menu_item in cart_items
+            ]
+            
+            # Get orders for this session
+            orders = db.query(Order).filter(Order.session_id == session.id).all()
+            order_infos = [
+                {
+                    "order_id": order.public_id,
+                    "total_amount": order.total_amount,
+                    "pay_method": order.pay_method,
+                    "created_at": order.created_at.isoformat() if order.created_at else None,
+                    "items": order.payload  # Contains the order items data
+                }
+                for order in orders
+            ]
+            
+            # Calculate totals
+            cart_total = sum(item["price"] * item["qty"] for item in cart_item_infos)
+            orders_total = sum(order["total_amount"] for order in order_infos)
+            
+            return {
+                "success": True,
+                "table_number": table.number,
+                "table_status": table.status,
+                "session": {
+                    "session_pid": session.public_id,
+                    "created_at": session.created_at.isoformat() if session.created_at else None,
+                    "last_activity_at": session.last_activity_at.isoformat() if session.last_activity_at else None,
+                    "state": session.state,
+                    "pass_validated": session.pass_validated if hasattr(session, 'pass_validated') else True
+                },
+                "members": member_infos,
+                "cart_items": cart_item_infos,
+                "orders": order_infos,
+                "totals": {
+                    "cart_total": cart_total,
+                    "orders_total": orders_total,
+                    "grand_total": cart_total + orders_total
+                },
+                "member_count": len(member_infos),
+                "active_member_count": len([m for m in member_infos if m["active"]])
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting session details: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail={"success": False, "code": "internal_error", "detail": "Internal server error"}
+        ) 

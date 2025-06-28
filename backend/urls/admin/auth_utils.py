@@ -1,11 +1,13 @@
 import hmac
 import secrets
 from typing import Dict, Optional
+from datetime import datetime, timedelta
 
 from fastapi import Header, HTTPException, status
 from sqlalchemy.orm import Session
 
 from models.schema import Restaurant, SessionLocal
+from utils.jwt_utils import encode_ws_token, decode_ws_token
 
 
 def generate_api_key() -> str:
@@ -90,4 +92,71 @@ def generate_and_assign_api_key(restaurant_slug: str) -> str:
         
         return api_key
     finally:
-        db.close() 
+        db.close()
+
+
+def validate_api_key(api_key: str) -> Optional[str]:
+    """
+    Validate API key and return restaurant slug if valid.
+    
+    Args:
+        api_key: The API key to validate
+        
+    Returns:
+        Restaurant slug if valid, None if invalid
+    """
+    api_keys = get_restaurant_api_keys()
+    
+    for slug, key in api_keys.items():
+        if hmac.compare_digest(api_key, key):
+            return slug
+    
+    return None
+
+
+def create_admin_jwt_token(restaurant_slug: str, hours: int = 24) -> str:
+    """
+    Create a JWT token for admin dashboard access.
+    
+    Args:
+        restaurant_slug: Restaurant slug for the token
+        hours: Token validity in hours (default 24)
+        
+    Returns:
+        JWT token string
+    """
+    # Use the existing JWT utility but adapt for admin use
+    # We'll use restaurant_slug as both member_pid and session_pid for admin tokens
+    return encode_ws_token(
+        member_pid=f"admin:{restaurant_slug}",
+        session_pid=restaurant_slug,
+        device_id="dashboard",
+        hours=hours
+    )
+
+
+def decode_admin_jwt_token(token: str) -> Optional[Dict[str, str]]:
+    """
+    Decode admin JWT token and extract restaurant slug.
+    
+    Args:
+        token: JWT token string
+        
+    Returns:
+        Dict with restaurant_slug if valid, None if invalid
+    """
+    payload = decode_ws_token(token)
+    if not payload:
+        return None
+    
+    # Extract restaurant slug from the session_pid field
+    restaurant_slug = payload.get("sid")
+    if not restaurant_slug:
+        return None
+    
+    # Verify this is an admin token
+    member_pid = payload.get("sub", "")
+    if not member_pid.startswith("admin:"):
+        return None
+    
+    return {"restaurant_slug": restaurant_slug}

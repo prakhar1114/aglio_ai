@@ -10,15 +10,13 @@
 <body {% if api_key %}data-api-key="{{ api_key }}"{% endif %}>
     <header>
         <h1>{{ restaurant_name }}</h1>
-        <button id="logout" onclick="logout()">Logout</button>
+        <button id="logout" onclick="dashboard.logout()">Logout</button>
     </header>
 
     <main>
-        <div id="grid"
-             hx-get="/admin/tables"
-             hx-trigger="load, every 30s"
-             hx-swap="outerHTML">
-            <!-- Grid will be loaded here -->
+        <div id="grid">
+            <!-- Grid will be loaded via WebSocket -->
+            <div class="loading">Connecting to dashboard...</div>
         </div>
     </main>
 

@@ -21,6 +21,7 @@ from urls.categories import router as categories_router
 from urls.upsell import router as upsell_router
 # from urls.settings import router as settings_router
 from urls.admin.dashboard import router as admin_router
+from urls.admin.dashboard_ws import router as admin_ws_router
 from urls.table_session import router as table_session_router
 from urls.session_ws import router as session_ws_router
 from urls.cart import router as cart_router
@@ -84,6 +85,7 @@ app.include_router(menu_router, tags=["menu"])  # No prefix - full path in route
 app.include_router(upsell_router, prefix="/upsell", tags=["upsell"])
 # app.include_router(settings_router, prefix="/settings", tags=["settings"])
 app.include_router(admin_router, prefix="/admin", tags=["admin"])
+app.include_router(admin_ws_router, prefix="/admin", tags=["admin_ws"])
 app.include_router(table_session_router, tags=["table_session"])
 app.include_router(session_ws_router, tags=["session_ws"])
 app.include_router(cart_router, tags=["cart"])
