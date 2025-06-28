@@ -23,6 +23,7 @@ export { OrderConfirmationSheet } from './components/OrderConfirmationSheet.jsx'
 export { MyOrdersDrawer } from './components/MyOrdersDrawer.jsx';
 export { InformationModal } from './components/InformationModal.jsx';
 export { PasswordValidationModal } from './components/PasswordValidationModal.jsx';
+export { NicknamePrompt } from './components/NicknamePrompt.jsx';
 
 // Complete Screens (compose individual components + core functionality)
 export { MenuScreen } from './screens/MenuScreen.jsx';

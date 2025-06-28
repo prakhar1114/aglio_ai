@@ -9,7 +9,7 @@ import { OptimizedMedia } from '../components/OptimizedMedia.jsx';
 // Header Component - Minimal design
 function Header({ onClose }) {
   return (
-    <div className="absolute top-0 left-0 right-0 z-20 flex items-start justify-start p-4 pt-6">
+    <div className="fixed top-0 left-0 right-0 z-20 flex items-start justify-start p-4 pt-6">
       <button
         onClick={onClose}
         className="flex items-center justify-center w-11 h-11 bg-white bg-opacity-95 backdrop-blur-md rounded-full shadow-lg transition-all duration-200 hover:bg-opacity-100 hover:scale-105"

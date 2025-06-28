@@ -2,7 +2,7 @@ import React, { useRef, useState, useMemo } from 'react';
 import { GroupedVirtuoso } from 'react-virtuoso';
 import { useMenu } from '@qrmenu/core';
 import { FeedItemSwitcher } from './FeedItemSwitcher.jsx';
-import { CategoryDropdown } from './CategoryDropdown.jsx';
+import { CategoryDropdown, CategoryDropdownButton } from './CategoryDropdown.jsx';
 
 export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
   // Refs for virtuoso
@@ -176,6 +176,15 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
 
   return (
     <>
+      {/* Fixed category header - always on top */}
+      {currentVisibleCategory && (
+        <CategoryDropdownButton
+          setIsDropdownOpen={setIsDropdownOpen}
+          currentVisibleCategory={currentVisibleCategory}
+          isDropdownOpen={isDropdownOpen}
+        />
+      )}
+
       {/* Category dropdown */}
       <CategoryDropdown
         isOpen={isDropdownOpen}
@@ -230,8 +239,7 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
               <div
                 className="sticky-category-header"
                 style={{
-                  position: 'sticky',
-                  top: 0,
+                  position: 'relative', // Regular section header, not sticky
                   zIndex: 100, // Higher than ItemCard buttons (z-index: 10)
                   height: '1px', // Minimal height to avoid zero-sized element error
                   margin: '0',
@@ -251,12 +259,11 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
                     WebkitBackdropFilter: 'blur(8px)',
                     padding: '6px 10px', // Reduced footprint: smaller padding
                     borderRadius: '6px', // Smaller border radius to match reduced size
-                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)', // Lighter shadow for smaller element
                     border: '1px solid rgba(229, 231, 235, 0.6)', // More transparent border
                     fontSize: '14px', // Same font size as requested
                     fontWeight: '600', // theme typography.weights.semibold
                     fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                    display: 'flex',
+                    display: 'flex', // Show as section header for visual separation
                     alignItems: 'center',
                     gap: '4px', // Reduced gap for smaller footprint
                     cursor: 'pointer',
@@ -265,12 +272,10 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
                   }}
                   onMouseEnter={(e) => {
                     e.target.style.background = 'rgba(255, 255, 255, 0.98)';
-                    e.target.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.12)';
                     e.target.style.transform = 'translateY(-0.5px)';
                   }}
                   onMouseLeave={(e) => {
                     e.target.style.background = 'rgba(255, 255, 255, 0.92)';
-                    e.target.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.08)';
                     e.target.style.transform = 'translateY(0)';
                   }}
                 >

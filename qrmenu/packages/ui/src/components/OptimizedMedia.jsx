@@ -183,7 +183,7 @@ function VideoPlayer({ hlsUrl, thumbnailUrl, className, containerWidth, containe
         className="absolute inset-0 w-full h-full object-cover"
         style={{ 
           pointerEvents: 'none', // Disable pointer events to allow parent swipe detection
-          zIndex: 1,
+          zIndex: 0,
           opacity: videoLoaded && !showThumbnail ? 1 : 0,
           transition: 'opacity 0.3s ease-in-out'
         }}

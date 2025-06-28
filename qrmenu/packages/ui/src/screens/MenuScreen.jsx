@@ -10,6 +10,7 @@ import { UpsellPopup } from '../components/UpsellPopup.jsx';
 import { OrderConfirmationSheet } from '../components/OrderConfirmationSheet.jsx';
 import { MyOrdersDrawer } from '../components/MyOrdersDrawer.jsx';
 import { InformationModal } from '../components/InformationModal.jsx';
+import { NicknamePrompt } from '../components/NicknamePrompt.jsx';
 import { PreviewScreen } from './PreviewScreen.jsx';
 
 function MenuPage() {
@@ -231,6 +232,9 @@ function MenuPage() {
 
       {/* Global Information Modal */}
       <InformationModal />
+
+      {/* Nickname Prompt */}
+      <NicknamePrompt />
     </div>
   );
 }

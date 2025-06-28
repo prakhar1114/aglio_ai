@@ -1,4 +1,4 @@
-import { XMarkIcon, UserIcon, StarIcon, ArrowLeftOnRectangleIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, UserIcon, StarIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
 import { useCartStore, useSessionStore, updateMemberNickname } from '@qrmenu/core';
 import { useState } from 'react';
 

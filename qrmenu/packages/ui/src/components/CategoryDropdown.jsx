@@ -85,3 +85,74 @@ export function CategoryDropdown({ isOpen, categories = [], onSelect, onClose })
     </div>
   );
 } 
+
+export function CategoryDropdownButton({setIsDropdownOpen, currentVisibleCategory, isDropdownOpen}) {
+  return (
+    <div
+    style={{
+      position: 'fixed',
+      top: '4px',
+      left: '6px',
+      zIndex: 40, // Higher than any other element
+      pointerEvents: 'auto',
+    }}
+  >
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        setIsDropdownOpen((prev) => !prev);
+      }}
+      style={{
+        background: 'rgba(255, 255, 255, 0.92)', // Subtle transparency as requested
+        backdropFilter: 'blur(8px)', // Light blur for premium feel
+        WebkitBackdropFilter: 'blur(8px)',
+        padding: '6px 10px', // Reduced footprint: smaller padding
+        borderRadius: '6px', // Smaller border radius to match reduced size
+        border: '1px solid rgba(229, 231, 235, 0.6)', // More transparent border
+        fontSize: '14px', // Same font size as requested
+        fontWeight: '600', // theme typography.weights.semibold
+        fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        display: 'flex',
+        alignItems: 'center',
+        gap: '4px', // Reduced gap for smaller footprint
+        cursor: 'pointer',
+        transition: 'all 0.15s ease-in-out',
+        lineHeight: '1.4',
+      }}
+      onMouseEnter={(e) => {
+        e.target.style.background = 'rgba(255, 255, 255, 0.98)';
+        e.target.style.transform = 'translateY(-0.5px)';
+      }}
+      onMouseLeave={(e) => {
+        e.target.style.background = 'rgba(255, 255, 255, 0.92)';
+        e.target.style.transform = 'translateY(0)';
+      }}
+    >
+      <span style={{ 
+        color: '#1C1C1E', // Same black as dish names (theme colors.text.primary)
+        fontWeight: '600',
+        letterSpacing: '-0.01em'
+      }}>
+        {currentVisibleCategory}
+      </span>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="12" // Smaller icon for reduced footprint
+        height="12"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#6B7280" // theme colors.text.secondary
+        strokeWidth="2.5" // Slightly bolder for smaller size
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{
+          transition: 'transform 0.15s ease-in-out',
+          transform: isDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)'
+        }}
+      >
+        <path d="M19 9l-7 7-7-7" />
+      </svg>
+    </button>
+  </div>
+  )
+}
