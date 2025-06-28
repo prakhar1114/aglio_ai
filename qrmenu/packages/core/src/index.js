@@ -10,4 +10,5 @@ export { generateShortId, isVideoUrl } from './utils/general.js';
 export { setupConnection, updateMemberNickname, validatePassword } from './setup.js';
 // Export WebSocket / cart mutation helpers from connection.js
 export { addItemToCart, updateCartItem, deleteCartItem, sendCartMutation, sendChatMessage } from './connection.js';
-export { loadCartSnapshot, submitOrder } from './api/cart.js'; 
+export { loadCartSnapshot, submitOrder } from './api/cart.js';
+export { sendWaiterRequest, callWaiter, askForBill, handleWaiterRequest } from './api/waiter.js'; 

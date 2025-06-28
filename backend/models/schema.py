@@ -202,6 +202,30 @@ class Event(Base):
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
 
+class WaiterRequest(Base):
+    __tablename__ = "waiter_requests"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    public_id = Column(String(36), unique=True, nullable=False)
+    session_id = Column(Integer, ForeignKey("sessions.id"), nullable=False)
+    table_id = Column(Integer, ForeignKey("tables.id"), nullable=False)
+    member_id = Column(Integer, ForeignKey("members.id"), nullable=False)
+    request_type = Column(Enum("call_waiter", "ask_for_bill", name="waiter_request_type"), nullable=False)
+    status = Column(Enum("pending", "resolved", name="waiter_request_status"), default="pending")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    resolved_at = Column(DateTime, nullable=True)
+    resolved_by = Column(String, nullable=True) #person who resolved: do in the future
+
+    session = relationship("Session")
+    table = relationship("Table")
+    member = relationship("Member")
+
+    __table_args__ = (
+        Index("ix_waiter_requests_status", "status"),
+        Index("ix_waiter_requests_created_at", "created_at"),
+    )
+
+
 # ---------------------------------------------------------------------------
 # Menu
 # ---------------------------------------------------------------------------

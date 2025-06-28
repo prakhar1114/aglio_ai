@@ -1,5 +1,5 @@
-import { XMarkIcon, UserIcon, StarIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
-import { useCartStore, useSessionStore, updateMemberNickname } from '@qrmenu/core';
+import { XMarkIcon, UserIcon, StarIcon, PencilSquareIcon, BellIcon, ReceiptPercentIcon } from '@heroicons/react/24/outline';
+import { useCartStore, useSessionStore, updateMemberNickname, handleWaiterRequest } from '@qrmenu/core';
 import { useState } from 'react';
 
 export function MyOrdersDrawer({ isOpen, onClose }) {
@@ -20,6 +20,15 @@ export function MyOrdersDrawer({ isOpen, onClose }) {
   // Local state for nickname editing
   const [editingNickname, setEditingNickname] = useState(false);
   const [newNickname, setNewNickname] = useState(nickname || '');
+  
+  // Waiter request functions
+  const handleCallWaiter = async () => {
+    await handleWaiterRequest('call_waiter', 'Waiter Called', 'Your waiter has been notified and will be with you shortly.');
+  };
+
+  const handleAskForBill = async () => {
+    await handleWaiterRequest('ask_for_bill', 'Bill Requested', 'Your bill request has been sent to staff.');
+  };
 
   // Nickname editing handlers
   const handleNicknameEdit = () => {
@@ -309,6 +318,39 @@ export function MyOrdersDrawer({ isOpen, onClose }) {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Waiter Request Buttons */}
+          {sessionStore.sessionPid && (
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={handleCallWaiter}
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                style={{
+                  fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  borderRadius: '8px'
+                }}
+              >
+                <BellIcon className="w-4 h-4" />
+                Call Waiter
+              </button>
+              
+              <button
+                onClick={handleAskForBill}
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                style={{
+                  fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  borderRadius: '8px'
+                }}
+              >
+                <ReceiptPercentIcon className="w-4 h-4" />
+                Ask for Bill
+              </button>
             </div>
           )}
         </div>

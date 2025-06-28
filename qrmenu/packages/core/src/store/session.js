@@ -227,5 +227,8 @@ export const useSessionStore = create((set, get) => ({
     sessionStorage.removeItem('table_number');
     sessionStorage.removeItem('ws_token');
     sessionStorage.removeItem('session_validated');
+
+    // need this for the next time the user opens the app
+    sessionStorage.removeItem('nickname_prompt_dismissed');
   },
 })); 

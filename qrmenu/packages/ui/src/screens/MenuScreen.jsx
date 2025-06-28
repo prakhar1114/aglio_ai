@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
-import { useCartStore, setupConnection, useChatStore } from '@qrmenu/core';
+import { useCartStore, setupConnection, useChatStore, handleWaiterRequest } from '@qrmenu/core';
 import { MasonryFeed } from '../components/MasonryFeed.jsx';
 import { BottomBar } from '../components/BottomBar.jsx';
 import { CartDrawer } from '../components/CartDrawer.jsx';
@@ -21,6 +21,7 @@ function MenuPage() {
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isOrderConfirmationOpen, setIsOrderConfirmationOpen] = useState(false);
   const [isMyOrdersOpen, setIsMyOrdersOpen] = useState(false);
+
   const [lastPlacedOrder, setLastPlacedOrder] = useState(null);
 
   // Preview State Management - support for stacking previews
@@ -89,6 +90,10 @@ function MenuPage() {
 
   const handleMyOrdersOpen = () => {
     setIsMyOrdersOpen(true);
+  };
+
+  const handleCallWaiterOpen = async () => {
+    await handleWaiterRequest('call_waiter', 'Waiter Called', 'Your waiter has been notified and will be with you shortly.');
   };
 
   const handleOrderConfirmationClose = () => {
@@ -179,6 +184,7 @@ function MenuPage() {
         onAIChatOpen={handleAIChatOpen}
         onCartOpen={handleCartOpen}
         onMyOrdersOpen={handleMyOrdersOpen}
+        onCallWaiterOpen={handleCallWaiterOpen}
       />
 
       {/* Drawers and Popups */}

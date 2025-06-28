@@ -131,6 +131,25 @@ function handleWebSocketMessage(data) {
       chatStore.handleWebSocketMessage(data);
       break;
       
+    case 'table_closed':
+      console.log('Table closed by admin:', data.message);
+      // Show modal first
+      sessionStore.showModal({
+        type: 'warning',
+        title: 'Table Closed',
+        message: data.message || 'Table Closed, Please rescan the QR code or Ask Staff for help',
+        actions: [{
+          label: 'OK',
+          action: () => {
+            // Clear session and redirect
+            sessionStore.clearSession();
+            window.location.href = '/menu';
+          },
+          variant: 'primary'
+        }]
+      });
+      break;
+      
     case 'error':
       // Handle cart-specific errors
       if (data.code === 'pass_required') {

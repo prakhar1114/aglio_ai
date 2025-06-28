@@ -1,7 +1,7 @@
-import { ShoppingCartIcon, AdjustmentsHorizontalIcon, ChatBubbleLeftIcon, ClipboardDocumentListIcon } from '@heroicons/react/24/outline';
+import { ShoppingCartIcon, AdjustmentsHorizontalIcon, ChatBubbleLeftIcon, ClipboardDocumentListIcon, BellIcon } from '@heroicons/react/24/outline';
 import { useCartStore, useSessionStore } from '@qrmenu/core';
 
-export function BottomBar({ onFiltersOpen, onAIChatOpen, onCartOpen, onMyOrdersOpen }) {
+export function BottomBar({ onFiltersOpen, onAIChatOpen, onCartOpen, onMyOrdersOpen, onCallWaiterOpen }) {
   const totalCount = useCartStore((state) => state.totalCount());
   const filterCount = useCartStore((state) => state.getFilterCount());
   const ordersCount = useCartStore((state) => state.getOrdersCount());
@@ -51,6 +51,15 @@ export function BottomBar({ onFiltersOpen, onAIChatOpen, onCartOpen, onMyOrdersO
         >
           <ChatBubbleLeftIcon className="w-6 h-6" />
           <span className="text-xs mt-1">Ask AI</span>
+        </button>
+
+        {/* Call Waiter Button */}
+        <button
+          onClick={onCallWaiterOpen}
+          className="flex flex-col items-center p-2 text-gray-600 hover:text-gray-800 transition-colors"
+        >
+          <BellIcon className="w-6 h-6" />
+          <span className="text-xs mt-1">Call Waiter</span>
         </button>
 
         {/* Cart Button with Badge */}

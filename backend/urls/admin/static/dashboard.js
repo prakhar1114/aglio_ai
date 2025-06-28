@@ -5,6 +5,7 @@ class DashboardManager {
         this.ws = null;
         this.apiKey = null;
         this.tables = [];
+        this.waiterRequests = []; // Store waiter requests as array, ordered by oldest first
         this.moveMode = false;
         this.moveSourceId = null;
         this.reconnectAttempts = 0;
@@ -15,8 +16,11 @@ class DashboardManager {
     }
     
     init() {
-        // Get JWT token (now passed as api_key from login)
+        // Get JWT token - try both localStorage and the data attribute
         this.apiKey = localStorage.getItem('apiKey') || document.body.dataset.apiKey;
+        
+
+        
         if (this.apiKey) {
             localStorage.setItem('apiKey', this.apiKey);
         }
@@ -75,10 +79,32 @@ class DashboardManager {
                 this.renderGrid();
                 break;
                 
+            case 'pending_waiter_requests':
+                this.waiterRequests = message.requests;
+                this.renderWaiterRequestsSidebar();
+                break;
+                
             case 'table_update':
+                // Check if table status changed from 'open' to 'occupied'
+                const existingTable = this.tables.find(table => table.id === message.table.id);
+                if (existingTable && 
+                    existingTable.status === 'open' && 
+                    message.table.status === 'occupied') {
+                    // Table got occupied - play notification sound
+                    this.playNotificationSound();
+                }
+                
                 this.updateTable(message.table);
                 // Show success feedback for table updates
                 this.showToast(`Table ${message.table.number} updated`, 'success');
+                break;
+                
+            case 'waiter_request':
+                this.handleWaiterRequest(message.request);
+                break;
+                
+            case 'waiter_request_resolved':
+                this.handleWaiterRequestResolved(message.request_id);
                 break;
                 
             case 'error':
@@ -98,6 +124,59 @@ class DashboardManager {
         if (index !== -1) {
             this.tables[index] = updatedTable;
             this.renderTableTile(updatedTable);
+        }
+    }
+    
+    handleWaiterRequest(request) {
+        // Add new request to the end of the array (FIFO - oldest requests resolved first)
+        this.waiterRequests.push(request);
+        
+        // Play alert sound
+        this.playNotificationSound();
+        
+        // Update sidebar
+        this.renderWaiterRequestsSidebar();
+        
+        // Show toast notification
+        const requestType = request.request_type === 'call_waiter' ? 'Waiter Call' : 'Bill Request';
+        this.showToast(`${requestType} from Table ${request.table_number} (${request.member_name})`, 'info');
+    }
+    
+    handleWaiterRequestResolved(requestId) {
+        // Remove the resolved request from the array
+        const index = this.waiterRequests.findIndex(req => req.id === requestId);
+        if (index !== -1) {
+            this.waiterRequests.splice(index, 1);
+            
+            // Update sidebar
+            this.renderWaiterRequestsSidebar();
+            
+            // Show success feedback
+            this.showToast('Request resolved successfully', 'success');
+        }
+    }
+    
+    playNotificationSound() {
+        // Create a simple beep sound
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 800;
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.1);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
+        } catch (error) {
+            console.log('Could not play notification sound:', error);
         }
     }
     
@@ -148,6 +227,54 @@ class DashboardManager {
                 </div>
             </div>
         `;
+    }
+    
+    renderWaiterRequestsSidebar() {
+        const requestsList = document.getElementById('waiter-requests-list');
+        const requestCount = document.getElementById('request-count');
+        
+        if (!requestsList || !requestCount) return;
+        
+        // Update count
+        requestCount.textContent = this.waiterRequests.length;
+        
+        if (this.waiterRequests.length === 0) {
+            requestsList.innerHTML = '<div class="no-requests">No pending requests</div>';
+            return;
+        }
+        
+        // Render requests (newest first in display, but backend sends oldest first)
+        const requestsHTML = this.waiterRequests.map(request => {
+            const icon = request.request_type === 'call_waiter' ? '🔔' : '💰';
+            const typeClass = request.request_type.replace('_', '-');
+            const typeName = request.request_type === 'call_waiter' ? 'Call Waiter' : 'Ask for Bill';
+            const timeAgo = this.calculateTimeAgo(request.created_at);
+            
+            return `
+                <div class="request-card ${typeClass}">
+                    <div class="request-header">
+                        <div class="request-type-badge ${typeClass}">
+                            <span class="request-icon">${icon}</span>
+                            <span class="request-type-text">${typeName}</span>
+                        </div>
+                        <div class="request-time">${timeAgo}</div>
+                    </div>
+                    <div class="request-body">
+                        <div class="table-info">
+                            <div class="table-details">
+                                <span class="table-label">Table ${request.table_number}</span>
+                                <span class="member-name">${request.member_name}</span>
+                            </div>
+                        </div>
+                        <button class="resolve-btn" onclick="dashboard.resolveWaiterRequest('${request.id}')">
+                            ✓ Resolve
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        requestsList.innerHTML = requestsHTML;
     }
     
     getActionButtonsHTML(table) {
@@ -374,6 +501,29 @@ class DashboardManager {
         }
     }
     
+    calculateTimeAgo(timestamp) {
+        const now = new Date();
+        // Parse UTC timestamp properly
+        const requestTime = new Date(timestamp);
+        const diffMs = now.getTime() - requestTime.getTime();
+        const diffMins = Math.floor(diffMs / 60000);
+        
+        if (diffMins < 1) {
+            return 'Just now';
+        } else if (diffMins < 60) {
+            return `${diffMins}m ago`;
+        } else {
+            const hours = Math.floor(diffMins / 60);
+            const remainingMins = diffMins % 60;
+            if (hours < 24) {
+                return remainingMins > 0 ? `${hours}h ${remainingMins}m ago` : `${hours}h ago`;
+            } else {
+                const days = Math.floor(hours / 24);
+                return `${days}d ago`;
+            }
+        }
+    }
+    
     attachEventListeners() {
         // Attach event listeners to all tiles
         const tiles = document.querySelectorAll('.tile');
@@ -407,6 +557,14 @@ class DashboardManager {
     
     restoreTable(tableId) {
         this.sendAction('restore_table', { table_id: tableId });
+    }
+    
+    resolveWaiterRequest(requestId) {
+        // Send WebSocket message to resolve the request
+        this.sendAction('resolve_waiter_request', { request_id: requestId });
+        
+        // Show processing feedback
+        this.showToast('Resolving request...', 'info');
     }
     
     pickTarget(event) {

@@ -2,6 +2,8 @@ from datetime import datetime
 from typing import Optional, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
+from models.schema import WaiterRequest
+from websocket.manager import connection_manager
 
 from models.schema import Restaurant, Table, Session as TableSession
 
@@ -80,11 +82,58 @@ async def close_table_service(db: Session, restaurant: Restaurant, table_id: int
     if not active_session:
         return False, None, "no_active_session"
     
+    # Store session_pid for broadcasting before closing
+    session_pid = active_session.public_id
+    
     # Close session and mark table open
     active_session.state = "closed"
     table.status = "open"
     
+    # Resolve any pending waiter requests for this table
+    pending_requests = db.query(WaiterRequest).filter(
+        WaiterRequest.table_id == table_id,
+        WaiterRequest.status == "pending"
+    ).all()
+    
+    resolved_request_ids = []
+    for request in pending_requests:
+        request.status = "resolved"
+        request.resolved_at = datetime.utcnow()
+        request.resolved_by = "auto_table_close"
+        resolved_request_ids.append(request.public_id)
+    
     db.commit()
+    
+    # Broadcast waiter request resolutions to admin dashboards
+    if resolved_request_ids:
+        try:
+            # Dynamic import to avoid circular dependency issues
+            from urls.admin.dashboard_ws import dashboard_manager
+            
+            for request_id in resolved_request_ids:
+                resolution_message = {
+                    "type": "waiter_request_resolved",
+                    "request_id": request_id
+                }
+                await dashboard_manager.broadcast_to_session(restaurant.slug, resolution_message)
+                
+        except Exception as e:
+            # Log error but don't fail the close operation
+            print(f"Failed to broadcast waiter request resolution: {e}")
+    
+    # Broadcast table closure message to all connected session members
+    try:
+        closure_message = {
+            "type": "table_closed",
+            "message": "Table Closed, Please rescan the QR code or Ask Staff for help",
+            "action": "clear_session_and_redirect"
+        }
+        
+        await connection_manager.broadcast_to_session(session_pid, closure_message)
+        
+    except Exception as e:
+        # Log error but don't fail the close operation
+        print(f"Failed to broadcast table closure message to session: {e}")
     
     return True, TableInfo(table), None
 

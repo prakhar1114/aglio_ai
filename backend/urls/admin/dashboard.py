@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
-from models.schema import SessionLocal, Restaurant, Table, Session as TableSession, Member, CartItem, MenuItem, Order
+from models.schema import SessionLocal, Restaurant, Table, Session as TableSession, Member, CartItem, MenuItem, Order, WaiterRequest
 from .auth_utils import auth, get_restaurant_api_keys, validate_api_key, create_admin_jwt_token, decode_admin_jwt_token
 
 import os
@@ -195,7 +195,7 @@ ERROR_MESSAGES = {
 }
 
 
-def toast_response(success: bool, message: str, code: str = None):
+def toast_response(success: bool, message: str, code=None):
     """Generate toast response for HTMX"""
     if success:
         return f'<div class="toast-success">{message}</div>'
@@ -717,4 +717,100 @@ async def get_session_details(
         raise HTTPException(
             status_code=500,
             detail={"success": False, "code": "internal_error", "detail": "Internal server error"}
-        ) 
+        )
+
+
+@router.get("/api/waiter_requests", response_model=List[dict], deprecated=True)
+def get_waiter_requests_for_restaurant(
+    auth_data: dict = Depends(auth),
+    db: Session = Depends(get_db)
+):
+    """Get all pending waiter requests for the restaurant
+    
+    DEPRECATED: Use WebSocket endpoint /admin/ws/dashboard which sends 'pending_waiter_requests' message on connect.
+    """
+    restaurant_slug = auth_data["restaurant_slug"]
+    restaurant = get_restaurant_by_slug(db, restaurant_slug)
+    
+    # Get all pending waiter requests for this restaurant
+    requests = db.query(WaiterRequest, Table, Member).join(
+        Table, WaiterRequest.table_id == Table.id
+    ).join(
+        Member, WaiterRequest.member_id == Member.id
+    ).filter(
+        Table.restaurant_id == restaurant.id,
+        WaiterRequest.status == "pending"
+    ).order_by(WaiterRequest.created_at.desc()).all()
+    
+    result = []
+    for waiter_request, table, member in requests:
+        result.append({
+            "id": waiter_request.public_id,
+            "table_id": table.id,
+            "table_number": table.number,
+            "request_type": waiter_request.request_type,
+            "message": waiter_request.message,
+            "member_name": member.nickname,
+            "created_at": waiter_request.created_at.isoformat(),
+            "time_ago": idle_time(waiter_request.created_at.isoformat() + "Z")
+        })
+    
+    return result
+
+
+@router.post("/api/waiter_request/{request_id}/resolve", response_model=StandardResponse, deprecated=True)
+def resolve_waiter_request(
+    request_id: str,
+    auth_data: dict = Depends(auth),
+    db: Session = Depends(get_db)
+):
+    """Mark a waiter request as resolved
+    
+    DEPRECATED: Use WebSocket endpoint /admin/ws/dashboard with action 'resolve_waiter_request' instead.
+    """
+    restaurant_slug = auth_data["restaurant_slug"]
+    restaurant = get_restaurant_by_slug(db, restaurant_slug)
+    
+    # Find the waiter request
+    waiter_request = db.query(WaiterRequest).join(
+        Table, WaiterRequest.table_id == Table.id
+    ).filter(
+        WaiterRequest.public_id == request_id,
+        Table.restaurant_id == restaurant.id,
+        WaiterRequest.status == "pending"
+    ).first()
+    
+    if not waiter_request:
+        raise HTTPException(
+            status_code=404,
+            detail={"success": False, "code": "request_not_found", "detail": "Waiter request not found or already resolved"}
+        )
+    
+    # Mark as resolved
+    waiter_request.status = "resolved"
+    waiter_request.resolved_at = datetime.utcnow()
+    waiter_request.resolved_by = "admin"  # Could be enhanced to track specific admin user
+    
+    db.commit()
+    
+    # Broadcast removal to all admin dashboards for this restaurant
+    try:
+        from .dashboard_ws import dashboard_manager
+        
+        notification_message = {
+            "type": "waiter_request_resolved",
+            "request_id": request_id
+        }
+        
+        # Use asyncio to call the async function
+        import asyncio
+        asyncio.create_task(dashboard_manager.broadcast_to_session(restaurant_slug, notification_message))
+        
+    except Exception as e:
+        # Log error but don't fail the request
+        print(f"Failed to broadcast waiter request resolution: {e}")
+    
+    return StandardResponse(
+        success=True,
+        data={"message": "Waiter request resolved successfully"}
+    ) 

@@ -14,9 +14,25 @@
     </header>
 
     <main>
-        <div id="grid">
-            <!-- Grid will be loaded via WebSocket -->
-            <div class="loading">Connecting to dashboard...</div>
+        <div class="dashboard-container">
+            <!-- Main Grid Area -->
+            <div class="main-content">
+                <div id="grid">
+                    <!-- Grid will be loaded via WebSocket -->
+                    <div class="loading">Connecting to dashboard...</div>
+                </div>
+            </div>
+            
+            <!-- Waiter Requests Sidebar -->
+            <div class="sidebar">
+                <div class="sidebar-header">
+                    <h3>🔔 Waiter Requests</h3>
+                    <span id="request-count" class="request-count">0</span>
+                </div>
+                <div id="waiter-requests-list" class="requests-list">
+                    <div class="no-requests">No pending requests</div>
+                </div>
+            </div>
         </div>
     </main>
 

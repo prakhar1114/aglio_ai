@@ -1,8 +1,9 @@
 import json
-from typing import Dict, List
+from typing import Dict, List, Optional
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from loguru import logger
 from pydantic import BaseModel, ValidationError
+from datetime import datetime
 
 from models.schema import SessionLocal
 from websocket.manager import ConnectionManager
@@ -12,6 +13,7 @@ from services.table_service import (
     get_all_tables, close_table_service, disable_table_service,
     enable_table_service, restore_table_service, move_table_service
 )
+from models.schema import WaiterRequest, Table, Member
 
 
 router = APIRouter()
@@ -130,9 +132,10 @@ dashboard_manager = DashboardManager()
 
 class DashboardAction(BaseModel):
     action: str
-    table_id: int = None
-    from_table_id: int = None  # For move action
-    to_table_id: int = None    # For move action
+    table_id: Optional[int] = None
+    from_table_id: Optional[int] = None  # For move action
+    to_table_id: Optional[int] = None    # For move action
+    request_id: Optional[str] = None     # For resolve_waiter_request action
 
 
 @router.websocket("/ws/dashboard")
@@ -165,7 +168,10 @@ async def dashboard_websocket(websocket: WebSocket):
         # 4. Send initial tables snapshot
         await send_tables_snapshot(websocket, restaurant_slug)
         
-        # 5. Message handling loop
+        # 5. Send pending waiter requests
+        await send_pending_waiter_requests(websocket, restaurant_slug)
+        
+        # 6. Message handling loop
         while True:
             try:
                 data = await websocket.receive_text()
@@ -235,6 +241,83 @@ async def send_tables_snapshot(websocket: WebSocket, restaurant_slug: str):
         )
 
 
+async def send_pending_waiter_requests(websocket: WebSocket, restaurant_slug: str):
+    """Send all pending waiter requests to the connected client"""
+    try:
+        with SessionLocal() as db:
+            restaurant = get_restaurant_by_slug(db, restaurant_slug)
+            
+            # Get all pending waiter requests for this restaurant
+            requests = db.query(WaiterRequest, Table, Member).join(
+                Table, WaiterRequest.table_id == Table.id
+            ).join(
+                Member, WaiterRequest.member_id == Member.id
+            ).filter(
+                Table.restaurant_id == restaurant.id,
+                WaiterRequest.status == "pending"
+            ).order_by(WaiterRequest.created_at.asc()).all()  # Oldest first
+            
+            request_list = []
+            for waiter_request, table, member in requests:
+                request_list.append({
+                    "id": waiter_request.public_id,
+                    "table_id": table.id,
+                    "table_number": table.number,
+                    "request_type": waiter_request.request_type,
+                    "member_name": member.nickname,
+                    "created_at": waiter_request.created_at.isoformat() + "Z",  # Add Z for UTC
+                })
+            
+            requests_message = {
+                "type": "pending_waiter_requests",
+                "requests": request_list
+            }
+            
+            await websocket.send_text(json.dumps(requests_message))
+            logger.info(f"Sent pending waiter requests to {restaurant_slug}: {len(request_list)} requests")
+    
+    except Exception as e:
+        logger.error(f"Error sending pending waiter requests: {e}")
+        await dashboard_manager.send_error(
+            websocket, "requests_error", "Failed to load pending requests"
+        )
+
+
+async def resolve_waiter_request_service(db, restaurant, request_id: str):
+    """
+    Resolve a waiter request
+    
+    Returns:
+        tuple: (success: bool, error_code: str)
+    """
+    try:
+        # Find the waiter request
+        waiter_request = db.query(WaiterRequest).join(
+            Table, WaiterRequest.table_id == Table.id
+        ).filter(
+            WaiterRequest.public_id == request_id,
+            Table.restaurant_id == restaurant.id,
+            WaiterRequest.status == "pending"
+        ).first()
+        
+        if not waiter_request:
+            return False, "request_not_found"
+        
+        # Mark as resolved
+        waiter_request.status = "resolved"
+        waiter_request.resolved_at = datetime.utcnow()
+        waiter_request.resolved_by = "admin"  # Could be enhanced to track specific admin user
+        
+        db.commit()
+        
+        return True, None
+        
+    except Exception as e:
+        logger.error(f"Error resolving waiter request {request_id}: {e}")
+        db.rollback()
+        return False, "internal_error"
+
+
 async def handle_dashboard_action(websocket: WebSocket, action: DashboardAction, restaurant_slug: str):
     """Handle dashboard action and broadcast updates"""
     try:
@@ -290,6 +373,22 @@ async def handle_dashboard_action(websocket: WebSocket, action: DashboardAction,
                 success, tables_list, error_code = await move_table_service(db, restaurant, action.from_table_id, action.to_table_id)
                 if success:
                     updated_tables = tables_list
+            
+            elif action.action == "resolve_waiter_request":
+                if not action.request_id:
+                    await dashboard_manager.send_error(websocket, "missing_request_id", "Request ID required")
+                    return
+                
+                success, error_code = await resolve_waiter_request_service(db, restaurant, action.request_id)
+                if success:
+                    # Broadcast resolution to all admin dashboards for this restaurant
+                    resolution_message = {
+                        "type": "waiter_request_resolved",
+                        "request_id": action.request_id
+                    }
+                    await dashboard_manager.broadcast_to_session(restaurant_slug, resolution_message)
+                    logger.info(f"Successfully resolved waiter request {action.request_id} for restaurant {restaurant_slug}")
+                    return  # No table updates needed, just broadcast
             
             else:
                 await dashboard_manager.send_error(websocket, "unknown_action", f"Unknown action: {action.action}")
