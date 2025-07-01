@@ -1,0 +1,260 @@
+{
+    "success": "1",
+    "restaurants": [
+        {
+            "restaurantid": "12345",
+            "active": "1",
+            "details": {
+                "restaurantname": "Test Restaurant",
+                "currency_html": "₹"
+            }
+        }
+    ],
+    "categories": [
+        {
+            "categoryid": "500773",
+            "active": "1",
+            "categoryrank": "16",
+            "parent_category_id": "0",
+            "categoryname": "Pizza and Sides",
+            "categorytimings": "",
+            "category_image_url": ""
+        },
+        {
+            "categoryid": "500774",
+            "active": "1",
+            "categoryrank": "17",
+            "parent_category_id": "0",
+            "categoryname": "Desserts",
+            "categorytimings": "",
+            "category_image_url": ""
+        }
+    ],
+    "items": [
+        {
+            "itemid": "118829149",
+            "itemallowvariation": "0",
+            "itemrank": "52",
+            "item_categoryid": "500773",
+            "item_ordertype": "1,2,3",
+            "item_tags": ["vegan", "new", "chef-special"],
+            "item_packingcharges": "",
+            "itemallowaddon": "1",
+            "itemaddonbasedon": "0",
+            "item_favorite": "0",
+            "ignore_taxes": "0",
+            "ignore_discounts": "0",
+            "in_stock": "2",
+            "variation_groupname": "",
+            "variation": [],
+            "addon": [
+                {
+                    "addon_group_id": "135699",
+                    "addon_item_selection_min": "0",
+                    "addon_item_selection_max": "1"
+                },
+                {
+                    "addon_group_id": "135707",
+                    "addon_item_selection_min": "0",
+                    "addon_item_selection_max": "4"
+                }
+            ],
+            "itemname": "Veg Loaded Pizza",
+            "item_attributeid": "1",
+            "itemdescription": "Fresh vegetables with cheese on our signature base",
+            "minimumpreparationtime": "",
+            "price": "100",
+            "active": "1",
+            "item_image_url": "https://example.com/pizza.jpg",
+            "item_tax": "11213,20375"
+        },
+        {
+            "itemid": "118807411",
+            "itemallowvariation": "0",
+            "itemrank": "53",
+            "item_categoryid": "500774",
+            "item_ordertype": "1,2,3",
+            "item_tags": [],
+            "item_packingcharges": "",
+            "itemallowaddon": "0",
+            "itemaddonbasedon": "0",
+            "item_favorite": "0",
+            "ignore_taxes": "0",
+            "ignore_discounts": "0",
+            "in_stock": "2",
+            "variation_groupname": "",
+            "variation": [],
+            "addon": [],
+            "itemname": "Chocolate Cake",
+            "item_attributeid": "1",
+            "itemdescription": "Rich chocolate cake with cream frosting",
+            "minimumpreparationtime": "",
+            "price": "310",
+            "active": "1",
+            "item_image_url": "https://example.com/cake.jpg",
+            "item_tax": "21866,21867"
+        },
+        {
+            "itemid": "7765809",
+            "itemallowvariation": "1",
+            "itemrank": "52",
+            "item_categoryid": "500773",
+            "item_ordertype": "1,2,3",
+            "item_tags": [],
+            "item_packingcharges": "",
+            "itemallowaddon": "0",
+            "itemaddonbasedon": "0",
+            "item_favorite": "0",
+            "ignore_taxes": "0",
+            "ignore_discounts": "0",
+            "in_stock": "2",
+            "variation_groupname": "Quantity",
+            "variation": [
+                {
+                    "id": "7765862",
+                    "variationid": "89058",
+                    "name": "3 Pieces",
+                    "groupname": "Quantity",
+                    "price": "140",
+                    "active": "1",
+                    "item_packingcharges": "20",
+                    "variationrank": "1",
+                    "addon": [],
+                    "variationallowaddon": 0
+                },
+                {
+                    "id": "7765097",
+                    "variationid": "89059",
+                    "name": "6 Pieces",
+                    "groupname": "Quantity",
+                    "price": "160",
+                    "active": "1",
+                    "item_packingcharges": "20",
+                    "variationrank": "3",
+                    "addon": [],
+                    "variationallowaddon": 0
+                }
+            ],
+            "addon": [],
+            "itemname": "Garlic Bread",
+            "item_attributeid": "1",
+            "itemdescription": "Crispy garlic bread with herbs",
+            "minimumpreparationtime": "",
+            "price": "120",
+            "active": "1",
+            "item_image_url": "https://example.com/garlic-bread.jpg",
+            "item_tax": "11213,20375"
+        }
+    ],
+    "variations": [
+        {
+            "variationid": "89058",
+            "name": "3 Pieces",
+            "groupname": "Quantity",
+            "status": "1"
+        },
+        {
+            "variationid": "89059",
+            "name": "6 Pieces",
+            "groupname": "Quantity",
+            "status": "1"
+        }
+    ],
+    "addongroups": [
+        {
+            "addongroupid": "135699",
+            "addongroup_rank": "3",
+            "active": "1",
+            "addongroupitems": [
+                {
+                    "addonitemid": "1150783",
+                    "addonitem_name": "Mojito",
+                    "addonitem_price": "0",
+                    "active": "1",
+                    "attributes": "1",
+                    "addonitem_rank": "1"
+                },
+                {
+                    "addonitemid": "1150784",
+                    "addonitem_name": "Hazelnut Mocha",
+                    "addonitem_price": "10",
+                    "active": "1",
+                    "attributes": "1",
+                    "addonitem_rank": "2"
+                }
+            ],
+            "addongroup_name": "Add Beverage"
+        },
+        {
+            "addongroupid": "135707",
+            "addongroup_rank": "15",
+            "active": "1",
+            "addongroupitems": [
+                {
+                    "addonitemid": "1150810",
+                    "addonitem_name": "Egg",
+                    "addonitem_price": "20",
+                    "active": "1",
+                    "attributes": "24",
+                    "addonitem_rank": "1"
+                },
+                {
+                    "addonitemid": "1150811",
+                    "addonitem_name": "Jalapenos",
+                    "addonitem_price": "20",
+                    "active": "1",
+                    "attributes": "1",
+                    "addonitem_rank": "2"
+                },
+                {
+                    "addonitemid": "1150812",
+                    "addonitem_name": "Onion Rings",
+                    "addonitem_price": "20",
+                    "active": "1",
+                    "attributes": "1",
+                    "addonitem_rank": "3"
+                },
+                {
+                    "addonitemid": "1150813",
+                    "addonitem_name": "Cheese",
+                    "addonitem_price": "10",
+                    "active": "1",
+                    "attributes": "1",
+                    "addonitem_rank": "4"
+                }
+            ],
+            "addongroup_name": "Extra Toppings"
+        }
+    ],
+    "attributes": [
+        {
+            "attributeid": "1",
+            "attribute": "veg",
+            "active": "1"
+        },
+        {
+            "attributeid": "2",
+            "attribute": "non-veg",
+            "active": "1"
+        },
+        {
+            "attributeid": "24",
+            "attribute": "egg",
+            "active": "1"
+        }
+    ],
+    "taxes": [
+        {
+            "taxid": "11213",
+            "taxname": "CGST",
+            "tax": "2.5",
+            "taxtype": "1"
+        },
+        {
+            "taxid": "20375",
+            "taxname": "SGST",
+            "tax": "2.5",
+            "taxtype": "1"
+        }
+    ]
+} 

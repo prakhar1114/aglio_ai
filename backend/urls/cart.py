@@ -1,18 +1,22 @@
 from fastapi import APIRouter, HTTPException, Header, Query
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import text
+from sqlalchemy.orm import joinedload
 from datetime import datetime
 import uuid
 import hashlib
 from loguru import logger
 
-from models.schema import SessionLocal, Session, Member, CartItem, MenuItem, Restaurant, Order
+from models.schema import (
+    SessionLocal, Session, Member, CartItem, MenuItem, Restaurant, Order,
+    CartItemAddon, ItemVariation, AddonGroupItem, ItemAddon
+)
 from models.cart_models import (
     CartItemCreateRequest, CartItemUpdateRequest, CartItemDeleteRequest,
     CartSnapshotResponse, CartItemCreateResponse, CartItemUpdateResponse,
     CartItemResponse, MemberInfo, ErrorResponse,
     OrderSubmissionRequest, OrderSubmissionResponse, CartMismatchResponse, OrderItemRequest,
-    OrderCompletedEvent, CartClearedEvent
+    OrderCompletedEvent, CartClearedEvent, SelectedAddonResponse, SelectedVariationResponse
 )
 from utils.jwt_utils import decode_ws_token
 from websocket.manager import connection_manager
@@ -57,7 +61,17 @@ def calculate_cart_hash(items: list) -> str:
     # Create deterministic string from cart items
     cart_data = []
     for item in sorted(items, key=lambda x: x.id):
-        cart_data.append(f"{item.id}:{item.menu_item_id}:{item.qty}:{item.note}")
+        # Include variation and addon data in hash
+        variation_str = f"v:{item.selected_item_variation_id}" if item.selected_item_variation_id else "v:none"
+        
+        # Sort addons by addon_item_id for consistency
+        addon_strs = []
+        if hasattr(item, 'selected_addons'):
+            for addon in sorted(item.selected_addons, key=lambda x: x.addon_item_id):
+                addon_strs.append(f"a:{addon.addon_item_id}:{addon.quantity}")
+        addon_str = ",".join(addon_strs) if addon_strs else "a:none"
+        
+        cart_data.append(f"{item.id}:{item.menu_item_id}:{variation_str}:{addon_str}:{item.qty}:{item.note}")
     
     cart_string = "|".join(cart_data)
     return hashlib.sha256(cart_string.encode()).hexdigest()
@@ -101,31 +115,66 @@ async def get_cart_snapshot(
                     detail={"success": False, "code": "invalid_token", "detail": "Member not found in session"}
                 )
             
-            # Get all pending cart items only
-            cart_items = db.query(CartItem, MenuItem).join(
-                MenuItem, CartItem.menu_item_id == MenuItem.id
+            # Get all pending cart items only with proper joins
+            cart_items_query = db.query(CartItem).options(
+                joinedload(CartItem.menu_item),
+                joinedload(CartItem.selected_item_variation).joinedload(ItemVariation.variation),
+                joinedload(CartItem.selected_addons).joinedload(CartItemAddon.addon_item),
+                joinedload(CartItem.member)
             ).filter(
                 CartItem.session_id == session.id,
                 CartItem.state == 'pending'
             ).all()
             
-            items = [
-                CartItemResponse(
+            items = []
+            for cart_item in cart_items_query:
+                # Calculate final price
+                final_price = cart_item.menu_item.price
+                
+                # Add variation price (absolute price, not modifier)
+                selected_variation = None
+                if cart_item.selected_item_variation:
+                    final_price = cart_item.selected_item_variation.price  # Use absolute price
+                    selected_variation = SelectedVariationResponse(
+                        item_variation_id=cart_item.selected_item_variation.id,
+                        variation_name=cart_item.selected_item_variation.variation.name,
+                        group_name=cart_item.selected_item_variation.variation.group_name,
+                        price=cart_item.selected_item_variation.price
+                    )
+                
+                # Add addon prices and build addon responses
+                selected_addons = []
+                for cart_addon in cart_item.selected_addons:
+                    addon_total = cart_addon.addon_item.price * cart_addon.quantity
+                    final_price += addon_total
+                    
+                    selected_addons.append(SelectedAddonResponse(
+                        addon_group_item_id=cart_addon.addon_item.id,
+                        name=cart_addon.addon_item.name,
+                        price=cart_addon.addon_item.price,
+                        quantity=cart_addon.quantity,
+                        total_price=addon_total,
+                        addon_group_name=cart_addon.addon_item.addon_group.name,
+                        tags=cart_addon.addon_item.tags or []
+                    ))
+                
+                items.append(CartItemResponse(
                     public_id=cart_item.public_id,
-                    member_pid=db.query(Member).filter(Member.id == cart_item.member_id).first().public_id,
-                    menu_item_pid=menu_item.public_id,
-                    name=menu_item.name,
-                    price=menu_item.price,
+                    member_pid=cart_item.member.public_id,
+                    menu_item_pid=cart_item.menu_item.public_id,
+                    name=cart_item.menu_item.name,
+                    base_price=cart_item.menu_item.price,
+                    final_price=final_price,
                     qty=cart_item.qty,
                     note=cart_item.note or "",
                     version=cart_item.version,
-                    image_url=f"image_data/{restaurant.slug}/{menu_item.image_path}" if menu_item.image_path else None,
-                    cloudflare_image_id=menu_item.cloudflare_image_id,
-                    cloudflare_video_id=menu_item.cloudflare_video_id,
-                    veg_flag=menu_item.veg_flag
-                )
-                for cart_item, menu_item in cart_items
-            ]
+                    image_url=f"image_data/{restaurant.slug}/{cart_item.menu_item.image_path}" if cart_item.menu_item.image_path else None,
+                    cloudflare_image_id=cart_item.menu_item.cloudflare_image_id,
+                    cloudflare_video_id=cart_item.menu_item.cloudflare_video_id,
+                    veg_flag=cart_item.menu_item.veg_flag,
+                    selected_variation=selected_variation,
+                    selected_addons=selected_addons
+                ))
             
             # Get all members
             members = db.query(Member).filter(Member.session_id == session.id).all()
@@ -144,7 +193,6 @@ async def get_cart_snapshot(
                 {
                     "order_id": order.public_id,
                     "total_amount": order.total_amount,
-                    "pay_method": order.pay_method,
                     "created_at": order.created_at.isoformat() if order.created_at else None,
                     "items": order.payload  # Contains the order items data
                 }
@@ -152,7 +200,7 @@ async def get_cart_snapshot(
             ]
             
             # Calculate cart version (max version of all items, or 0 if no items)
-            cart_version = max([item.version for item in items], default=0)
+            cart_version = max([item.version for item in cart_items_query], default=0)
             
             return CartSnapshotResponse(
                 items=items,
@@ -219,12 +267,58 @@ async def create_cart_item(
                     detail={"success": False, "code": "menu_item_not_found", "detail": "Menu item not found"}
                 )
             
+            # Validate selected variation if provided
+            selected_variation = None
+            if data.selected_item_variation_id:
+                selected_variation = db.query(ItemVariation).filter(
+                    ItemVariation.id == data.selected_item_variation_id,
+                    ItemVariation.menu_item_id == menu_item.id,
+                    ItemVariation.is_active == True
+                ).first()
+                if not selected_variation:
+                    raise HTTPException(
+                        status_code=400,
+                        detail={"success": False, "code": "invalid_variation", "detail": "Invalid variation selected"}
+                    )
+            
+            # Validate selected addons if provided
+            addon_items = []
+            if data.selected_addons:
+                for addon_selection in data.selected_addons:
+                    # Get the addon item first
+                    addon_item = db.query(AddonGroupItem).filter(
+                        AddonGroupItem.id == addon_selection.addon_group_item_id,
+                        AddonGroupItem.is_active == True
+                    ).first()
+                    
+                    if not addon_item:
+                        raise HTTPException(
+                            status_code=400,
+                            detail={"success": False, "code": "invalid_addon", "detail": f"Addon item {addon_selection.addon_group_item_id} not found"}
+                        )
+                    
+                    # Check if this addon group is linked to this menu item
+                    addon_link = db.query(ItemAddon).filter(
+                        ItemAddon.menu_item_id == menu_item.id,
+                        ItemAddon.addon_group_id == addon_item.addon_group_id,
+                        ItemAddon.is_active == True
+                    ).first()
+                    
+                    if not addon_link:
+                        raise HTTPException(
+                            status_code=400,
+                            detail={"success": False, "code": "invalid_addon", "detail": f"Addon group not available for this item"}
+                        )
+                    
+                    addon_items.append((addon_item, addon_selection.quantity))
+            
             # Create cart item
             cart_item = CartItem(
                 public_id=f"ci_{uuid.uuid4().hex[:8]}",
                 session_id=session.id,
                 member_id=member.id,
                 menu_item_id=menu_item.id,  # Use the actual DB ID, not public_id
+                selected_item_variation_id=selected_variation.id if selected_variation else None,
                 qty=data.qty,
                 note=data.note,
                 version=1
@@ -232,6 +326,15 @@ async def create_cart_item(
             
             db.add(cart_item)
             db.flush()  # Get the ID
+            
+            # Add selected addons
+            for addon_item, quantity in addon_items:
+                cart_addon = CartItemAddon(
+                    cart_item_id=cart_item.id,
+                    addon_item_id=addon_item.id,
+                    quantity=quantity
+                )
+                db.add(cart_addon)
             
             # Update session activity
             session.last_activity_at = datetime.utcnow()

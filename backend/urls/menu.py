@@ -5,26 +5,108 @@ import random
 from sqlalchemy.orm import joinedload
 from sqlalchemy import and_, or_
 
-from models.schema import SessionLocal, Restaurant, MenuItem as MenuItemModel
+from models.schema import (
+    SessionLocal, Restaurant, MenuItem as MenuItemModel,
+    ItemVariation, Variation, AddonGroup, AddonGroupItem, ItemAddon
+)
 from config import rdb
 
 router = APIRouter()
+
+class VariationResponse(BaseModel):
+    id: int
+    name: str
+    display_name: str
+    price: float
+    group_name: str
+    tags: List[str] = []
+
+class VariationGroup(BaseModel):
+    group_name: str
+    display_name: str
+    variations: List[VariationResponse]
+
+class AddonItemResponse(BaseModel):
+    id: int
+    name: str
+    display_name: str
+    price: float
+    tags: List[str]
+
+class AddonGroupResponse(BaseModel):
+    id: int
+    name: str
+    display_name: str
+    min_selection: int
+    max_selection: int
+    addons: List[AddonItemResponse]
 
 class MenuItem(BaseModel):
     id: str
     name: str
     description: Optional[str]
-    price: float
+    base_price: float
     veg_flag: bool
     image_url: Optional[str]
     cloudflare_image_id: Optional[str]
     cloudflare_video_id: Optional[str]
     category_brief: Optional[str]
+    tags: List[str]
+    is_bestseller: bool
+    variation_groups: List[VariationGroup]
+    addon_groups: List[AddonGroupResponse]
 
 class MenuResponse(BaseModel):
     items: List[MenuItem]
     nextCursor: Optional[int] = None
     
+
+@router.get("/restaurants/{restaurant_slug}/menu/item/{item_id}/", response_model=MenuItem, summary="Get single menu item", response_description="Single menu item with variations and addons")
+def read_menu_item(
+    restaurant_slug: str = Path(..., description="Restaurant slug"),
+    item_id: str = Path(..., description="Menu item public ID"),
+    session_id: str = Header(..., alias="x-session-id"),
+) -> MenuItem:
+    """Retrieve a single menu item by its public ID with variations and addons."""
+    try:
+        with SessionLocal() as db:
+            # 1. Look up restaurant by slug
+            restaurant = db.query(Restaurant).filter(Restaurant.slug == restaurant_slug).first()
+            if not restaurant:
+                raise HTTPException(
+                    status_code=404,
+                    detail={"success": False, "code": "restaurant_not_found", "detail": "Restaurant not found"}
+                )
+            
+            # 2. Look up menu item by public_id and restaurant_id
+            menu_item = db.query(MenuItemModel).options(
+                joinedload(MenuItemModel.item_variations).joinedload(ItemVariation.variation),
+                joinedload(MenuItemModel.item_addons).joinedload(ItemAddon.addon_group).joinedload(AddonGroup.addon_items)
+            ).filter(
+                and_(
+                    MenuItemModel.public_id == item_id,
+                    MenuItemModel.restaurant_id == restaurant.id,
+                    MenuItemModel.is_active == True
+                )
+            ).first()
+            
+            if not menu_item:
+                raise HTTPException(
+                    status_code=404,
+                    detail={"success": False, "code": "menu_item_not_found", "detail": "Menu item not found"}
+                )
+            
+            # 3. Build and return the menu item response
+            return _build_menu_item_response(menu_item, restaurant_slug)
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={"success": False, "code": "internal_error", "detail": "Internal server error"}
+        )
+
 
 @router.get("/restaurants/{restaurant_slug}/menu/", response_model=MenuResponse, summary="Get menu items", response_description="List of menu items with optional filters and pagination")
 def read_menu(
@@ -47,8 +129,11 @@ def read_menu(
                     detail={"success": False, "code": "restaurant_not_found", "detail": "Restaurant not found"}
                 )
             
-            # 2. Build filters for the query
-            filter_conditions = [MenuItemModel.restaurant_id == restaurant.id]
+            # 2. Build filters for the query - only include active items
+            filter_conditions = [
+                MenuItemModel.restaurant_id == restaurant.id,
+                MenuItemModel.is_active == True
+            ]
             
             if group_category:
                 if len(group_category) == 1:
@@ -75,49 +160,35 @@ def read_menu(
             # 4. Handle first request - fetch promoted items first
             if cursor is None or cursor == 0:
                 # First request - get promoted items
-                promoted_query = db.query(MenuItemModel).filter(
+                promoted_query = db.query(MenuItemModel).options(
+                    joinedload(MenuItemModel.item_variations).joinedload(ItemVariation.variation),
+                    joinedload(MenuItemModel.item_addons).joinedload(ItemAddon.addon_group).joinedload(AddonGroup.addon_items)
+                ).filter(
                     and_(MenuItemModel.promote == True, *filter_conditions)
                 ).limit(500)  # Get all promoted items
                 
                 promoted_items_db = promoted_query.all()
                 
                 promoted_items = [
-                    MenuItem(
-                        id=item.public_id,
-                        name=item.name,
-                        description=item.description,
-                        price=item.price,
-                        veg_flag=item.veg_flag,
-                        image_url=f"image_data/{restaurant.slug}/{item.image_path}" if item.image_path else None,
-                        cloudflare_image_id=item.cloudflare_image_id,
-                        cloudflare_video_id=item.cloudflare_video_id,
-                        category_brief="Recommendations"  # Set category as Recommendations for promoted items
-                    )
+                    _build_menu_item_response(item, restaurant_slug, "Recommendations")
                     for item in promoted_items_db
                 ]
                 
                 # Shuffle promoted items among themselves
                 random.shuffle(promoted_items)
                 
-                # Then fetch regular items (excluding promoted ones)
-                regular_query = db.query(MenuItemModel).filter(
-                    *filter_conditions
+                # Then fetch regular items
+                regular_query = db.query(MenuItemModel).options(
+                    joinedload(MenuItemModel.item_variations).joinedload(ItemVariation.variation),
+                    joinedload(MenuItemModel.item_addons).joinedload(ItemAddon.addon_group).joinedload(AddonGroup.addon_items)
+                ).filter(
+                    and_(*filter_conditions)
                 ).order_by(MenuItemModel.id).limit(limit)
                 
                 regular_items_db = regular_query.all()
                 
                 regular_items = [
-                    MenuItem(
-                        id=item.public_id,
-                        name=item.name,
-                        description=item.description,
-                        price=item.price,
-                        veg_flag=item.veg_flag,
-                        image_url=f"image_data/{restaurant.slug}/{item.image_path}" if item.image_path else None,
-                        cloudflare_image_id=item.cloudflare_image_id,
-                        cloudflare_video_id=item.cloudflare_video_id,
-                        category_brief=item.category_brief
-                    )
+                    _build_menu_item_response(item, restaurant_slug)
                     for item in regular_items_db
                 ]
                 
@@ -126,31 +197,24 @@ def read_menu(
                 
                 # Check if there are more regular items for pagination
                 total_regular_count = db.query(MenuItemModel).filter(
-                    *filter_conditions
+                    and_(*filter_conditions)
                 ).count()
                 
                 next_cursor = limit if total_regular_count > limit else None
                 
             else:
                 # Subsequent requests - just fetch regular items with offset
-                regular_query = db.query(MenuItemModel).filter(
-                    *filter_conditions
+                regular_query = db.query(MenuItemModel).options(
+                    joinedload(MenuItemModel.item_variations).joinedload(ItemVariation.variation),
+                    joinedload(MenuItemModel.item_addons).joinedload(ItemAddon.addon_group).joinedload(AddonGroup.addon_items)
+                ).filter(
+                    and_(*filter_conditions)
                 ).order_by(MenuItemModel.id).offset(offset).limit(limit)
                 
                 items_db = regular_query.all()
                 
                 items = [
-                    MenuItem(
-                        id=item.public_id,
-                        name=item.name,
-                        description=item.description,
-                        price=item.price,
-                        veg_flag=item.veg_flag,
-                        image_url=f"image_data/{restaurant.slug}/{item.image_path}" if item.image_path else None,
-                        cloudflare_image_id=item.cloudflare_image_id,
-                        cloudflare_video_id=item.cloudflare_video_id,
-                        category_brief=item.category_brief
-                    )
+                    _build_menu_item_response(item, restaurant_slug)
                     for item in items_db
                 ]
                 
@@ -165,4 +229,87 @@ def read_menu(
         raise HTTPException(
             status_code=500,
             detail={"success": False, "code": "internal_error", "detail": "Internal server error"}
+        )
+
+
+def _build_menu_item_response(item: MenuItemModel, restaurant_slug: str, override_category: Optional[str] = None) -> MenuItem:
+    """Build MenuItem response with variations and addons based on item flags"""
+    
+    variation_groups = []
+    addon_groups = []
+    
+    # Only process variations if itemallowvariation is True
+    if item.itemallowvariation is True:
+        # Build variation groups from item variations
+        variation_groups_dict = {}
+        for item_variation in item.item_variations:
+            if item_variation.is_active and item_variation.variation.is_active:
+                group_name = item_variation.variation.group_name
+                
+                if group_name not in variation_groups_dict:
+                    variation_groups_dict[group_name] = {
+                        "group_name": group_name,
+                        "display_name": group_name,
+                        "variations": []
+                    }
+                
+                variation_groups_dict[group_name]["variations"].append(
+                    VariationResponse(
+                        id=item_variation.id,  # Use ItemVariation ID for selection
+                        name=item_variation.variation.name,
+                        display_name=item_variation.variation.display_name,
+                        price=item_variation.price,  # Absolute price
+                        group_name=group_name,
+                        tags=[]
+                    )
+                )
+        
+        variation_groups = [
+            VariationGroup(**group_data) 
+            for group_data in variation_groups_dict.values()
+        ]
+    
+    # Only process addons if itemallowaddon is True
+    if item.itemallowaddon is True:
+        # Build addon groups from item addons
+        for item_addon in item.item_addons:
+            if item_addon.is_active and item_addon.addon_group.is_active:
+                addon_items = [
+                    AddonItemResponse(
+                        id=addon_item.id,
+                        name=addon_item.name,
+                        display_name=addon_item.display_name,
+                        price=addon_item.price,
+                        tags=addon_item.tags or []
+                    )
+                    for addon_item in item_addon.addon_group.addon_items
+                    if addon_item.is_active
+                ]
+                
+                if addon_items:  # Only include if there are active addon items
+                    addon_groups.append(
+                        AddonGroupResponse(
+                            id=item_addon.addon_group.id,
+                            name=item_addon.addon_group.name,
+                            display_name=item_addon.addon_group.display_name,
+                            min_selection=item_addon.min_selection,
+                            max_selection=item_addon.max_selection,
+                            addons=addon_items
+                        )
+                    )
+    
+    return MenuItem(
+        id=item.public_id,
+        name=item.name,
+        description=item.description,
+        base_price=item.price,
+        veg_flag=item.veg_flag,
+        image_url=f"image_data/{restaurant_slug}/{item.image_path}" if item.image_path is not None else None,
+        cloudflare_image_id=item.cloudflare_image_id,
+        cloudflare_video_id=item.cloudflare_video_id,
+        category_brief=override_category or item.category_brief,
+        tags=item.tags or [],
+        is_bestseller=item.is_bestseller,
+        variation_groups=variation_groups,
+        addon_groups=addon_groups
         )

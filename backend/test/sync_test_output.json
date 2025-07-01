@@ -1,0 +1,494 @@
+{
+  "items": [
+    {
+      "id": 11,
+      "public_id": "item_118829149",
+      "restaurant_id": 1,
+      "name": "Veg Loaded Pizza",
+      "category_brief": "Pizza and Sides",
+      "description": "Fresh vegetables with cheese on our signature base",
+      "price": 100.0,
+      "image_path": "https://example.com/pizza.jpg",
+      "veg_flag": true,
+      "is_active": true,
+      "tags": [
+        "vegan",
+        "new",
+        "chef-special",
+        "veg"
+      ],
+      "priority": 52,
+      "external_id": "118829149",
+      "external_data": {
+        "itemid": "118829149",
+        "itemallowvariation": "0",
+        "itemrank": "52",
+        "item_categoryid": "500773",
+        "item_ordertype": "1,2,3",
+        "item_tags": [
+          "vegan",
+          "new",
+          "chef-special",
+          "veg"
+        ],
+        "item_packingcharges": "",
+        "itemallowaddon": "1",
+        "itemaddonbasedon": "0",
+        "item_favorite": "0",
+        "ignore_taxes": "0",
+        "ignore_discounts": "0",
+        "in_stock": "2",
+        "variation_groupname": "",
+        "variation": [],
+        "addon": [
+          {
+            "addon_group_id": "135699",
+            "addon_item_selection_min": "0",
+            "addon_item_selection_max": "1"
+          },
+          {
+            "addon_group_id": "135707",
+            "addon_item_selection_min": "0",
+            "addon_item_selection_max": "4"
+          }
+        ],
+        "itemname": "Veg Loaded Pizza",
+        "item_attributeid": "1",
+        "itemdescription": "Fresh vegetables with cheese on our signature base",
+        "minimumpreparationtime": "",
+        "price": "100",
+        "active": "1",
+        "item_image_url": "https://example.com/pizza.jpg",
+        "item_tax": "11213,20375"
+      },
+      "itemallowvariation": false,
+      "itemallowaddon": true,
+      "pos_system_id": 1
+    },
+    {
+      "id": 14,
+      "public_id": "item_118807411",
+      "restaurant_id": 1,
+      "name": "Chocolate Cake",
+      "category_brief": "Desserts",
+      "description": "Rich chocolate cake with cream frosting",
+      "price": 310.0,
+      "image_path": "https://example.com/cake.jpg",
+      "veg_flag": true,
+      "is_active": true,
+      "tags": [
+        "veg"
+      ],
+      "priority": 53,
+      "external_id": "118807411",
+      "external_data": {
+        "itemid": "118807411",
+        "itemallowvariation": "0",
+        "itemrank": "53",
+        "item_categoryid": "500774",
+        "item_ordertype": "1,2,3",
+        "item_tags": [
+          "veg"
+        ],
+        "item_packingcharges": "",
+        "itemallowaddon": "0",
+        "itemaddonbasedon": "0",
+        "item_favorite": "0",
+        "ignore_taxes": "0",
+        "ignore_discounts": "0",
+        "in_stock": "2",
+        "variation_groupname": "",
+        "variation": [],
+        "addon": [],
+        "itemname": "Chocolate Cake",
+        "item_attributeid": "1",
+        "itemdescription": "Rich chocolate cake with cream frosting",
+        "minimumpreparationtime": "",
+        "price": "310",
+        "active": "1",
+        "item_image_url": "https://example.com/cake.jpg",
+        "item_tax": "21866,21867"
+      },
+      "itemallowvariation": false,
+      "itemallowaddon": false,
+      "pos_system_id": 1
+    },
+    {
+      "id": 15,
+      "public_id": "item_7765809",
+      "restaurant_id": 1,
+      "name": "Garlic Bread",
+      "category_brief": "Pizza and Sides",
+      "description": "Crispy garlic bread with herbs",
+      "price": 120.0,
+      "image_path": "https://example.com/garlic-bread.jpg",
+      "veg_flag": true,
+      "is_active": true,
+      "tags": [
+        "veg"
+      ],
+      "priority": 52,
+      "external_id": "7765809",
+      "external_data": {
+        "itemid": "7765809",
+        "itemallowvariation": "1",
+        "itemrank": "52",
+        "item_categoryid": "500773",
+        "item_ordertype": "1,2,3",
+        "item_tags": [
+          "veg"
+        ],
+        "item_packingcharges": "",
+        "itemallowaddon": "0",
+        "itemaddonbasedon": "0",
+        "item_favorite": "0",
+        "ignore_taxes": "0",
+        "ignore_discounts": "0",
+        "in_stock": "2",
+        "variation_groupname": "Quantity",
+        "variation": [
+          {
+            "id": "7765862",
+            "variationid": "89058",
+            "name": "3 Pieces",
+            "groupname": "Quantity",
+            "price": "140",
+            "active": "1",
+            "item_packingcharges": "20",
+            "variationrank": "1",
+            "addon": [],
+            "variationallowaddon": 0
+          },
+          {
+            "id": "7765097",
+            "variationid": "89059",
+            "name": "6 Pieces",
+            "groupname": "Quantity",
+            "price": "160",
+            "active": "1",
+            "item_packingcharges": "20",
+            "variationrank": "3",
+            "addon": [],
+            "variationallowaddon": 0
+          }
+        ],
+        "addon": [],
+        "itemname": "Garlic Bread",
+        "item_attributeid": "1",
+        "itemdescription": "Crispy garlic bread with herbs",
+        "minimumpreparationtime": "",
+        "price": "120",
+        "active": "1",
+        "item_image_url": "https://example.com/garlic-bread.jpg",
+        "item_tax": "11213,20375"
+      },
+      "itemallowvariation": true,
+      "itemallowaddon": false,
+      "pos_system_id": 1
+    }
+  ],
+  "variations": [
+    {
+      "id": 1,
+      "name": "3 Pieces",
+      "display_name": "3 Pieces",
+      "group_name": "Quantity",
+      "is_active": true,
+      "external_variation_id": "89058",
+      "external_data": {
+        "variationid": "89058",
+        "name": "3 Pieces",
+        "groupname": "Quantity",
+        "status": "1"
+      }
+    },
+    {
+      "id": 2,
+      "name": "6 Pieces",
+      "display_name": "6 Pieces",
+      "group_name": "Quantity",
+      "is_active": true,
+      "external_variation_id": "89059",
+      "external_data": {
+        "variationid": "89059",
+        "name": "6 Pieces",
+        "groupname": "Quantity",
+        "status": "1"
+      }
+    }
+  ],
+  "addon_groups": [
+    {
+      "id": 3,
+      "name": "Add Beverage",
+      "display_name": "Add Beverage",
+      "is_active": true,
+      "priority": 3,
+      "external_group_id": "135699",
+      "external_data": {
+        "addongroupid": "135699",
+        "addongroup_rank": "3",
+        "active": "1",
+        "addongroupitems": [
+          {
+            "addonitemid": "1150783",
+            "addonitem_name": "Mojito",
+            "addonitem_price": "0",
+            "active": "1",
+            "attributes": "1",
+            "addonitem_rank": "1"
+          },
+          {
+            "addonitemid": "1150784",
+            "addonitem_name": "Hazelnut Mocha",
+            "addonitem_price": "10",
+            "active": "1",
+            "attributes": "1",
+            "addonitem_rank": "2"
+          }
+        ],
+        "addongroup_name": "Add Beverage"
+      }
+    },
+    {
+      "id": 6,
+      "name": "Extra Toppings",
+      "display_name": "Extra Toppings",
+      "is_active": true,
+      "priority": 15,
+      "external_group_id": "135707",
+      "external_data": {
+        "addongroupid": "135707",
+        "addongroup_rank": "15",
+        "active": "1",
+        "addongroupitems": [
+          {
+            "addonitemid": "1150810",
+            "addonitem_name": "Egg",
+            "addonitem_price": "20",
+            "active": "1",
+            "attributes": "24",
+            "addonitem_rank": "1"
+          },
+          {
+            "addonitemid": "1150811",
+            "addonitem_name": "Jalapenos",
+            "addonitem_price": "20",
+            "active": "1",
+            "attributes": "1",
+            "addonitem_rank": "2"
+          },
+          {
+            "addonitemid": "1150812",
+            "addonitem_name": "Onion Rings",
+            "addonitem_price": "20",
+            "active": "1",
+            "attributes": "1",
+            "addonitem_rank": "3"
+          },
+          {
+            "addonitemid": "1150813",
+            "addonitem_name": "Cheese",
+            "addonitem_price": "10",
+            "active": "1",
+            "attributes": "1",
+            "addonitem_rank": "4"
+          }
+        ],
+        "addongroup_name": "Extra Toppings"
+      }
+    }
+  ],
+  "addon_group_items": [
+    {
+      "id": 4,
+      "addon_group_id": 3,
+      "name": "Mojito",
+      "display_name": "Mojito",
+      "price": 0.0,
+      "is_active": true,
+      "priority": 1,
+      "tags": [
+        "veg"
+      ],
+      "external_addon_id": "1150783",
+      "external_data": {
+        "addonitemid": "1150783",
+        "addonitem_name": "Mojito",
+        "addonitem_price": "0",
+        "active": "1",
+        "attributes": "1",
+        "addonitem_rank": "1"
+      }
+    },
+    {
+      "id": 5,
+      "addon_group_id": 3,
+      "name": "Hazelnut Mocha",
+      "display_name": "Hazelnut Mocha",
+      "price": 10.0,
+      "is_active": true,
+      "priority": 2,
+      "tags": [
+        "veg"
+      ],
+      "external_addon_id": "1150784",
+      "external_data": {
+        "addonitemid": "1150784",
+        "addonitem_name": "Hazelnut Mocha",
+        "addonitem_price": "10",
+        "active": "1",
+        "attributes": "1",
+        "addonitem_rank": "2"
+      }
+    },
+    {
+      "id": 7,
+      "addon_group_id": 6,
+      "name": "Egg",
+      "display_name": "Egg",
+      "price": 20.0,
+      "is_active": true,
+      "priority": 1,
+      "tags": [
+        "egg"
+      ],
+      "external_addon_id": "1150810",
+      "external_data": {
+        "addonitemid": "1150810",
+        "addonitem_name": "Egg",
+        "addonitem_price": "20",
+        "active": "1",
+        "attributes": "24",
+        "addonitem_rank": "1"
+      }
+    },
+    {
+      "id": 8,
+      "addon_group_id": 6,
+      "name": "Jalapenos",
+      "display_name": "Jalapenos",
+      "price": 20.0,
+      "is_active": true,
+      "priority": 2,
+      "tags": [
+        "veg"
+      ],
+      "external_addon_id": "1150811",
+      "external_data": {
+        "addonitemid": "1150811",
+        "addonitem_name": "Jalapenos",
+        "addonitem_price": "20",
+        "active": "1",
+        "attributes": "1",
+        "addonitem_rank": "2"
+      }
+    },
+    {
+      "id": 9,
+      "addon_group_id": 6,
+      "name": "Onion Rings",
+      "display_name": "Onion Rings",
+      "price": 20.0,
+      "is_active": true,
+      "priority": 3,
+      "tags": [
+        "veg"
+      ],
+      "external_addon_id": "1150812",
+      "external_data": {
+        "addonitemid": "1150812",
+        "addonitem_name": "Onion Rings",
+        "addonitem_price": "20",
+        "active": "1",
+        "attributes": "1",
+        "addonitem_rank": "3"
+      }
+    },
+    {
+      "id": 10,
+      "addon_group_id": 6,
+      "name": "Cheese",
+      "display_name": "Cheese",
+      "price": 10.0,
+      "is_active": true,
+      "priority": 4,
+      "tags": [
+        "veg"
+      ],
+      "external_addon_id": "1150813",
+      "external_data": {
+        "addonitemid": "1150813",
+        "addonitem_name": "Cheese",
+        "addonitem_price": "10",
+        "active": "1",
+        "attributes": "1",
+        "addonitem_rank": "4"
+      }
+    }
+  ],
+  "item_variations": [
+    {
+      "id": 16,
+      "item_id": 15,
+      "variation_id": 1,
+      "price": 140.0,
+      "is_active": true,
+      "priority": 1,
+      "external_id": "7765862",
+      "external_data": {
+        "id": "7765862",
+        "variationid": "89058",
+        "name": "3 Pieces",
+        "groupname": "Quantity",
+        "price": "140",
+        "active": "1",
+        "item_packingcharges": "20",
+        "variationrank": "1",
+        "addon": [],
+        "variationallowaddon": 0
+      }
+    },
+    {
+      "id": 17,
+      "item_id": 15,
+      "variation_id": 2,
+      "price": 160.0,
+      "is_active": true,
+      "priority": 3,
+      "external_id": "7765097",
+      "external_data": {
+        "id": "7765097",
+        "variationid": "89059",
+        "name": "6 Pieces",
+        "groupname": "Quantity",
+        "price": "160",
+        "active": "1",
+        "item_packingcharges": "20",
+        "variationrank": "3",
+        "addon": [],
+        "variationallowaddon": 0
+      }
+    }
+  ],
+  "item_addons": [
+    {
+      "id": 12,
+      "item_id": 11,
+      "addon_group_id": 3,
+      "min_selection": 0,
+      "max_selection": 1,
+      "is_active": true,
+      "priority": 0
+    },
+    {
+      "id": 13,
+      "item_id": 11,
+      "addon_group_id": 6,
+      "min_selection": 0,
+      "max_selection": 4,
+      "is_active": true,
+      "priority": 0
+    }
+  ]
+}
