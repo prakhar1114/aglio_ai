@@ -74,7 +74,7 @@ async def create_table_session(
                     detail={"success": False, "code": "table_not_found", "detail": "Table not found"}
                 )
             
-            restaurant = db.query(Restaurant).filter(Restaurant.id == table.restaurant_id).first()
+            restaurant = db.query(Restaurant).filter(Restaurant.id == table.restaurant_id).filter(Restaurant.slug == data.restaurant_slug).first()
             if not restaurant:
                 raise HTTPException(
                     status_code=404,
@@ -82,7 +82,7 @@ async def create_table_session(
                 )
             
             # 2. Verify QR token
-            if not verify_qr_token(restaurant.id, table.id, data.token):
+            if not verify_qr_token(restaurant.id, table.number, data.token):
                 raise HTTPException(
                     status_code=403,
                     detail={"success": False, "code": "bad_token", "detail": "Invalid QR token"}

@@ -353,7 +353,7 @@ export function ItemCard({ item, containerWidth, onItemClick }) {
         <div style={noImageCardStyle}>
           <div style={noImageContentStyle}>
             <h3 style={noImageTitleStyle}>{item.name}</h3>
-            <p style={noImagePriceStyle}>₹{item.price}</p>
+            <p style={noImagePriceStyle}>₹{item.base_price}</p>
           </div>
           <div style={noImageButtonOverlayStyle}>
             {qty === 0 ? (
@@ -409,7 +409,7 @@ export function ItemCard({ item, containerWidth, onItemClick }) {
       {hasMedia && (
         <div style={contentStyle}>
           <h3 style={titleStyle}>{item.name}</h3>
-          <p style={priceStyle}>₹{item.price}</p>
+          <p style={priceStyle}>₹{item.base_price}</p>
         </div>
       )}
     </div>

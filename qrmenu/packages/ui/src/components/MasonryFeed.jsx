@@ -14,19 +14,16 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
   // Track current visible category for the floating pill
   const [currentVisibleCategory, setCurrentVisibleCategory] = useState(null);
   
-  // Fetch data
+  // Fetch data - now using client-side filtering
   const {
     data,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
     isLoading,
     error
   } = useMenu(filters);
 
   // Transform and group data
   const { groupedData, groupCounts, categoryIndexMap, categories, dropdownCategories, hasAnyItems } = useMemo(() => {
-    const fetchedItems = data ? data.pages.flatMap((p) => p.items) : [];
+    const fetchedItems = data ? data.items : []; // Changed from data.pages.flatMap since we no longer use pagination
     const transformedItems = fetchedItems
       .filter(item => item && item.id)
       .map(item => ({
@@ -365,7 +362,7 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
                         item={item} 
                         containerWidth={cardWidth}
                         onItemClick={() => {
-                          const allCurrentItems = data ? data.pages.flatMap(p => p.items) : [];
+                          const allCurrentItems = data ? data.items : [];
                           onItemClick?.(item, allCurrentItems);
                         }}
                       />
@@ -376,19 +373,12 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
             );
           }}
           endReached={() => {
-            if (hasNextPage && !isFetchingNextPage) {
-              fetchNextPage();
-            }
+            // No longer need infinite scroll since we fetch full menu
           }}
           overscan={200}
         />
         
-        {/* Loading indicator for infinite scroll */}
-        {isFetchingNextPage && (
-          <div className="flex justify-center py-4">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-red-500"></div>
-          </div>
-        )}
+        {/* Menu items are now loaded completely at once */}
       </div>
     </>
   );

@@ -3,11 +3,17 @@ from typing import Optional, List
 from datetime import datetime
 
 # Request models
+class AddonSelection(BaseModel):
+    addon_group_item_id: int = Field(..., description="Addon group item ID")
+    quantity: int = Field(1, ge=1, description="Addon quantity")
+
 class CartItemCreateRequest(BaseModel):
     session_pid: str = Field(..., description="Session public ID")
     menu_item_id: str = Field(..., description="Menu item public ID")
     qty: int = Field(..., ge=1, description="Quantity (must be >= 1)")
     note: str = Field("", description="Special instructions")
+    selected_item_variation_id: Optional[int] = Field(None, description="Selected item variation ID")
+    selected_addons: List[AddonSelection] = Field([], description="Selected addons")
 
 class CartItemUpdateRequest(BaseModel):
     session_pid: str = Field(..., description="Session public ID")
@@ -20,12 +26,28 @@ class CartItemDeleteRequest(BaseModel):
     version: int = Field(..., description="Current item version for optimistic locking")
 
 # Response models
+class SelectedAddonResponse(BaseModel):
+    addon_group_item_id: int
+    name: str
+    price: float
+    quantity: int
+    total_price: float
+    addon_group_name: str  # Include group name for display
+    tags: List[str] = []  # Include tags (veg, spicy, etc.)
+
+class SelectedVariationResponse(BaseModel):
+    item_variation_id: int
+    variation_name: str
+    group_name: str  # "Size", "Quantity", etc.
+    price: float  # Absolute price for this variation
+
 class CartItemResponse(BaseModel):
     public_id: str  # Use cart item public ID instead of database ID
     member_pid: str
     menu_item_pid: str  # Menu item public ID for consistency
     name: str
-    price: float  # Add price field for cart rendering
+    base_price: float  # Base price of the menu item
+    final_price: float  # Final price including variation and addons
     qty: int
     note: str
     version: int
@@ -33,6 +55,8 @@ class CartItemResponse(BaseModel):
     cloudflare_image_id: Optional[str] = None  # Cloudflare Images ID
     cloudflare_video_id: Optional[str] = None  # Cloudflare Stream video ID
     veg_flag: bool = False  # Add veg flag for dietary indicators
+    selected_variation: Optional[SelectedVariationResponse] = None
+    selected_addons: List[SelectedAddonResponse] = []
 
 class MemberInfo(BaseModel):
     member_pid: str
@@ -55,13 +79,15 @@ class CartItemUpdateResponse(BaseModel):
 
 # WebSocket event models
 class CartMutateEvent(BaseModel):
-    op: str = Field(..., description="Operation: create|update|delete")
-    tmpId: Optional[str] = Field(None, description="Temporary ID for create operations")
-    public_id: Optional[str] = Field(None, description="Cart item public ID for update/delete")
-    version: Optional[int] = Field(None, description="Version for update/delete")
-    menu_item_id: Optional[str] = Field(None, description="Menu item public ID for create")
+    op: str = Field(..., description="Operation: create|update|delete|replace")
+    tmpId: Optional[str] = Field(None, description="Temporary ID for create/replace operations")
+    public_id: Optional[str] = Field(None, description="Cart item public ID for update/delete/replace")
+    version: Optional[int] = Field(None, description="Version for update/delete/replace")
+    menu_item_id: Optional[str] = Field(None, description="Menu item public ID for create/replace")
     qty: int = Field(..., description="Quantity")
     note: str = Field("", description="Special instructions")
+    selected_item_variation_id: Optional[int] = Field(None, description="Selected item variation ID")
+    selected_addons: List[AddonSelection] = Field([], description="Selected addons")
 
 class CartUpdateEvent(BaseModel):
     type: str = "cart_update"

@@ -4,7 +4,7 @@ Simple test script for table session functionality
 """
 
 import sys
-sys.path.append('.')
+sys.path.append('..')
 
 from utils.jwt_utils import encode_ws_token, decode_ws_token, is_token_near_expiry, create_qr_token, verify_qr_token
 from utils.nickname_generator import generate_nickname
