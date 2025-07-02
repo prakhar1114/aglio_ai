@@ -415,7 +415,7 @@ class DashboardManager {
                                 <ul class="cart-list">
                                     ${sessionData.cart_items.map(item => `
                                         <li class="cart-item">
-                                            <strong>${item.menu_item_name}</strong> x${item.qty} - $${item.price}
+                                            <strong>${item.menu_item_name}</strong> x${item.qty} - ₹${item.price.toFixed ? item.price.toFixed(2) : item.price}
                                             ${item.note ? `<br><small>Note: ${item.note}</small>` : ''}
                                             <br><small>Added by: ${sessionData.members.find(m => m.member_pid === item.member_pid)?.nickname || 'Unknown'}</small>
                                         </li>
@@ -430,9 +430,22 @@ class DashboardManager {
                                 <ul class="order-list">
                                     ${sessionData.orders.map(order => `
                                         <li class="order-item">
-                                            <strong>Order ${order.order_id}</strong> - $${order.total_amount}
+                                            <strong>Order ${order.order_id}</strong> - ₹${order.total_amount.toFixed ? order.total_amount.toFixed(2) : order.total_amount}
                                             <br><small>Placed: ${new Date(order.created_at).toLocaleString()}</small>
-                                            <br><small>Payment: ${order.pay_method}</small>
+                                            ${order.pay_method ? `<br><small>Payment: ${order.pay_method}</small>` : ''}
+
+                                            ${Array.isArray(order.items) && order.items.length > 0 ? `
+                                                <details class="order-items-details">
+                                                    <summary>View Items (${order.items.length})</summary>
+                                                    <ul class="order-items-list">
+                                                        ${order.items.map(oi => `
+                                                            <li>
+                                                                ${oi.name} x${oi.qty} - ₹${oi.price ?? oi.unit_price ?? 0}
+                                                            </li>
+                                                        `).join('')}
+                                                    </ul>
+                                                </details>
+                                            ` : ''}
                                         </li>
                                     `).join('')}
                                 </ul>
@@ -443,6 +456,7 @@ class DashboardManager {
                             <h3>Totals</h3>
                             <div class="session-info-grid">
                                 <div class="session-info-card">
+                                    <strong>Cart Total:</strong>
                                     ₹${sessionData.totals.cart_total.toFixed(2)}
                                 </div>
                                 <div class="session-info-card">

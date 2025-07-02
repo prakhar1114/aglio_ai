@@ -165,12 +165,14 @@ class CartItem(Base):
     note = Column(Text)
     state = Column(Enum("pending", "locked", "ordered", name="cart_item_state"), default="pending", nullable=False)
     version = Column(Integer, default=1)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=True)
 
     session = relationship("Session", back_populates="cart_items")
     member = relationship("Member", back_populates="cart_items")
     menu_item = relationship("MenuItem")
     selected_item_variation = relationship("ItemVariation")
     selected_addons = relationship("CartItemAddon", back_populates="cart_item")
+    order = relationship("Order", back_populates="cart_items")
 
     __table_args__ = (
         UniqueConstraint("id", "version", name="uix_item_version"),
@@ -195,9 +197,11 @@ class Order(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     public_id = Column(String(36), unique=True, nullable=False)
     session_id = Column(Integer, ForeignKey("sessions.id"), nullable=False)
+    initiated_by_member_id = Column(Integer, ForeignKey("members.id"), nullable=False)
     payload = Column(JSON, nullable=False)  # Enhanced cart items data with variations/addons
     cart_hash = Column(String, nullable=False)
     total_amount = Column(Float, nullable=False)  # Total in Indian Rs
+    status = Column(Enum("processing", "confirmed", "failed", "cancelled", name="order_status"), default="processing", nullable=False)
     
     # POS Integration
     pos_system_id = Column(Integer, ForeignKey("pos_systems.id"), nullable=True)
@@ -205,9 +209,13 @@ class Order(Base):
     pos_response = Column(JSON, nullable=True)  # Full POS response for debugging
     pos_ticket = Column(String)  # Reserved for future POS integration
     created_at = Column(DateTime, default=datetime.utcnow)
+    confirmed_at = Column(DateTime, nullable=True)
+    failed_at = Column(DateTime, nullable=True)
 
     session = relationship("Session", back_populates="orders")
     pos_system = relationship("POSSystem")
+    initiated_by_member = relationship("Member")
+    cart_items = relationship("CartItem", back_populates="order")
 
 
 # ---------------------------------------------------------------------------

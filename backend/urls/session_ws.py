@@ -4,10 +4,12 @@ import uuid
 from datetime import datetime
 from loguru import logger
 import uuid
+import secrets
+from sqlalchemy import select
 
 # SQLAlchemy models / DB session
 from models.schema import (
-    SessionLocal, Restaurant, Session, Member, MenuItem, CartItem, CartItemAddon, ItemVariation, AddonGroupItem, ItemAddon
+    SessionLocal, Restaurant, Session, Member, MenuItem, CartItem, CartItemAddon, ItemVariation, AddonGroupItem, ItemAddon, Order
 )
 
 # Pydantic event models
@@ -93,6 +95,9 @@ async def websocket_endpoint(websocket: WebSocket):
                     elif message.get("type") == "chat_message":
                         # Chat message - handle and broadcast to AI
                         await handle_chat_message(websocket, message, payload["sub"], session_pid)
+                    elif message.get("type") == "place_order":
+                        # Order placement message
+                        await handle_place_order(websocket, session_pid, payload["sub"], message)
                     else:
                         await connection_manager.send_error(
                             websocket,
@@ -189,6 +194,215 @@ async def handle_chat_message(websocket: WebSocket, message: dict, member_pid: s
         await connection_manager.send_error(
             websocket, "chat_error", "Error processing chat message"
         )
+
+
+async def handle_place_order(websocket, session_pid, member_pid, data):
+    """Handle order placement request"""
+    with SessionLocal() as db:
+        try:
+            # Validate session and member
+            session: Session | None = db.query(Session).filter(Session.public_id == session_pid).first()
+            if not session or session.state != "active":
+                await websocket.send_text(json.dumps({
+                    "type": "order_failed",
+                    "error": "Invalid session"
+                }))
+                return
+                
+            member: Member | None = (
+                db.query(Member)
+                .filter(Member.public_id == member_pid, Member.session_id == session.id)
+                .first()
+            )
+            if not member:
+                await websocket.send_text(json.dumps({
+                    "type": "order_failed",
+                    "error": "Invalid member"
+                }))
+                return
+            
+            # Get all pending cart items for this session
+            cart_items = db.query(CartItem).filter(
+                CartItem.session_id == session.id,
+                CartItem.state == "pending"
+            ).all()
+            
+            if not cart_items:
+                await websocket.send_text(json.dumps({
+                    "type": "order_failed",
+                    "error": "No items in cart"
+                }))
+                return
+            
+            # Generate sequential order ID based on the number of existing orders for this restaurant
+            # Count all orders linked to this restaurant (across all its sessions)
+            order_count = (
+                db.query(Order)
+                .join(Session, Order.session_id == Session.id)
+                .filter(Session.restaurant_id == session.restaurant_id)
+                .count()
+            )
+            order_sequence_num = order_count + 1
+
+            # Format: ORD-{restaurant_id}-{sequence}
+            order_id = f"{order_sequence_num}"
+            
+            # Create Order record in database
+            new_order = Order(
+                public_id=order_id,
+                session_id=session.id,
+                initiated_by_member_id=member.id,  # Track who initiated the order
+                payload=[],  # Will be filled after processing
+                cart_hash="",  # Will be calculated
+                total_amount=0.0,  # Will be calculated
+                status="processing"
+            )
+            db.add(new_order)
+            db.flush()  # Get the order ID
+            
+            # Lock all cart items and associate with order
+            total_amount = 0.0
+            order_payload = []
+
+            for item in cart_items:
+                item.state = "locked"
+                item.order_id = new_order.id  # Associate cart item with order
+
+                # Base & variation prices
+                unit_price = item.menu_item.price  # Base menu item price (veg/food base)
+                selected_variation_detail = None
+                final_price_unit = unit_price  # Will adjust if variation / addons present
+
+                if item.selected_item_variation:
+                    variation_obj = item.selected_item_variation
+                    final_price_unit = variation_obj.price  # Absolute price override
+                    selected_variation_detail = {
+                        "item_variation_id": variation_obj.id,
+                        "variation_name": variation_obj.variation.name,
+                        "group_name": variation_obj.variation.group_name,
+                        "price": variation_obj.price,
+                    }
+
+                # Addons
+                selected_addons_detail, addons_total_per_unit = build_addon_details(item)
+
+                # Final unit price after addons
+                final_price_unit += addons_total_per_unit
+
+                line_total = final_price_unit * item.qty
+                total_amount += line_total
+
+                order_payload.append({
+                    "public_id": item.public_id,
+                    "cart_item_id": item.public_id,
+                    "menu_item_id": item.menu_item.public_id,
+                    "menu_item_pid": item.menu_item.public_id,
+                    "name": item.menu_item.name,
+                    "qty": item.qty,
+                    "unit_price": unit_price,
+                    "final_price": final_price_unit,  # per-unit final price including addons & variation
+                    "total": line_total,
+                    "note": item.note or "",
+                    "member_pid": item.member.public_id,
+                    "selected_variation": selected_variation_detail,
+                    "selected_addons": selected_addons_detail,
+                })
+            
+            # Update order with payload and total
+            new_order.payload = order_payload
+            new_order.total_amount = total_amount
+            new_order.cart_hash = f"hash_{len(cart_items)}_{total_amount}"  # Simple hash
+            
+            db.commit()
+            
+            # Broadcast cart locked to all session members
+            lock_message = {
+                "type": "cart_locked",
+                "order_id": order_id,
+                "locked_by_member": member.public_id,
+                "locked_by_nickname": member.nickname,
+                "total_amount": total_amount
+            }
+            await connection_manager.broadcast_to_session(session_pid, lock_message)
+            
+            # Process the order (dummy implementation)
+            success = await process_order_dummy(order_id, order_payload, total_amount)
+            
+            # Handle success/failure
+            if success:
+                # Mark order as confirmed
+                new_order.status = "confirmed"
+                new_order.confirmed_at = datetime.utcnow().isoformat() + "Z"
+                
+                # Mark all cart items as ordered (keep them for order history)
+                for item in cart_items:
+                    item.state = "ordered"
+                
+                db.commit()
+                
+                # Broadcast success to all session members
+                success_message = {
+                    "type": "order_confirmed",
+                    "order_id": order_id,
+                    "order": {
+                        "id": order_id,
+                        "orderNumber": order_sequence_num,
+                        "timestamp": new_order.created_at.isoformat(),
+                        "items": order_payload,
+                        "total": total_amount,
+                        "initiated_by": {
+                            "member_pid": member.public_id,
+                            "nickname": member.nickname
+                        }
+                    }
+                }
+                await connection_manager.broadcast_to_session(session_pid, success_message)
+            else:
+                # Mark order as failed
+                new_order.status = "failed"
+                new_order.failed_at = datetime.utcnow()
+                
+                # Revert cart items to pending state
+                for item in cart_items:
+                    item.state = "pending"
+                    item.order_id = None  # Remove order association
+                
+                db.commit()
+                
+                # Broadcast failure to all session members
+                failure_message = {
+                    "type": "order_failed",
+                    "order_id": order_id,
+                    "error": "Order processing failed"
+                }
+                await connection_manager.broadcast_to_session(session_pid, failure_message)
+                            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error processing order: {e}")
+            await websocket.send_text(json.dumps({
+                "type": "order_failed",
+                "error": "Internal server error"
+            }))
+
+
+async def process_order_dummy(order_id, order_payload, total_amount):
+    """Dummy POS integration - simulates order processing with 3 second delay"""
+    import asyncio
+    import random
+    
+    logger.info(f"Processing order {order_id} with dummy POS system...")
+    
+    # Simulate 3-second processing time
+    await asyncio.sleep(3)
+    
+    # 90% success rate for testing
+    if random.random() < 0.9:
+        logger.info(f"Order {order_id} processed successfully")
+        return True
+    else:
+        logger.warning(f"Order {order_id} failed - POS system error")
+        return False
 
 # ---------------------------------------------------------------------------
 # Cart-mutation helpers
@@ -745,3 +959,21 @@ async def handle_cart_replace(
     except Exception as e:
         logger.error(f"Error replacing cart item: {e}")
         await connection_manager.send_error(websocket, "replace_error", "Error replacing cart item") 
+
+# Helper to compute addon details (mirrors cart snapshot logic)
+def build_addon_details(cart_item):
+    addon_details = []
+    addon_total = 0.0
+    for cart_addon in cart_item.selected_addons:
+        addon_line_total = cart_addon.addon_item.price * cart_addon.quantity
+        addon_total += addon_line_total
+        addon_details.append({
+            "addon_group_item_id": cart_addon.addon_item.id,
+            "name": cart_addon.addon_item.name,
+            "price": cart_addon.addon_item.price,
+            "quantity": cart_addon.quantity,
+            "total_price": addon_line_total,
+            "addon_group_name": cart_addon.addon_item.addon_group.name,
+            "tags": cart_addon.addon_item.tags or []
+        })
+    return addon_details, addon_total

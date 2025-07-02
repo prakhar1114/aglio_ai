@@ -1,14 +1,20 @@
 import { useState, useEffect } from 'react';
 import { XMarkIcon, MinusIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
-import { useCartStore, useSessionStore, updateCartItem, deleteCartItem, replaceCartItem, getMenuItem } from '@qrmenu/core';
+import { useCartStore, useSessionStore, updateCartItem, deleteCartItem, replaceCartItem, getMenuItem, placeOrder } from '@qrmenu/core';
 import { OptimizedMedia } from './OptimizedMedia.jsx';
+import { OrderConfirmationSheet } from './OrderConfirmationSheet.jsx';
 
-export function CartDrawer({ isOpen, onClose, onCheckout }) {
-  const { items, getTotalAmount, getItemsByMember, canEditItem, hasCustomizationsAvailable } = useCartStore();
+export function CartDrawer({ isOpen, onClose }) {
+  const { items, getTotalAmount, getItemsByMember, canEditItem, hasCustomizationsAvailable, cartLocked, orderProcessingStatus, lockedByMember, isCartEditable, pendingOrderId, unlockCart } = useCartStore();
   const { memberPid, isHost, sessionValidated, members } = useSessionStore();
+  const showModal = useSessionStore((state) => state.showModal);
   
   // Track which items have customizations available
   const [itemsWithCustomizations, setItemsWithCustomizations] = useState(new Set());
+  
+  // Order confirmation state (moved from MenuScreen)
+  const [isOrderConfirmationOpen, setIsOrderConfirmationOpen] = useState(false);
+  const [lastPlacedOrder, setLastPlacedOrder] = useState(null);
   
   const isEmpty = items.length === 0;
   
@@ -37,6 +43,79 @@ export function CartDrawer({ isOpen, onClose, onCheckout }) {
     
     checkCustomizations();
   }, [isOpen, items, isEmpty]);
+  
+  // Function to play success sound
+  const playSuccessSound = () => {
+    try {
+      // Create a simple success sound using Web Audio API
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      // Success sound: quick rising tone
+      oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+      oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.1);
+      oscillator.type = 'sine';
+      
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.3);
+    } catch (error) {
+      console.warn('Could not play success sound:', error);
+    }
+  };
+  
+  // Handle order processing status changes (moved from MenuScreen)
+  useEffect(() => {
+    if (orderProcessingStatus === 'confirmed' && pendingOrderId) {
+      // Get the latest order from cart store (it should have been added by handleOrderSuccess)
+      const orders = useCartStore.getState().getOrders();
+      const confirmedOrder = orders.find(order => order.id === pendingOrderId);
+      
+      if (confirmedOrder) {
+        // Play success sound
+        playSuccessSound();
+        
+        // Show success modal
+        showModal({
+          type: 'success',
+          title: 'Order Placed!',
+          message: 'Your order has been successfully placed. You can continue ordering more items or track your orders.',
+          actions: [
+            {
+              label: 'Continue Ordering',
+              variant: 'success',
+            }
+          ]
+        });
+        
+        // // Set the order for confirmation sheet
+        // setLastPlacedOrder(confirmedOrder);
+        // setIsOrderConfirmationOpen(true);
+        onClose();
+        // Reset order processing status after showing confirmation
+      }
+    } else if (orderProcessingStatus === 'failed') {
+      // Show error modal for failed orders
+      showModal({
+        type: 'error',
+        title: 'Order Failed',
+        message: 'There was an issue processing your order. Please try again.',
+        actions: [
+          {
+            label: 'Retry',
+            variant: 'danger',
+          }
+        ]
+      });
+    }
+  }, [orderProcessingStatus, pendingOrderId, unlockCart, showModal]);
+  
   const subtotal = getTotalAmount();
   const tax = 0; // Set to zero as requested
   const total = subtotal + tax;
@@ -44,7 +123,33 @@ export function CartDrawer({ isOpen, onClose, onCheckout }) {
   // Group items by member
   const itemsByMember = getItemsByMember();
 
+  // Handle checkout - moved from MenuScreen
+  const handleCheckout = (specialInstructions = '') => {
+    console.log('Placing order via websocket:', { items, total });
+    
+    // Use websocket to place order instead of local creation
+    placeOrder(specialInstructions);
+    
+    // Don't show confirmation yet - wait for websocket response
+  };
+  
+  // Order confirmation handlers (moved from MenuScreen)
+  const handleOrderConfirmationClose = () => {
+    setIsOrderConfirmationOpen(false);
+    setLastPlacedOrder(null);
+  };
+
+  const handleViewOrdersFromConfirmation = () => {
+    setIsOrderConfirmationOpen(false);
+    // You might want to emit an event or call a prop to open MyOrdersDrawer from parent
+    // For now, just close the confirmation
+  };
+
   const handleQtyChange = (item, newQty) => {
+    if (!isCartEditable()) {
+      console.warn('Cannot edit cart: order is being processed');
+      return;
+    }
     if (!canEditItem(item, memberPid, isHost)) {
       // Show error toast - you could integrate with a toast system here
       console.warn('You can only edit your own items');
@@ -54,6 +159,10 @@ export function CartDrawer({ isOpen, onClose, onCheckout }) {
   };
 
   const handleDelete = (item) => {
+    if (!isCartEditable()) {
+      console.warn('Cannot delete item: order is being processed');
+      return;
+    }
     if (!canEditItem(item, memberPid, isHost)) {
       console.warn('You can only delete your own items');
       return;
@@ -74,6 +183,10 @@ export function CartDrawer({ isOpen, onClose, onCheckout }) {
   };
 
   const handleEdit = async (item) => {
+    if (!isCartEditable()) {
+      console.warn('Cannot edit item: order is being processed');
+      return;
+    }
     if (!canEditItem(item, memberPid, isHost)) {
       console.warn('You can only edit your own items');
       return;
@@ -317,7 +430,7 @@ export function CartDrawer({ isOpen, onClose, onCheckout }) {
                               {/* Quantity Controls and Edit Button */}
                               <div className="flex items-center justify-between">
                                 {canEdit ? (
-                                  <div className="flex items-center bg-gray-50 rounded-full border"
+                                  <div className={`flex items-center bg-gray-50 rounded-full border ${!isCartEditable() ? 'opacity-50' : ''}`}
                                        style={{
                                          borderRadius: '20px',
                                          border: '1px solid #E5E7EB',
@@ -325,7 +438,8 @@ export function CartDrawer({ isOpen, onClose, onCheckout }) {
                                        }}>
                                     <button
                                       onClick={() => handleDecrease(item)}
-                                      className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
+                                      disabled={!isCartEditable()}
+                                      className={`p-1.5 rounded-full transition-colors ${isCartEditable() ? 'hover:bg-gray-100' : 'cursor-not-allowed'}`}
                                       style={{
                                         borderRadius: '16px',
                                         width: '28px',
@@ -355,7 +469,8 @@ export function CartDrawer({ isOpen, onClose, onCheckout }) {
                                     
                                     <button
                                       onClick={() => handleIncrease(item)}
-                                      className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
+                                      disabled={!isCartEditable()}
+                                      className={`p-1.5 rounded-full transition-colors ${isCartEditable() ? 'hover:bg-gray-100' : 'cursor-not-allowed'}`}
                                       style={{
                                         borderRadius: '16px',
                                         width: '28px',
@@ -384,12 +499,16 @@ export function CartDrawer({ isOpen, onClose, onCheckout }) {
                                 {( itemsWithCustomizations.has(item.menu_item_pid)) && canEditItem(item, memberPid, isHost) && (
                                   <button
                                     onClick={() => handleEdit(item)}
-                                    className="text-xs text-blue-600 font-medium px-2 py-1 rounded-md hover:bg-blue-50 transition-colors"
+                                    disabled={!isCartEditable()}
+                                    className={`text-xs font-medium px-2 py-1 rounded-md transition-colors ${
+                                      isCartEditable() 
+                                        ? 'text-blue-600 hover:bg-blue-50' 
+                                        : 'text-gray-400 cursor-not-allowed'
+                                    }`}
                                     style={{
                                       fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif",
                                       fontSize: '11px',
                                       fontWeight: '500',
-                                      color: '#007AFF',
                                       borderRadius: '6px'
                                     }}
                                   >
@@ -482,33 +601,80 @@ export function CartDrawer({ isOpen, onClose, onCheckout }) {
             </div>
 
             {/* Checkout Button */}
+            {cartLocked && lockedByMember && lockedByMember !== memberPid ? (
+              // Show locked by other member state
+              <div className="w-full bg-gray-300 text-gray-600 py-3 rounded-lg font-medium text-center"
+                   style={{
+                     backgroundColor: '#D1D5DB',
+                     fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                     fontSize: '16px',
+                     fontWeight: '600',
+                     borderRadius: '12px',
+                     color: '#6B7280'
+                   }}>
+                {(() => {
+                  const lockingMember = members.find(m => m.member_pid === lockedByMember);
+                  return `Order Submitted by ${lockingMember?.nickname || 'Another Member'}`;
+                })()}
+              </div>
+            ) : (
             <button
-              onClick={() => onCheckout?.(items, total)}
-              className="w-full bg-red-500 text-white py-3 rounded-lg font-medium hover:bg-red-600 transition-all duration-200"
+              onClick={() => handleCheckout()}
+                disabled={orderProcessingStatus === 'processing'}
+                className={`w-full py-3 rounded-lg font-medium transition-all duration-200 ${
+                  orderProcessingStatus === 'processing'
+                    ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                    : orderProcessingStatus === 'failed'
+                    ? 'bg-orange-500 text-white hover:bg-orange-600'
+                    : 'bg-red-500 text-white hover:bg-red-600'
+                }`}
               style={{
-                backgroundColor: '#E23744',
+                  backgroundColor: orderProcessingStatus === 'processing' 
+                    ? '#9CA3AF' 
+                    : orderProcessingStatus === 'failed'
+                    ? '#F97316'
+                    : '#E23744',
                 fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                 fontSize: '16px',
                 fontWeight: '600',
                 borderRadius: '12px',
-                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06)',
+                  boxShadow: orderProcessingStatus === 'processing' 
+                    ? 'none' 
+                    : '0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06)',
                 transition: 'all 0.2s ease-in-out',
                 transform: 'translateY(0)'
               }}
               onMouseEnter={(e) => {
+                  if (orderProcessingStatus !== 'processing') {
                 e.target.style.transform = 'translateY(-1px)';
                 e.target.style.boxShadow = '0 6px 8px rgba(0, 0, 0, 0.15)';
+                  }
               }}
               onMouseLeave={(e) => {
+                  if (orderProcessingStatus !== 'processing') {
                 e.target.style.transform = 'translateY(0)';
                 e.target.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06)';
+                  }
               }}
             >
-              Place Order
+                {orderProcessingStatus === 'processing' 
+                  ? 'Pending Confirmation...' 
+                  : orderProcessingStatus === 'failed'
+                  ? 'Retry Order'
+                  : 'Place Order'}
             </button>
+            )}
           </div>
         )}
       </div>
+      
+      {/* Order Confirmation Sheet */}
+      <OrderConfirmationSheet
+        isOpen={isOrderConfirmationOpen}
+        onClose={handleOrderConfirmationClose}
+        onViewOrders={handleViewOrdersFromConfirmation}
+        placedOrder={lastPlacedOrder}
+      />
     </>
   );
 } 

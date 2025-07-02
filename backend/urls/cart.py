@@ -7,6 +7,8 @@ import uuid
 import hashlib
 from loguru import logger
 
+
+
 from models.schema import (
     SessionLocal, Session, Member, CartItem, MenuItem, Restaurant, Order,
     CartItemAddon, ItemVariation, AddonGroupItem, ItemAddon
@@ -115,19 +117,49 @@ async def get_cart_snapshot(
                     detail={"success": False, "code": "invalid_token", "detail": "Member not found in session"}
                 )
             
-            # Get all pending cart items only with proper joins
-            cart_items_query = db.query(CartItem).options(
+            # Get ALL cart items (both pending and locked) to detect cart state
+            all_cart_items = db.query(CartItem).options(
                 joinedload(CartItem.menu_item),
                 joinedload(CartItem.selected_item_variation).joinedload(ItemVariation.variation),
                 joinedload(CartItem.selected_addons).joinedload(CartItemAddon.addon_item),
                 joinedload(CartItem.member)
             ).filter(
                 CartItem.session_id == session.id,
-                CartItem.state == 'pending'
+                CartItem.state.in_(['pending', 'locked'])
             ).all()
             
+            # Separate pending and locked items
+            pending_items = [item for item in all_cart_items if item.state == 'pending']
+            locked_items = [item for item in all_cart_items if item.state == 'locked']
+            
+            # Determine cart processing state
+            cart_locked = len(locked_items) > 0
+            pending_order_id = None
+            order_processing_status = "idle"
+            locked_by_member = None
+            
+            if cart_locked:
+                # Find the processing order by looking for orders with locked cart items
+                current_order = (
+                    db.query(Order)
+                    .join(CartItem, Order.id == CartItem.order_id)
+                    .filter(
+                        CartItem.session_id == session.id,
+                        CartItem.state == "locked",
+                        Order.status == "processing"
+                    )
+                    .first()
+                )
+                
+                if current_order:
+                    pending_order_id = current_order.public_id
+                    order_processing_status = "processing"
+                    # Get the member who initiated the order
+                    locked_by_member = current_order.initiated_by_member.public_id
+            
+            # Build response items (only pending items are returned for editing)
             items = []
-            for cart_item in cart_items_query:
+            for cart_item in pending_items:
                 # Calculate final price
                 final_price = cart_item.menu_item.price
                 
@@ -187,26 +219,41 @@ async def get_cart_snapshot(
                 for m in members
             ]
             
-            # Get orders for this session
-            orders_query = db.query(Order).filter(Order.session_id == session.id).all()
-            orders = [
-                {
-                    "order_id": order.public_id,
-                    "total_amount": order.total_amount,
-                    "created_at": order.created_at.isoformat() if order.created_at else None,
-                    "items": order.payload  # Contains the order items data
+            # Get confirmed orders for this session
+            orders_query = db.query(Order).filter(
+                Order.session_id == session.id,
+                Order.status == "confirmed"  # Only confirmed orders
+            ).order_by(Order.created_at.desc()).all()
+            
+            orders = []
+            for order in orders_query:
+                # Convert order to frontend format
+                order_data = {
+                    "id": order.public_id,
+                    # Extract the numeric sequence from the order public_id (format: ORD-<restaurant_id>-<sequence>)
+                    "orderNumber": int(order.public_id),
+                    "timestamp": order.created_at.isoformat(),
+                    "items": order.payload,  # This contains the order items data
+                    "total": order.total_amount,
+                    "initiated_by": {
+                        "member_pid": order.initiated_by_member.public_id,
+                        "nickname": order.initiated_by_member.nickname
+                    }
                 }
-                for order in orders_query
-            ]
+                orders.append(order_data)
             
             # Calculate cart version (max version of all items, or 0 if no items)
-            cart_version = max([item.version for item in cart_items_query], default=0)
+            cart_version = max([item.version for item in all_cart_items], default=0)
             
             return CartSnapshotResponse(
                 items=items,
                 members=member_infos,
                 orders=orders,
-                cart_version=cart_version
+                cart_version=cart_version,
+                cart_locked=cart_locked,
+                pending_order_id=pending_order_id,
+                order_processing_status=order_processing_status,
+                locked_by_member=locked_by_member
             )
             
     except HTTPException:

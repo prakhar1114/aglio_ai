@@ -12,6 +12,13 @@ export const useCartStore = create((set, get) => ({
   isPasswordRequired: false,
   pendingMutations: [], // Queue for mutations when password is required
   
+  // Order processing state
+  cartLocked: false, // Indicates if cart is locked during order processing
+  pendingOrderId: null, // Tracks order being processed
+  orderProcessingStatus: 'idle', // 'idle' | 'processing' | 'confirmed' | 'failed'
+  lockedByMember: null, // Member PID who initiated the order
+  orderTimeout: null, // Timeout ID for order processing
+  
   // Item customisation state
   isCustomisationOpen: false,
   customisationMode: null, // 'add' | 'replace'
@@ -29,8 +36,137 @@ export const useCartStore = create((set, get) => ({
   // Legacy filter state (keep for backward compatibility)
   filters: {},
   
+  // Order processing methods
+  lockCart: (orderData = {}) => {
+    const sessionStore = useSessionStore?.getState();
+    const memberPid = sessionStore?.memberPid;
+    
+    set({
+      cartLocked: true,
+      orderProcessingStatus: 'processing',
+      pendingOrderId: orderData.orderId || null,
+      lockedByMember: orderData.lockedByMember || memberPid,  // Use the member who actually initiated the order
+    });
+    
+    // Set timeout for order processing (10 seconds)
+    const timeoutId = setTimeout(() => {
+      const state = get();
+      if (state.orderProcessingStatus === 'processing') {
+        console.warn('Order processing timed out');
+        get().handleOrderTimeout();
+      }
+    }, 10000);
+    
+    set({ orderTimeout: timeoutId });
+  },
+  
+  unlockCart: () => {
+    const state = get();
+    if (state.orderTimeout) {
+      clearTimeout(state.orderTimeout);
+    }
+    
+    set({
+      cartLocked: false,
+      orderProcessingStatus: 'idle',
+      pendingOrderId: null,
+      lockedByMember: null,
+      orderTimeout: null,
+    });
+  },
+  
+  setOrderProcessingStatus: (status) => {
+    set({ orderProcessingStatus: status });
+  },
+  
+  setPendingOrder: (orderId) => {
+    set({ pendingOrderId: orderId });
+  },
+  
+  clearPendingOrder: () => {
+    set({ pendingOrderId: null });
+  },
+  
+  handleOrderTimeout: () => {
+    // Clear any existing timeout
+    const state = get();
+    if (state.orderTimeout) {
+      clearTimeout(state.orderTimeout);
+    }
+
+    // Unlock cart immediately so user can retry
+    set({
+      orderProcessingStatus: 'failed',
+      orderTimeout: null,
+      cartLocked: false,
+      lockedByMember: null,
+    });
+  },
+  
+  handleOrderSuccess: (orderData) => {
+    const state = get();
+    if (state.orderTimeout) {
+      clearTimeout(state.orderTimeout);
+    }
+    
+    // Add the confirmed order to orders list
+    const confirmedOrder = {
+      id: orderData.id,
+      orderNumber: orderData.orderNumber || orderData.order_id || (() => {
+        // Extract the hex part from order ID (e.g., "ORD-1-A1B2" -> "A1B2")
+        const parts = orderData.id.split('-');
+        const hexPart = parts[parts.length - 1];
+        return parseInt(hexPart, 16) || Date.now();
+      })(),
+      timestamp: new Date(orderData.timestamp || Date.now()),
+      items: orderData.items || [],
+      total: orderData.total || 0,
+      initiated_by: orderData.initiated_by
+    };
+    
+    set((state) => ({
+      orderProcessingStatus: 'confirmed',
+      pendingOrderId: orderData.id,
+      orderTimeout: null,
+      orders: [confirmedOrder, ...state.orders], // Add to beginning of orders list
+      items: [], // Clear the cart completely
+      // Unlock cart immediately after success
+      cartLocked: false,
+      lockedByMember: null
+    }));
+  },
+  
+  handleOrderFailure: (error) => {
+    const state = get();
+    if (state.orderTimeout) {
+      clearTimeout(state.orderTimeout);
+    }
+    
+    set({
+      orderProcessingStatus: 'failed',
+      orderTimeout: null,
+      // Unlock cart on failure so user can retry
+      cartLocked: false,
+      lockedByMember: null
+    });
+    
+    console.error('Order failed:', error);
+  },
+  
+  // Check if cart operations are allowed
+  isCartEditable: () => {
+    const state = get();
+    return !state.cartLocked;
+  },
+  
   // Cart methods - new shared cart API with addon/variation support
   addItemOptimistic: (menuItem, qty, note, tmpId, selectedVariationId = null, selectedAddons = []) => {
+    const state = get();
+    if (!state.isCartEditable()) {
+      console.warn('Cannot add item: cart is locked during order processing');
+      return;
+    }
+    
     const sessionStore = useSessionStore?.getState();
     const memberPid = sessionStore?.memberPid;
     
@@ -107,6 +243,12 @@ export const useCartStore = create((set, get) => ({
   },
   
   updateItemOptimistic: (public_id, qty, note, version) => {
+    const state = get();
+    if (!state.isCartEditable()) {
+      console.warn('Cannot update item: cart is locked during order processing');
+      return;
+    }
+    
     set((state) => {
       const itemIndex = state.items.findIndex(item => item.public_id === public_id);
       if (itemIndex === -1) return state;
@@ -125,6 +267,12 @@ export const useCartStore = create((set, get) => ({
   },
 
   replaceItemOptimistic: (public_id, menuItem, qty, note, version, selectedVariationId = null, selectedAddons = []) => {
+    const state = get();
+    if (!state.isCartEditable()) {
+      console.warn('Cannot replace item: cart is locked during order processing');
+      return;
+    }
+    
     set((state) => {
       const itemIndex = state.items.findIndex(item => item.public_id === public_id);
       if (itemIndex === -1) return state;
@@ -191,6 +339,12 @@ export const useCartStore = create((set, get) => ({
   },
   
   deleteItemOptimistic: (public_id, version) => {
+    const state = get();
+    if (!state.isCartEditable()) {
+      console.warn('Cannot delete item: cart is locked during order processing');
+      return;
+    }
+    
     set((state) => ({
       items: state.items.filter(item => item.public_id !== public_id)
     }));
@@ -257,8 +411,26 @@ export const useCartStore = create((set, get) => ({
   loadCartSnapshot: (snapshot) => {
     set({
       items: snapshot.items || [],
-      cart_version: snapshot.cart_version || 0
+      orders: snapshot.orders || [], // Load orders from backend
+      cart_version: snapshot.cart_version || 0,
+      cartLocked: snapshot.cart_locked || false,
+      pendingOrderId: snapshot.pending_order_id || null,
+      orderProcessingStatus: snapshot.order_processing_status || 'idle',
+      lockedByMember: snapshot.locked_by_member || null,
     });
+    
+    // If cart is still processing and we have a pending order, set timeout again
+    if (snapshot.cart_locked && snapshot.order_processing_status === 'processing') {
+      const timeoutId = setTimeout(() => {
+        const state = get();
+        if (state.orderProcessingStatus === 'processing') {
+          console.warn('Order processing timed out after page refresh');
+          get().handleOrderTimeout();
+        }
+      }, 10000);
+      
+      set({ orderTimeout: timeoutId });
+    }
     
     // Update session store with member data from snapshot
     if (snapshot.members) {
@@ -403,6 +575,11 @@ export const useCartStore = create((set, get) => ({
   },
   
   clear: () => {
+    const state = get();
+    if (!state.isCartEditable()) {
+      console.warn('Cannot clear cart: cart is locked during order processing');
+      return;
+    }
     console.warn('Legacy clear method called. Cart clearing should be done via WebSocket.');
     set({ items: [] });
   },
@@ -414,8 +591,24 @@ export const useCartStore = create((set, get) => ({
   
 
   
-  // Order methods (updated for new structure)
-  addOrder: () => {
+  // Order methods (updated for backend-driven order creation)
+  addOrder: (orderData = null) => {
+    console.warn('Legacy addOrder method called. Orders should be created via websocket backend response.');
+    
+    // If orderData is provided (from backend), add it to orders
+    if (orderData) {
+      set((state) => ({
+        orders: [orderData, ...state.orders], // Add to beginning for descending order
+        items: [] // Clear cart after creating order
+      }));
+      
+      // Unlock cart after successful order
+      get().unlockCart();
+      
+      return orderData;
+    }
+    
+    // Legacy behavior for backward compatibility (shouldn't be used)
     const state = get();
     const cartItems = state.items;
     
@@ -428,16 +621,28 @@ export const useCartStore = create((set, get) => ({
       id: `order-${newOrderNumber}`,
       orderNumber: newOrderNumber,
       timestamp: new Date(),
-      items: [...cartItems], // Create a copy of cart items
+      items: [...cartItems],
       total: total
     };
     
     set((state) => ({
-      orders: [newOrder, ...state.orders], // Add to beginning for descending order
-      items: [] // Clear cart after creating order
+      orders: [newOrder, ...state.orders],
+      items: []
     }));
     
     return newOrder;
+  },
+  
+  // Add confirmed order from backend
+  addConfirmedOrder: (orderData) => {
+    set((state) => ({
+      orders: [orderData, ...state.orders],
+      items: [] // Clear cart after successful order
+    }));
+    
+    // Don't unlock cart here - that should be handled by handleOrderSuccess/handleOrderFailure
+    
+    return orderData;
   },
   
   getOrders: () => get().orders,

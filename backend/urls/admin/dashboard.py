@@ -676,7 +676,7 @@ async def get_session_details(
                 {
                     "order_id": order.public_id,
                     "total_amount": order.total_amount,
-                    "pay_method": order.pay_method,
+                    # "pay_method": order.pay_method,
                     "created_at": order.created_at.isoformat() if order.created_at else None,
                     "items": order.payload  # Contains the order items data
                 }
