@@ -3,6 +3,7 @@ import { useCartStore } from './store/cart.js';
 import { getBaseApiCandidates, constructImageUrl } from './api/base.js';
 import { refreshToken, setupWebSocket } from './connection.js';
 import { loadCartSnapshot } from './api/cart.js';
+const RESTAURANT_SLUG = import.meta.env.VITE_RESTAURANT_SLUG;
 
 /**
  * ---------------------------------------------------------
@@ -37,7 +38,8 @@ async function createTableSession(tablePid, token, deviceId) {
         body: JSON.stringify({
           table_pid: tablePid,
           token,
-          device_id: deviceId
+          device_id: deviceId,
+          restaurant_slug: RESTAURANT_SLUG
         })
       });
 

@@ -66,7 +66,7 @@ def is_token_near_expiry(token: str, minutes: int = 15) -> bool:
     
     return (exp - now) <= (minutes * 60)
 
-def create_qr_token(restaurant_id: int, table_id: int) -> str:
+def create_qr_token(restaurant_id: int, table_num: int) -> str:
     """
     Create HMAC token for QR code validation
     
@@ -77,14 +77,14 @@ def create_qr_token(restaurant_id: int, table_id: int) -> str:
     Returns:
         HMAC token string
     """
-    message = f"{restaurant_id}:{table_id}"
+    message = f"{restaurant_id}:{table_num}"
     return hmac.new(
         JWT_SECRET.encode('utf-8'), 
         message.encode('utf-8'), 
         hashlib.sha256
     ).hexdigest()
 
-def verify_qr_token(restaurant_id: int, table_id: int, token: str) -> bool:
+def verify_qr_token(restaurant_id: int, table_num: int, token: str) -> bool:
     """
     Verify HMAC token from QR code
     
@@ -96,5 +96,5 @@ def verify_qr_token(restaurant_id: int, table_id: int, token: str) -> bool:
     Returns:
         True if token is valid
     """
-    expected_token = create_qr_token(restaurant_id, table_id)
+    expected_token = create_qr_token(restaurant_id, table_num)
     return hmac.compare_digest(expected_token, token) 

@@ -6,6 +6,7 @@ class TableSessionRequest(BaseModel):
     table_pid: str = Field(..., description="Table public ID from QR code")
     token: str = Field(..., description="HMAC token from QR code")
     device_id: str = Field(..., description="UUID4 device identifier")
+    restaurant_slug: str = Field(..., description="Restaurant slug")
 
 class TokenRefreshRequest(BaseModel):
     pass  # Auth via header only
