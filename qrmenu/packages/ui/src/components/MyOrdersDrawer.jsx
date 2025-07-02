@@ -92,12 +92,7 @@ export function MyOrdersDrawer({ isOpen, onClose }) {
     });
   };
 
-  // Helper function to check if URL is a video
-  const isVideoUrl = (url) => {
-    if (!url) return false;
-    const videoExtensions = ['.mp4', '.webm', '.ogg', '.mov', '.avi'];
-    return videoExtensions.some(ext => url.toLowerCase().includes(ext));
-  };
+
 
   const isEmpty = orders.length === 0;
 
@@ -454,102 +449,50 @@ export function MyOrdersDrawer({ isOpen, onClose }) {
 
                   {/* Order Items */}
                   <div className="space-y-2">
-                    {order.items.map(({ item, qty }, index) => (
-                      <div key={`${order.id}-${item.id}-${index}`} 
-                           className="flex items-center space-x-3 py-2"
-                           style={{
-                             borderTop: index > 0 ? '1px solid #F3F4F6' : 'none',
-                             paddingTop: index > 0 ? '8px' : '0'
-                           }}>
-                        
-                        {/* Item Image/Video/Placeholder */}
-                        <div className="flex-shrink-0">
-                          {item.image_url ? (
-                            <div className="w-12 h-12 rounded-lg overflow-hidden"
-                                 style={{
-                                   borderRadius: '8px',
-                                   backgroundColor: '#F3F4F6'
-                                 }}>
-                              {isVideoUrl(item.image_url) ? (
-                                <video
-                                  src={item.image_url}
-                                  className="w-12 h-12 object-cover"
-                                  autoPlay
-                                  loop
-                                  muted={true}
-                                  playsInline
-                                  controls={false}
-                                  style={{
-                                    objectFit: 'cover',
-                                    width: '48px',
-                                    height: '48px'
-                                  }}
-                                />
-                              ) : (
-                                <img
-                                  src={item.image_url}
-                                  alt={item.name}
-                                  className="w-12 h-12 object-cover"
-                                  loading="lazy"
-                                  style={{
-                                    objectFit: 'cover',
-                                    width: '48px',
-                                    height: '48px'
-                                  }}
-                                />
-                              )}
-                            </div>
-                          ) : (
-                            <div className="w-12 h-12 rounded-lg flex items-center justify-center"
-                                 style={{
-                                   borderRadius: '8px',
-                                   background: 'linear-gradient(135deg, rgba(250, 251, 252, 0.8) 0%, rgba(247, 249, 252, 0.6) 100%)',
-                                   backdropFilter: 'blur(8px)',
-                                   WebkitBackdropFilter: 'blur(8px)',
-                                   border: '1px solid rgba(229, 231, 235, 0.3)',
-                                   width: '48px',
-                                   height: '48px'
-                                 }}>
-                              <div className="text-lg" role="img" aria-label="Food item">🍽️</div>
-                            </div>
-                          )}
-                        </div>
-                        
-                        {/* Item Details */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-center">
-                            <div className="flex-1">
-                              <h4 className="font-medium text-gray-900 truncate"
-                                  style={{
-                                    fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                                    fontSize: '14px',
-                                    fontWeight: '600',
-                                    color: '#1C1C1E'
-                                  }}>
-                                {item.name}
-                              </h4>
-                              <p className="text-sm text-gray-500"
-                                 style={{
-                                   fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                                   fontSize: '12px',
-                                   color: '#6B7280'
-                                 }}>
-                                Qty: {qty}
-                              </p>
-                            </div>
-                            <p className="font-semibold text-gray-900 ml-2"
+                    {order.items.map((cartItem, index) => {
+                      const itemPrice = cartItem.final_price || cartItem.base_price || cartItem.price || 0;
+                      return (
+                        <div key={`${order.id}-${cartItem.public_id}-${index}`} 
+                             className="flex items-center justify-between py-2"
+                             style={{
+                               borderTop: index > 0 ? '1px solid #F3F4F6' : 'none',
+                               paddingTop: index > 0 ? '8px' : '0'
+                             }}>
+                          
+                          {/* Item Details */}
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-900"
+                                style={{
+                                  fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                                  fontSize: '14px',
+                                  fontWeight: '600',
+                                  color: '#1C1C1E'
+                                }}>
+                              {cartItem.name}
+                            </h4>
+                            <p className="text-sm text-gray-500"
                                style={{
                                  fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                                 fontSize: '14px',
-                                 fontWeight: '600',
-                                 color: '#1C1C1E'
+                                 fontSize: '12px',
+                                 color: '#6B7280'
                                }}>
-                              ₹{(item.price * qty).toFixed(2)}
+                              Qty: {cartItem.qty} × ₹{itemPrice.toFixed(2)}
                             </p>
                           </div>
+                          
+                          {/* Item Total */}
+                          <p className="font-semibold text-gray-900 ml-3"
+                             style={{
+                               fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                               fontSize: '14px',
+                               fontWeight: '600',
+                               color: '#1C1C1E'
+                             }}>
+                            ₹{(itemPrice * cartItem.qty).toFixed(2)}
+                          </p>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               ))}

@@ -176,7 +176,6 @@ const useMenuStore = create(
         if (!fullMenu || !fullMenu.items) {
           return null;
         }
-        console.log('fullMenu2222: ', fullMenu);
         return fullMenu.items.find(item => item.id === itemId) || null;
       },
       

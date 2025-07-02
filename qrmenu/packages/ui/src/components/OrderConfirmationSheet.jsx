@@ -94,43 +94,46 @@ export function OrderConfirmationSheet({ isOpen, onClose, onViewOrders, placedOr
                 
                 {/* Order Items */}
                 <div className="space-y-2 mb-3">
-                  {placedOrder.items.map(({ item, qty }, index) => (
-                    <div key={`${placedOrder.id}-${item.id}-${index}`} 
-                         className="flex justify-between items-center py-1"
-                         style={{
-                           borderBottom: index < placedOrder.items.length - 1 ? '1px solid #F3F4F6' : 'none',
-                           paddingBottom: index < placedOrder.items.length - 1 ? '8px' : '0'
-                         }}>
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-900"
+                  {placedOrder.items.map((cartItem, index) => {
+                    const itemPrice = cartItem.final_price || cartItem.base_price || cartItem.price || 0;
+                    return (
+                      <div key={`${placedOrder.id}-${cartItem.public_id}-${index}`} 
+                           className="flex justify-between items-center py-1"
+                           style={{
+                             borderBottom: index < placedOrder.items.length - 1 ? '1px solid #F3F4F6' : 'none',
+                             paddingBottom: index < placedOrder.items.length - 1 ? '8px' : '0'
+                           }}>
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-900"
+                             style={{
+                               fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                               fontSize: '14px',
+                               fontWeight: '600',
+                               color: '#1C1C1E'
+                             }}>
+                            {cartItem.name}
+                          </p>
+                          <p className="text-sm text-gray-600"
+                             style={{
+                               fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                               fontSize: '12px',
+                               color: '#6B7280'
+                             }}>
+                            Qty: {cartItem.qty} × ₹{itemPrice.toFixed(2)}
+                          </p>
+                        </div>
+                        <p className="font-semibold text-gray-900 ml-3"
                            style={{
                              fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                              fontSize: '14px',
                              fontWeight: '600',
                              color: '#1C1C1E'
                            }}>
-                          {item.name}
-                        </p>
-                        <p className="text-sm text-gray-600"
-                           style={{
-                             fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                             fontSize: '12px',
-                             color: '#6B7280'
-                           }}>
-                          Qty: {qty} × ₹{item.price.toFixed(2)}
+                          ₹{(itemPrice * cartItem.qty).toFixed(2)}
                         </p>
                       </div>
-                      <p className="font-semibold text-gray-900 ml-3"
-                         style={{
-                           fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                           fontSize: '14px',
-                           fontWeight: '600',
-                           color: '#1C1C1E'
-                         }}>
-                        ₹{(item.price * qty).toFixed(2)}
-                      </p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Order Summary */}
