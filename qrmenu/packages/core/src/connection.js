@@ -133,21 +133,22 @@ function handleWebSocketMessage(data) {
       
     case 'table_closed':
       console.log('Table closed by admin:', data.message);
-      // Show modal first
-      sessionStore.showModal({
-        type: 'warning',
-        title: 'Table Closed',
-        message: data.message || 'Table Closed, Please rescan the QR code or Ask Staff for help',
-        actions: [{
-          label: 'OK',
-          action: () => {
-            // Clear session and redirect
-            sessionStore.clearSession();
-            window.location.href = '/menu';
-          },
-          variant: 'primary'
-        }]
-      });
+      window.location.href = '/menu';
+      // // Show modal first
+      // sessionStore.showModal({
+      //   type: 'warning',
+      //   title: 'Table Closed',
+      //   message: data.message || 'Table Closed, Please rescan the QR code or Ask Staff for help',
+      //   actions: [{
+      //     label: 'OK',
+      //     action: () => {
+      //       // Clear session and redirect
+      //       sessionStore.clearSession();
+      //       // window.location.href = '/menu';
+      //     },
+      //     variant: 'primary'
+      //   }]
+      // });
       break;
       
     case 'error':
@@ -284,21 +285,30 @@ export function addItemToCart(menuItem, qty = 1, note = '') {
     return;
   }
   
-  // Generate temporary ID for optimistic update
+  const hasVariations = menuItem.variation_groups && menuItem.variation_groups.length > 0;
+  const hasAddons = menuItem.addon_groups && menuItem.addon_groups.length > 0;
+
+  if (hasVariations || hasAddons) {
+    // Defer to customisation modal
+    cartStore.openCustomisation('add', menuItem, { qty, note });
+    return;
+  }
+
+  // Direct add without customisations
   const tmpId = generateShortId();
-  
-  // Apply optimistic update
-  cartStore.addItemOptimistic(menuItem, qty, note, tmpId);
-  
-  // Send WebSocket mutation
+
+  cartStore.addItemOptimistic(menuItem, qty, note, tmpId, null, []);
+
   const mutation = {
     op: 'create',
     tmpId,
-    menu_item_id: menuItem.id, // Use dish.id which corresponds to menu_item.public_id
+    menu_item_id: menuItem.id,
     qty,
-    note
+    note,
+    selected_item_variation_id: null,
+    selected_addons: [],
   };
-  
+
   sendCartMutation(mutation);
 }
 
@@ -322,7 +332,72 @@ export function updateCartItem(public_id, qty, note, version) {
     note,
     version
   };
+
+  sendCartMutation(mutation);
+}
+
+export function replaceCartItem(public_id, menuItem, qty, note, version) {
+  const cartStore = useCartStore.getState();
+  const sessionStore = useSessionStore.getState();
   
+  if (sessionStore.isPasswordRequired() && !sessionStore.sessionValidated) {
+    cartStore.setPasswordRequired(true);
+    return;
+  }
+  
+  const hasVariations = menuItem.variation_groups && menuItem.variation_groups.length > 0;
+  const hasAddons = menuItem.addon_groups && menuItem.addon_groups.length > 0;
+
+  if (hasVariations || hasAddons) {
+    // Need to open modal with existing selections
+    const cartItem = useCartStore.getState().items.find((ci) => ci.public_id === public_id);
+    if (!cartItem) {
+      console.error('Cart item not found for replaceCartItem');
+      return;
+    }
+    
+    // console.log('Cart item found for replaceCartItem:', cartItem);
+
+    // Derive selected variation id from either new-style or snapshot-style keys
+    const selectedVariationId = cartItem.selected_variation_id || cartItem.selected_variation?.item_variation_id || null;
+
+    // Derive selected addons request array
+    let selectedAddonsRequest = [];
+    if (cartItem.selected_addons_request && cartItem.selected_addons_request.length > 0) {
+      selectedAddonsRequest = cartItem.selected_addons_request;
+    } else if (cartItem.selected_addons && cartItem.selected_addons.length > 0) {
+      // Map snapshot-style addon objects -> request objects
+      selectedAddonsRequest = cartItem.selected_addons.map((addon) => ({
+        addon_group_item_id: addon.addon_group_item_id || addon.id, // fallback for legacy key
+        quantity: addon.quantity || 1,
+      }));
+    }
+
+    cartStore.openCustomisation('replace', menuItem, {
+      qty: cartItem.qty,
+      note: cartItem.note || '',
+      cartItemId: public_id,
+      version: cartItem.version,
+      selectedVariationId,
+      selectedAddons: selectedAddonsRequest,
+    });
+    return;
+  }
+
+  // Simple replace without customisations
+  cartStore.replaceItemOptimistic(public_id, menuItem, qty, note, version, null, []);
+
+  const mutation = {
+    op: 'replace',
+    public_id,
+    menu_item_id: menuItem.id,
+    qty,
+    note,
+    version,
+    selected_item_variation_id: null,
+    selected_addons: [],
+  };
+
   sendCartMutation(mutation);
 }
 
@@ -351,11 +426,66 @@ export function deleteCartItem(public_id, version) {
   const mutation = {
     op: 'delete',
     public_id,
-    version: version || 1, // Provide default version if not available
-    qty: 0, // Backend requires qty field even for delete operations
-    note: '' // Include note field for consistency
+    version: version || 1,
+    qty: 0,
+    note: '',
+    selected_item_variation_id: null,
+    selected_addons: [],
   };
   
   console.log('Sending delete mutation:', mutation);
   sendCartMutation(mutation);
+}
+
+export function confirmCustomisation() {
+  const cartStore = useCartStore.getState();
+  const { customisationMode, currentActiveItem, customisationData } = cartStore;
+  
+  if (!customisationMode || !currentActiveItem) return;
+
+  const { qty, note, selectedVariationId, selectedAddons, cartItemId, version } = customisationData;
+
+  if (customisationMode === 'add') {
+    // Use the existing addItemToCart function with customisation data
+    const tmpId = generateShortId();
+    
+    // Apply optimistic update
+    cartStore.addItemOptimistic(currentActiveItem, qty, note, tmpId, selectedVariationId, selectedAddons);
+
+    const mutation = {
+      op: 'create',
+      tmpId,
+      menu_item_id: currentActiveItem.id,
+      qty,
+      note,
+      selected_item_variation_id: selectedVariationId,
+      selected_addons: selectedAddons,
+    };
+
+    sendCartMutation(mutation);
+  } else if (customisationMode === 'replace') {
+    if (!cartItemId) {
+      console.error('No cart item id for replace operation');
+      return;
+    }
+    
+    // Apply optimistic update
+    cartStore.replaceItemOptimistic(cartItemId, currentActiveItem, qty, note, version, selectedVariationId, selectedAddons);
+
+    const mutation = {
+      op: 'replace',
+      public_id: cartItemId,
+      menu_item_id: currentActiveItem.id,
+      qty,
+      note,
+      version,
+      selected_item_variation_id: selectedVariationId,
+      selected_addons: selectedAddons,
+    };
+
+    sendCartMutation(mutation);
+  }
+
+  // Close modal after confirm
+  cartStore.closeCustomisation();
 }

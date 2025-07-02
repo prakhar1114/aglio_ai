@@ -7,7 +7,7 @@ import uuid
 
 # SQLAlchemy models / DB session
 from models.schema import (
-    SessionLocal, Restaurant, Session, Member, MenuItem, CartItem, CartItemAddon, ItemVariation
+    SessionLocal, Restaurant, Session, Member, MenuItem, CartItem, CartItemAddon, ItemVariation, AddonGroupItem, ItemAddon
 )
 
 # Pydantic event models
@@ -375,7 +375,7 @@ async def handle_cart_create(
             selected_addons=selected_addons_response
         )
 
-        session.last_activity_at = datetime.utcnow()
+        setattr(session, 'last_activity_at', datetime.utcnow())
         db.commit()
 
         update_event = CartUpdateEvent(op="create", item=response_item, tmpId=event.tmpId)
@@ -446,12 +446,55 @@ async def handle_cart_update(
         item_owner = db.query(Member).filter(Member.id == cart_item.member_id).first()
         restaurant = db.query(Restaurant).filter(Restaurant.id == session.restaurant_id).first()
 
+        # Read current variation from database
+        selected_variation_response = None
+        final_price = menu_item.price
+        
+        if cart_item.selected_item_variation_id:
+            selected_variation = db.query(ItemVariation).filter(
+                ItemVariation.id == cart_item.selected_item_variation_id,
+                ItemVariation.is_active == True
+            ).first()
+            if selected_variation:
+                final_price = selected_variation.price  # Use absolute price
+                selected_variation_response = SelectedVariationResponse(
+                    item_variation_id=selected_variation.id,
+                    variation_name=selected_variation.variation.name,
+                    group_name=selected_variation.variation.group_name,
+                    price=selected_variation.price
+                )
+        
+        # Read current addons from database
+        selected_addons_response = []
+        current_addons = (
+            db.query(CartItemAddon)
+            .join(AddonGroupItem, CartItemAddon.addon_item_id == AddonGroupItem.id)
+            .filter(CartItemAddon.cart_item_id == cart_item.id)
+            .all()
+        )
+        
+        for cart_addon in current_addons:
+            addon_item = cart_addon.addon_item
+            addon_total = addon_item.price * cart_addon.quantity
+            final_price += addon_total
+            
+            selected_addons_response.append(SelectedAddonResponse(
+                addon_group_item_id=addon_item.id,
+                name=addon_item.name,
+                price=addon_item.price,
+                quantity=cart_addon.quantity,
+                total_price=addon_total,
+                addon_group_name=addon_item.addon_group.name,
+                tags=addon_item.tags or []
+            ))
+
         response_item = CartItemResponse(
             public_id=cart_item.public_id,
             member_pid=item_owner.public_id,
             menu_item_pid=menu_item.public_id,
             name=menu_item.name,
-            price=menu_item.price,
+            base_price=menu_item.price,
+            final_price=final_price,
             qty=cart_item.qty,
             note=cart_item.note or "",
             version=cart_item.version,
@@ -459,9 +502,11 @@ async def handle_cart_update(
             cloudflare_image_id=menu_item.cloudflare_image_id,
             cloudflare_video_id=menu_item.cloudflare_video_id,
             veg_flag=menu_item.veg_flag,
+            selected_variation=selected_variation_response,
+            selected_addons=selected_addons_response
         )
 
-        session.last_activity_at = datetime.utcnow()
+        setattr(session, 'last_activity_at', datetime.utcnow())
         db.commit()
 
         update_event = CartUpdateEvent(op="update", item=response_item)
@@ -515,7 +560,8 @@ async def handle_cart_delete(
             member_pid=item_owner.public_id,
             menu_item_pid=menu_item.public_id,
             name=menu_item.name,
-            price=menu_item.price,
+            base_price=menu_item.price,
+            final_price=menu_item.price,
             qty=cart_item.qty,
             note=cart_item.note or "",
             version=cart_item.version,
@@ -528,7 +574,7 @@ async def handle_cart_delete(
         # Delete associated CartItemAddon records first
         db.query(CartItemAddon).filter(CartItemAddon.cart_item_id == cart_item.id).delete()
         db.delete(cart_item)
-        session.last_activity_at = datetime.utcnow()
+        setattr(session, 'last_activity_at', datetime.utcnow())
         db.commit()
 
         update_event = CartUpdateEvent(op="delete", item=response_item)

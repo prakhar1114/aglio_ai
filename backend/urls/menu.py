@@ -51,6 +51,7 @@ class MenuItem(BaseModel):
     cloudflare_image_id: Optional[str]
     cloudflare_video_id: Optional[str]
     category_brief: Optional[str]
+    group_category: Optional[str]
     tags: List[str]
     is_bestseller: bool
     variation_groups: List[VariationGroup]
@@ -58,8 +59,6 @@ class MenuItem(BaseModel):
 
 class MenuResponse(BaseModel):
     items: List[MenuItem]
-    nextCursor: Optional[int] = None
-    
 
 @router.get("/restaurants/{restaurant_slug}/menu/item/{item_id}/", response_model=MenuItem, summary="Get single menu item", response_description="Single menu item with variations and addons")
 def read_menu_item(
@@ -106,13 +105,12 @@ def read_menu_item(
             status_code=500,
             detail={"success": False, "code": "internal_error", "detail": "Internal server error"}
         )
-
+    
 
 @router.get("/restaurants/{restaurant_slug}/menu/", response_model=MenuResponse, summary="Get menu items", response_description="List of menu items with optional filters and pagination")
 def read_menu(
     restaurant_slug: str = Path(..., description="Restaurant slug"),
     session_id: str = Header(..., alias="x-session-id"),
-    cursor: Optional[int] = Query(None, description="Pagination cursor (offset)"),
     group_category: Optional[list[str]] = Query(None),
     category_brief: Optional[list[str]] = Query(None),
     is_veg: Optional[bool] = None,
@@ -153,75 +151,40 @@ def read_menu(
             if price_cap is not None:
                 filter_conditions.append(MenuItemModel.price <= price_cap)
             
-            # 3. Convert cursor to offset
-            offset = cursor if cursor else 0
-            limit = 500  # Keep the large batch size for masonry grid
-            
-            # 4. Handle first request - fetch promoted items first
-            if cursor is None or cursor == 0:
-                # First request - get promoted items
-                promoted_query = db.query(MenuItemModel).options(
-                    joinedload(MenuItemModel.item_variations).joinedload(ItemVariation.variation),
-                    joinedload(MenuItemModel.item_addons).joinedload(ItemAddon.addon_group).joinedload(AddonGroup.addon_items)
-                ).filter(
-                    and_(MenuItemModel.promote == True, *filter_conditions)
-                ).limit(500)  # Get all promoted items
-                
-                promoted_items_db = promoted_query.all()
-                
-                promoted_items = [
-                    _build_menu_item_response(item, restaurant_slug, "Recommendations")
-                    for item in promoted_items_db
-                ]
-                
-                # Shuffle promoted items among themselves
-                random.shuffle(promoted_items)
-                
-                # Then fetch regular items
-                regular_query = db.query(MenuItemModel).options(
-                    joinedload(MenuItemModel.item_variations).joinedload(ItemVariation.variation),
-                    joinedload(MenuItemModel.item_addons).joinedload(ItemAddon.addon_group).joinedload(AddonGroup.addon_items)
-                ).filter(
-                    and_(*filter_conditions)
-                ).order_by(MenuItemModel.id).limit(limit)
-                
-                regular_items_db = regular_query.all()
-                
-                regular_items = [
-                    _build_menu_item_response(item, restaurant_slug)
-                    for item in regular_items_db
-                ]
-                
-                # Combine promoted items at the top
-                items = promoted_items + regular_items
-                
-                # Check if there are more regular items for pagination
-                total_regular_count = db.query(MenuItemModel).filter(
-                    and_(*filter_conditions)
-                ).count()
-                
-                next_cursor = limit if total_regular_count > limit else None
-                
-            else:
-                # Subsequent requests - just fetch regular items with offset
-                regular_query = db.query(MenuItemModel).options(
-                    joinedload(MenuItemModel.item_variations).joinedload(ItemVariation.variation),
-                    joinedload(MenuItemModel.item_addons).joinedload(ItemAddon.addon_group).joinedload(AddonGroup.addon_items)
-                ).filter(
-                    and_(*filter_conditions)
-                ).order_by(MenuItemModel.id).offset(offset).limit(limit)
-                
-                items_db = regular_query.all()
-                
-                items = [
-                    _build_menu_item_response(item, restaurant_slug)
-                    for item in items_db
-                ]
-                
-                # Check if there are more items for pagination
-                next_cursor = offset + limit if len(items) == limit else None
-            
-            return MenuResponse(items=items, nextCursor=next_cursor)
+            # 3. Fetch promoted items first, then the rest (no pagination)
+            promoted_query = db.query(MenuItemModel).options(
+                joinedload(MenuItemModel.item_variations).joinedload(ItemVariation.variation),
+                joinedload(MenuItemModel.item_addons).joinedload(ItemAddon.addon_group).joinedload(AddonGroup.addon_items)
+            ).filter(
+                and_(MenuItemModel.promote == True, *filter_conditions)
+            )
+            promoted_items_db = promoted_query.all()
+
+            promoted_items = [
+                _build_menu_item_response(item, restaurant_slug, "Recommendations")
+                for item in promoted_items_db
+            ]
+
+            random.shuffle(promoted_items)
+
+            # Fetch all other items excluding promoted ones
+            regular_query = db.query(MenuItemModel).options(
+                joinedload(MenuItemModel.item_variations).joinedload(ItemVariation.variation),
+                joinedload(MenuItemModel.item_addons).joinedload(ItemAddon.addon_group).joinedload(AddonGroup.addon_items)
+            ).filter(
+                and_(*filter_conditions)
+            ).order_by(MenuItemModel.id)
+
+            regular_items_db = regular_query.all()
+
+            regular_items = [
+                _build_menu_item_response(item, restaurant_slug)
+                for item in regular_items_db
+            ]
+
+            items = promoted_items + regular_items
+
+            return MenuResponse(items=items)
             
     except HTTPException:
         raise
@@ -308,6 +271,7 @@ def _build_menu_item_response(item: MenuItemModel, restaurant_slug: str, overrid
         cloudflare_image_id=item.cloudflare_image_id,
         cloudflare_video_id=item.cloudflare_video_id,
         category_brief=override_category or item.category_brief,
+        group_category=override_category or item.group_category,
         tags=item.tags or [],
         is_bestseller=item.is_bestseller,
         variation_groups=variation_groups,

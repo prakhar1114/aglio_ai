@@ -12,11 +12,25 @@ export const useCartStore = create((set, get) => ({
   isPasswordRequired: false,
   pendingMutations: [], // Queue for mutations when password is required
   
+  // Item customisation state
+  isCustomisationOpen: false,
+  customisationMode: null, // 'add' | 'replace'
+  currentActiveItem: null,
+  customisationData: {
+    qty: 1,
+    note: '',
+    selectedVariationId: null,
+    selectedAddons: [], // Array of {addon_id, quantity}
+    tmpId: null,
+    cartItemId: null,
+    version: null,
+  },
+  
   // Legacy filter state (keep for backward compatibility)
   filters: {},
   
-  // Cart methods - new shared cart API
-  addItemOptimistic: (menuItem, qty, note, tmpId) => {
+  // Cart methods - new shared cart API with addon/variation support
+  addItemOptimistic: (menuItem, qty, note, tmpId, selectedVariationId = null, selectedAddons = []) => {
     const sessionStore = useSessionStore?.getState();
     const memberPid = sessionStore?.memberPid;
     
@@ -31,12 +45,59 @@ export const useCartStore = create((set, get) => ({
         member_pid: memberPid,
         menu_item_pid: menuItem.id, // Use dish.id which corresponds to menu_item.public_id
         name: menuItem.name,
-        price: menuItem.price,
+        base_price: menuItem.price,
+        final_price: (() => {
+          const base = menuItem.price || 0;
+          let variationPrice = 0;
+          if (selectedVariationId) {
+            for (const vg of (menuItem.variation_groups || [])) {
+              const v = vg.variations.find((vr) => vr.id === selectedVariationId);
+              if (v) variationPrice = v.price;
+            }
+          }
+          const addonsPrice = (selectedAddons || []).reduce((acc, { addon_group_item_id, quantity }) => {
+            for (const ag of (menuItem.addon_groups || [])) {
+              const a = ag.addons.find((ad) => ad.id === addon_group_item_id);
+              if (a) return acc + (a.price * quantity);
+            }
+            return acc;
+          }, 0);
+          return base + variationPrice + addonsPrice;
+        })(),
         image_url: menuItem.image_url || null, // Include image_url for cart display
         qty,
         note: note || '',
         version: 1,
-        tmpId: tmpId // Track temporary ID for optimistic updates
+        tmpId: tmpId, // Track temporary ID for optimistic updates
+        // Store request data for WebSocket mutations
+        selected_variation_id: selectedVariationId,
+        selected_addons_request: selectedAddons,
+        selected_variation: (() => {
+          if (!selectedVariationId) return null;
+          for (const vg of (menuItem.variation_groups || [])) {
+            const v = vg.variations.find((vr) => vr.id === selectedVariationId);
+            if (v) {
+              return {
+                group_name: vg.display_name,
+                variation_name: v.display_name,
+                item_variation_id: selectedVariationId,
+                price: v.price,
+              };
+            }
+          }
+          return null;
+        })(),
+        selected_addons: (() => {
+          const list = [];
+          if (!selectedAddons || selectedAddons.length === 0) return list;
+          selectedAddons.forEach(({ addon_group_item_id, quantity }) => {
+            for (const ag of (menuItem.addon_groups || [])) {
+              const a = ag.addons.find((ad) => ad.id === addon_group_item_id);
+              if (a) list.push({ addon_group_item_id, name: a.display_name, quantity, price: a.price });
+            }
+          });
+          return list;
+        })()
       };
       
       return {
@@ -56,6 +117,73 @@ export const useCartStore = create((set, get) => ({
         qty,
         note: note || updatedItems[itemIndex].note,
         version: version + 1 // Increment version for optimistic update
+      };
+      console.log('updatedItems ', updatedItems); 
+      
+      return { items: updatedItems };
+    });
+  },
+
+  replaceItemOptimistic: (public_id, menuItem, qty, note, version, selectedVariationId = null, selectedAddons = []) => {
+    set((state) => {
+      const itemIndex = state.items.findIndex(item => item.public_id === public_id);
+      if (itemIndex === -1) return state;
+      
+      const updatedItems = [...state.items];
+      updatedItems[itemIndex] = {
+        ...updatedItems[itemIndex],
+        menu_item_pid: menuItem.id,
+        name: menuItem.name,
+        base_price: menuItem.price,
+        final_price: (() => {
+          const base = menuItem.price || 0;
+          let variationPrice = 0;
+          if (selectedVariationId) {
+            for (const vg of (menuItem.variation_groups || [])) {
+              const v = vg.variations.find((vr) => vr.id === selectedVariationId);
+              if (v) variationPrice = v.price;
+            }
+          }
+          const addonsPrice = (selectedAddons || []).reduce((acc, { addon_group_item_id, quantity }) => {
+            for (const ag of (menuItem.addon_groups || [])) {
+              const a = ag.addons.find((ad) => ad.id === addon_group_item_id);
+              if (a) return acc + (a.price * quantity);
+            }
+            return acc;
+          }, 0);
+          return base + variationPrice + addonsPrice;
+        })(),
+        qty,
+        note: note || '',
+        version: version + 1, // Increment version for optimistic update
+        selected_variation_id: selectedVariationId,
+        selected_addons_request: selectedAddons,
+        selected_variation: (() => {
+          if (!selectedVariationId) return null;
+          for (const vg of (menuItem.variation_groups || [])) {
+            const v = vg.variations.find((vr) => vr.id === selectedVariationId);
+            if (v) {
+              return {
+                group_name: vg.display_name,
+                variation_name: v.display_name,
+                item_variation_id: selectedVariationId,
+                price: v.price,
+              };
+            }
+          }
+          return null;
+        })(),
+        selected_addons: (() => {
+          const list = [];
+          if (!selectedAddons || selectedAddons.length === 0) return list;
+          selectedAddons.forEach(({ addon_group_item_id, quantity }) => {
+            for (const ag of (menuItem.addon_groups || [])) {
+              const a = ag.addons.find((ad) => ad.id === addon_group_item_id);
+              if (a) list.push({ addon_group_item_id, name: a.display_name, quantity, price: a.price });
+            }
+          });
+          return list;
+        })()
       };
       
       return { items: updatedItems };
@@ -187,14 +315,18 @@ export const useCartStore = create((set, get) => ({
   
   getTotalAmount: () => {
     const items = get().items;
-    return items.reduce((total, item) => total + (item.price * item.qty), 0);
+    return items.reduce((total, item) => {
+      // Use final_price if available, otherwise fall back to price for backward compatibility
+      const itemPrice = item.final_price || item.price || item.base_price || 0;
+      return total + (itemPrice * item.qty);
+    }, 0);
   },
   
   getCartHash: () => {
     // Simple hash implementation for cart validation
     const items = get().items;
     const sortedItems = items
-      .map(item => `${item.public_id}:${item.qty}`)
+      .map(item => `${item.public_id}:${item.qty}:${item.selected_variation_id || ''}:${JSON.stringify(item.selected_addons_request || [])}`)
       .sort()
       .join('|');
     
@@ -206,6 +338,50 @@ export const useCartStore = create((set, get) => ({
       hash = hash & hash; // Convert to 32bit integer
     }
     return hash.toString(16);
+  },
+
+  // Addon/Variation helper methods
+  getItemDisplayPrice: (item) => {
+    return item.final_price || item.price || item.base_price || 0;
+  },
+
+  getItemBasePrice: (item) => {
+    return item.base_price || item.price || 0;
+  },
+
+  getItemVariationText: (item) => {
+    if (item.selected_variation) {
+      return `${item.selected_variation.group_name}: ${item.selected_variation.variation_name}`;
+    }
+    return null;
+  },
+
+  getItemAddonsText: (item) => {
+    if (item.selected_addons && item.selected_addons.length > 0) {
+      return item.selected_addons.map(addon => 
+        addon.quantity > 1 ? `${addon.name} (${addon.quantity}x)` : addon.name
+      ).join(', ');
+    }
+    return null;
+  },
+
+
+
+  // Check if customizations are available for this menu item (not just selected)
+  hasCustomizationsAvailable: async (menuItemPid) => {
+    try {
+      const { getMenuItem } = await import('../api/menu.js');
+      const menuItem = await getMenuItem(menuItemPid);
+      if (!menuItem) return false;
+      
+      const hasVariations = menuItem.variation_groups && menuItem.variation_groups.length > 0;
+      const hasAddons = menuItem.addon_groups && menuItem.addon_groups.length > 0;
+      
+      return hasVariations || hasAddons;
+    } catch (error) {
+      console.error('Error checking customizations availability:', error);
+      return false;
+    }
   },
   
   // Legacy cart methods (for backward compatibility)
@@ -292,4 +468,52 @@ export const useCartStore = create((set, get) => ({
     
     return count;
   },
+
+  // Item customisation methods
+  openCustomisation: (mode, menuItem, customisationData = {}) => {
+    // Reset current active item first
+    set({ currentActiveItem: null });
+    set({
+      isCustomisationOpen: true,
+      customisationMode: mode,
+      currentActiveItem: menuItem,
+      customisationData: {
+        qty: customisationData.qty || 1,
+        note: customisationData.note || '',
+        selectedVariationId: customisationData.selectedVariationId || null,
+        selectedAddons: customisationData.selectedAddons || [],
+        tmpId: customisationData.tmpId || null,
+        cartItemId: customisationData.cartItemId || null,
+        version: customisationData.version || null,
+      },
+    });
+  },
+
+  closeCustomisation: () => {
+    set({
+      isCustomisationOpen: false,
+      customisationMode: null,
+      currentActiveItem: null,
+      customisationData: {
+        qty: 1,
+        note: '',
+        selectedVariationId: null,
+        selectedAddons: [],
+        tmpId: null,
+        cartItemId: null,
+        version: null,
+      },
+    });
+  },
+
+  updateCustomisationData: (updates) => {
+    set((state) => ({
+      customisationData: {
+        ...state.customisationData,
+        ...updates,
+      },
+    }));
+  },
+
+
 })); 

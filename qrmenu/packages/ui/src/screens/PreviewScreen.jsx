@@ -304,7 +304,7 @@ function DetailsSection({ item, onAskAI }) {
             {item.name}
           </h1>
           <span className="text-lg font-bold text-red-500 whitespace-nowrap">
-            ₹{item.price}
+            ₹{item.base_price}
           </span>
         </div>
 

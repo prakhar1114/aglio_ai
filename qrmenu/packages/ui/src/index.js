@@ -22,6 +22,7 @@ export { CartDrawer } from './components/CartDrawer.jsx';
 export { OrderConfirmationSheet } from './components/OrderConfirmationSheet.jsx';
 export { MyOrdersDrawer } from './components/MyOrdersDrawer.jsx';
 export { InformationModal } from './components/InformationModal.jsx';
+export { ItemCustomisations } from './components/ItemCustomisations.jsx';
 export { PasswordValidationModal } from './components/PasswordValidationModal.jsx';
 export { NicknamePrompt } from './components/NicknamePrompt.jsx';
 
