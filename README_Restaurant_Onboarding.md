@@ -196,3 +196,33 @@ After successful onboarding:
 2. Test the recommendation system
 3. Monitor vector search performance
 4. Add restaurant-specific styling if needed 
+
+
+## Update 2 July: Petpooja Onboarding
+
+1. Set restaurant details and endpoints in a json file like `/Users/prakharjain/code/aglio_ai/backend/scripts/pp_staging.json`
+2. Run `scripts/pp_fetchmenu.py`. It will return `menu.json`.
+3. Copy this file in a folder like : `/Users/prakharjain/code/aglio_ai/backend/onboarding_data/test`
+4. then run `pp_generate_menu_csv.py`. This will generate a `menu.csv` in the target folder
+5. Edit and update `menu.csv` accordingly
+6. In the meta.json add `pos_config` details as follows:
+```json
+{
+    "public_id"   : "<something>",
+    "restaurant_name": "<name>",
+    "slug"        : "<slug>",
+    "tz"          : "Asia/Kolkata",
+    "pos_config": {
+        "pos_type": "petpooja",
+        "api_key": "<api_key>",
+        "api_secret": "<secret>",
+        "api_token": "",
+        "apis": {
+            "fetchmenu": "",
+            "saveorder": "",
+            "updateorder": ""
+        }
+    }
+}
+```
+7. Then run `1_onboard_PP_restaurants.py` with the target restaurant folder to onboard the restaurant's petpooja data to the db.

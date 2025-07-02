@@ -358,7 +358,12 @@ def create_item_relationships(df_menu: pd.DataFrame, menu_api_data: dict, restau
     db.flush()
     logger.success(f"✅ Created {relationships_created} item relationships")
 
-def process_petpooja_data(menu_api_data: dict, restaurant_id: int, db) -> dict:
+# ---------------------------------------------------------------------------
+# NOTE: `pos_config` is loaded from meta.json (if provided) and saved on the
+#       POSSystem record so that downstream services have the credentials
+#       available without additional manual updates.
+# ---------------------------------------------------------------------------
+def process_petpooja_data(menu_api_data: dict, restaurant_id: int, pos_config: dict | None, db) -> dict:
     """Process PetPooja menu.json data to create variations and addons"""
     logger.info("🔗 Processing PetPooja variations and addons...")
     
@@ -370,15 +375,26 @@ def process_petpooja_data(menu_api_data: dict, restaurant_id: int, db) -> dict:
         ).first()
         
         if not pos_system:
+            # Insert a new POSSystem row with the provided config (if any)
             pos_system = POSSystem(
                 restaurant_id=restaurant_id,
-                name="petpooja", 
-                config={},  # Minimal config for onboarding
-                is_active=True
+                name="petpooja",
+                config=pos_config or {},
+                is_active=True,
             )
             db.add(pos_system)
             db.flush()
-            logger.success(f"✅ Created POS system record for restaurant {restaurant_id}")
+            logger.success(
+                f"✅ Created POS system record for restaurant {restaurant_id} with config from meta.json"
+            )
+        else:
+            # Record exists – update the config only if meta.json provided one.
+            if pos_config:
+                pos_system.config = pos_config
+                db.flush()
+                logger.success(
+                    f"🔄 Updated existing POS system config for restaurant {restaurant_id} from meta.json"
+                )
         
         # Note: We'll process PetPooja data directly without the integration service for onboarding
         
@@ -454,7 +470,7 @@ def process_petpooja_data(menu_api_data: dict, restaurant_id: int, db) -> dict:
             "pos_system_id": pos_system.id,
             "variations_synced": variations_synced,
             "addon_groups_synced": addon_groups_synced,
-            "addon_items_synced": addon_items_synced
+            "addon_items_synced": addon_items_synced,
         }
         
         logger.success(f"✅ PetPooja data processed: {variations_synced} variations, {addon_groups_synced} addon groups, {addon_items_synced} addon items")
@@ -680,7 +696,7 @@ def seed_folder(folder: Path):
         
         # ---- Process PetPooja data (variations and addons)
         logger.info("🔗 Processing PetPooja data...")
-        petpooja_result = process_petpooja_data(menu_api_data, rest.id, db)
+        petpooja_result = process_petpooja_data(menu_api_data, rest.id, meta.get("pos_config"), db)
         
         if petpooja_result["success"]:
             # Update pos_system_id for menu items with external_id
