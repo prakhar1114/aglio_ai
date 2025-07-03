@@ -2,14 +2,14 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
 import json
 import uuid
 from datetime import datetime
-from loguru import logger
+from config import logger
 import uuid
 import secrets
 from sqlalchemy import select
 
 # SQLAlchemy models / DB session
 from models.schema import (
-    SessionLocal, Restaurant, Session, Member, MenuItem, CartItem, CartItemAddon, ItemVariation, AddonGroupItem, ItemAddon, Order
+    SessionLocal, Restaurant, Session, Member, MenuItem, CartItem, CartItemAddon, ItemVariation, AddonGroupItem, ItemAddon, Order, POSSystem
 )
 
 # Pydantic event models
@@ -21,6 +21,7 @@ from models.cart_models import (
 # Utilities
 from utils.jwt_utils import decode_ws_token
 from websocket.manager import connection_manager
+from services.pos.utils import get_pos_integration_by_name
 
 # Import AI chat functionality
 from recommender.ai import generate_blocks
@@ -325,14 +326,17 @@ async def handle_place_order(websocket, session_pid, member_pid, data):
             }
             await connection_manager.broadcast_to_session(session_pid, lock_message)
             
-            # Process the order (dummy implementation)
-            success = await process_order_dummy(order_id, order_payload, total_amount)
+            # Process the order with POS integration
+            success, pos_order_id, pos_response = await process_order_with_pos(
+                session.restaurant_id, new_order, session, member, db
+            )
             
-            # Handle success/failure
+            # Update order record with POS response
             if success:
-                # Mark order as confirmed
+                new_order.pos_order_id = pos_order_id or order_id
+                new_order.pos_response = [pos_response]
                 new_order.status = "confirmed"
-                new_order.confirmed_at = datetime.utcnow().isoformat() + "Z"
+                new_order.confirmed_at = datetime.utcnow()
                 
                 # Mark all cart items as ordered (keep them for order history)
                 for item in cart_items:
@@ -359,10 +363,11 @@ async def handle_place_order(websocket, session_pid, member_pid, data):
                 await connection_manager.broadcast_to_session(session_pid, success_message)
             else:
                 # Mark order as failed
-                new_order.status = "failed"
+                new_order.status = "failed" 
                 new_order.failed_at = datetime.utcnow()
+                new_order.pos_response = pos_response  # Store error details
                 
-                # Revert cart items to pending state
+                # UNLOCK cart items - revert to pending state
                 for item in cart_items:
                     item.state = "pending"
                     item.order_id = None  # Remove order association
@@ -384,6 +389,34 @@ async def handle_place_order(websocket, session_pid, member_pid, data):
                 "type": "order_failed",
                 "error": "Internal server error"
             }))
+
+
+async def process_order_with_pos(restaurant_id: int, order: Order, session: Session, member: Member, db):
+    """Process order with POS integration"""
+    try:
+        # Get POS integration
+        pos_integration = get_pos_integration_by_name(restaurant_id, "petpooja", db)
+        
+        if not pos_integration:
+            logger.error(f"No PetPooja integration found for restaurant {restaurant_id}")
+            return False, None, {"error": "No POS integration configured"}
+        
+        # Transform order for PetPooja and submit
+        result = await pos_integration.place_order({
+            "order": order,
+            "session": session, 
+            "member": member,
+            "table_number": session.table.number
+        })
+
+        if result.get("success"):
+            return True, result.get("pos_order_id"), result
+        else:
+            return False, None, result
+            
+    except Exception as e:
+        logger.error(f"Error in POS order processing: {e}")
+        return False, None, {"error": str(e)}
 
 
 async def process_order_dummy(order_id, order_payload, total_amount):

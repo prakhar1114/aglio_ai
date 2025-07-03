@@ -3,9 +3,15 @@ import redis
 import qdrant_client
 import os, ast
 from dotenv import load_dotenv
+from loguru import logger
+import sys
+
+logger.remove()
+logger.add(sys.stderr, level="INFO")
 
 load_dotenv()
 
+BACKEND_URL = os.getenv("BACKEND_URL")
 DEBUG_MODE = ast.literal_eval(os.getenv("DEBUG_MODE", "False"))
 JWT_SECRET=os.getenv("JWT_SECRET")
 if not JWT_SECRET:

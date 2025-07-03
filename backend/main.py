@@ -26,6 +26,7 @@ from urls.table_session import router as table_session_router
 from urls.session_ws import router as session_ws_router
 from urls.cart import router as cart_router
 from urls.waiter_requests import router as waiter_requests_router
+from urls.petpooja_callback import router as petpooja_callback_router
 # from urls.pos import router as pos_router
 
 
@@ -92,6 +93,7 @@ app.include_router(table_session_router, tags=["table_session"])
 app.include_router(session_ws_router, tags=["session_ws"])
 app.include_router(cart_router, tags=["cart"])
 app.include_router(waiter_requests_router, tags=["waiter_requests"])
+app.include_router(petpooja_callback_router, tags=["petpooja_callback"])
 # app.include_router(pos_router, tags=["pos"])
 
 

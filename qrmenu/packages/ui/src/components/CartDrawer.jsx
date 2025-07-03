@@ -540,6 +540,7 @@ export function CartDrawer({ isOpen, onClose }) {
             
             {/* Order Summary */}
             <div className="space-y-1 text-sm">
+              {/*
               <div className="flex justify-between">
                 <span className="text-gray-600"
                       style={{
@@ -579,6 +580,7 @@ export function CartDrawer({ isOpen, onClose }) {
                   ₹{tax.toFixed(2)}
                 </span>
               </div>
+              */}
               
               <div className="flex justify-between font-semibold text-lg pt-1 border-t border-gray-200">
                 <span style={{
