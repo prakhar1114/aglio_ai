@@ -249,8 +249,9 @@ async def handle_place_order(websocket, session_pid, member_pid, data):
             order_id = f"{order_sequence_num}"
             
             # Create Order record in database
+            restaurant = db.query(Restaurant).filter(Restaurant.id == session.restaurant_id).first()
             new_order = Order(
-                public_id=order_id,
+                public_id=f"{restaurant.slug[0:4]}_{order_id}",
                 session_id=session.id,
                 initiated_by_member_id=member.id,  # Track who initiated the order
                 payload=[],  # Will be filled after processing
@@ -326,8 +327,8 @@ async def handle_place_order(websocket, session_pid, member_pid, data):
             }
             await connection_manager.broadcast_to_session(session_pid, lock_message)
             
-            # Process the order with POS integration
-            success, pos_order_id, pos_response = await process_order_with_pos(
+            # Determine POS usage and process the order accordingly
+            success, pos_order_id, pos_response, pos_used = await process_order_with_pos(
                 session.restaurant_id, new_order, session, member, db
             )
             
@@ -361,6 +362,30 @@ async def handle_place_order(websocket, session_pid, member_pid, data):
                     }
                 }
                 await connection_manager.broadcast_to_session(session_pid, success_message)
+
+                # If NO POS integration was used, notify the admin dashboard
+                if not pos_used:
+                    try:
+                        from urls.admin.dashboard_ws import dashboard_manager
+                        restaurant = db.query(Restaurant).filter(Restaurant.id == session.restaurant_id).first()
+
+                        admin_notification = {
+                            "type": "order_notification",
+                            "order": {
+                                "id": order_id,
+                                "order_number": order_sequence_num,
+                                "table_id": session.table.id,
+                                "table_number": session.table.number,
+                                "timestamp": new_order.created_at.isoformat() + "Z",
+                                "items": order_payload
+                            }
+                        }
+
+                        await dashboard_manager.broadcast_to_session(restaurant.slug, admin_notification)
+                        logger.info(f"Sent order notification to admin dashboard for restaurant {restaurant.slug}")
+
+                    except Exception as e:
+                        logger.error(f"Failed to send order notification to admin dashboard: {e}")
             else:
                 # Mark order as failed
                 new_order.status = "failed" 
@@ -394,29 +419,31 @@ async def handle_place_order(websocket, session_pid, member_pid, data):
 async def process_order_with_pos(restaurant_id: int, order: Order, session: Session, member: Member, db):
     """Process order with POS integration"""
     try:
-        # Get POS integration
+        # Check if a POS integration exists for this restaurant
         pos_integration = get_pos_integration_by_name(restaurant_id, "petpooja", db)
-        
-        if not pos_integration:
-            logger.error(f"No PetPooja integration found for restaurant {restaurant_id}")
-            return False, None, {"error": "No POS integration configured"}
-        
-        # Transform order for PetPooja and submit
-        result = await pos_integration.place_order({
-            "order": order,
-            "session": session, 
-            "member": member,
-            "table_number": session.table.number
-        })
+        pos_used = pos_integration is not None
 
-        if result.get("success"):
-            return True, result.get("pos_order_id"), result
+        if pos_used:
+            # POS-enabled restaurant – delegate order to POS system
+            result = await pos_integration.place_order({
+                "order": order,
+                "session": session,
+                "member": member,
+                "table_number": session.table.number,
+            })
+
+            if result.get("success"):
+                return True, result.get("pos_order_id"), result, True
+            else:
+                return False, None, result, True
         else:
-            return False, None, result
-            
+            # No POS integration – treat as manual confirmation
+            logger.info(f"No POS integration found for restaurant {restaurant_id}; confirming order manually")
+            return True, None, {"success": True, "message": "Manual confirmation - no POS integration"}, False
+
     except Exception as e:
         logger.error(f"Error in POS order processing: {e}")
-        return False, None, {"error": str(e)}
+        return False, None, {"error": str(e)}, False
 
 
 async def process_order_dummy(order_id, order_payload, total_amount):

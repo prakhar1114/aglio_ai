@@ -136,6 +136,7 @@ class DashboardAction(BaseModel):
     from_table_id: Optional[int] = None  # For move action
     to_table_id: Optional[int] = None    # For move action
     request_id: Optional[str] = None     # For resolve_waiter_request action
+    order_id: Optional[str] = None       # For acknowledge_order action
 
 
 @router.websocket("/ws/dashboard")
@@ -389,6 +390,20 @@ async def handle_dashboard_action(websocket: WebSocket, action: DashboardAction,
                     await dashboard_manager.broadcast_to_session(restaurant_slug, resolution_message)
                     logger.info(f"Successfully resolved waiter request {action.request_id} for restaurant {restaurant_slug}")
                     return  # No table updates needed, just broadcast
+            
+            elif action.action == "acknowledge_order":
+                if not action.order_id:
+                    await dashboard_manager.send_error(websocket, "missing_order_id", "Order ID required")
+                    return
+                
+                # Just broadcast acknowledgment - no database persistence needed
+                acknowledgment_message = {
+                    "type": "order_acknowledged",
+                    "order_id": action.order_id
+                }
+                await dashboard_manager.broadcast_to_session(restaurant_slug, acknowledgment_message)
+                logger.info(f"Successfully acknowledged order {action.order_id} for restaurant {restaurant_slug}")
+                return  # No table updates needed, just broadcast
             
             else:
                 await dashboard_manager.send_error(websocket, "unknown_action", f"Unknown action: {action.action}")

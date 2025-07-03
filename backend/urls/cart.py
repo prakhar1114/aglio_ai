@@ -231,7 +231,7 @@ async def get_cart_snapshot(
                 order_data = {
                     "id": order.public_id,
                     # Extract the numeric sequence from the order public_id (format: ORD-<restaurant_id>-<sequence>)
-                    "orderNumber": int(order.public_id),
+                    "orderNumber": int(order.public_id.split("_")[1]),
                     "timestamp": order.created_at.isoformat(),
                     "items": order.payload,  # This contains the order items data
                     "total": order.total_amount,

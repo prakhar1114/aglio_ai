@@ -190,6 +190,10 @@ main {
     border-left: 4px solid #10b981;
 }
 
+.request-card.new-order {
+    border-left: 4px solid #8B5CF6;
+}
+
 .request-header {
     background: #f8f9fa;
     padding: 0.75rem 1rem;
@@ -211,6 +215,10 @@ main {
 
 .request-type-badge.ask-for-bill {
     color: #10b981;
+}
+
+.request-type-badge.new-order {
+    color: #8B5CF6;
 }
 
 .request-icon {
@@ -290,6 +298,52 @@ main {
 .resolve-btn:active {
     transform: translateY(0);
     box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
+}
+
+.acknowledge-btn {
+    background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(139, 92, 246, 0.2);
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.acknowledge-btn:hover {
+    background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+.order-id {
+    color: #8B5CF6;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.order-items {
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
+.order-item-preview {
+    line-height: 1.3;
+    margin-bottom: 0.2rem;
+}
+
+.more-items {
+    color: #9ca3af;
+    font-style: italic;
+    margin-top: 0.2rem;
 }
 
 @keyframes requestSlideIn {
@@ -865,4 +919,168 @@ main {
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+}
+
+/* Enhanced Session Modal Styling */
+.item-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.veg-badge, .non-veg-badge {
+    font-size: 0.75rem;
+}
+
+.variation-info {
+    margin: 0.25rem 0;
+    padding: 0.25rem 0.5rem;
+    background: #f3f4f6;
+    border-radius: 6px;
+    border-left: 3px solid #6366f1;
+}
+
+.addons-info {
+    margin: 0.25rem 0;
+    padding: 0.25rem 0.5rem;
+    background: #f9fafb;
+    border-radius: 6px;
+    border-left: 3px solid #10b981;
+}
+
+.addon-list {
+    margin: 0.25rem 0 0 1rem;
+    padding: 0;
+}
+
+.addon-list li {
+    margin: 0.1rem 0;
+    font-size: 0.8rem;
+    color: #6b7280;
+}
+
+.item-note {
+    margin: 0.25rem 0;
+    padding: 0.25rem 0.5rem;
+    background: #fef3c7;
+    border-radius: 6px;
+    border-left: 3px solid #f59e0b;
+}
+
+.item-meta {
+    margin-top: 0.5rem;
+    padding-top: 0.25rem;
+    border-top: 1px solid #e5e7eb;
+    color: #9ca3af;
+}
+
+.order-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.order-status {
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.order-status.confirmed {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.order-status.processing {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.order-status.failed {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.order-meta {
+    margin-bottom: 0.5rem;
+    color: #6b7280;
+}
+
+.order-items-details {
+    margin-top: 0.5rem;
+}
+
+.order-items-details summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: #4f46e5;
+    padding: 0.25rem 0;
+}
+
+.order-items-details summary:hover {
+    color: #3730a3;
+}
+
+.order-items-list {
+    margin: 0.5rem 0 0 1rem;
+    padding: 0;
+}
+
+.order-item-detail {
+    margin: 0.75rem 0;
+    padding: 0.5rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.acknowledge-btn.full-width {
+    width: 100%;
+    justify-content: center;
+    margin-top: 0.75rem;
+}
+
+.order-body {
+    flex-direction: column;
+}
+
+.order-items-list {
+    list-style: none;
+    margin: 0.5rem 0 0 0;
+    padding: 0;
+    font-size: 0.8rem;
+}
+
+.order-item-line {
+    margin-bottom: 0.4rem;
+}
+
+.order-item-line .item-main {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.variation-line {
+    font-style: italic;
+    color: #6b7280;
+    margin-left: 0.5rem;
+    font-size: 0.75rem;
+}
+
+.addons-list {
+    list-style: disc inside;
+    margin: 0.25rem 0 0 1rem;
+    padding: 0;
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
+.addons-list li {
+    margin: 0.1rem 0;
 } 

@@ -647,44 +647,94 @@ async def get_session_details(
                 for m in members
             ]
             
-            # Get all pending cart items
-            cart_items = db.query(CartItem, MenuItem).join(
-                MenuItem, CartItem.menu_item_id == MenuItem.id
+            # Get all pending cart items with detailed customization info
+            from sqlalchemy.orm import joinedload
+            from models.schema import ItemVariation, CartItemAddon
+            
+            cart_items = db.query(CartItem).options(
+                joinedload(CartItem.menu_item),
+                joinedload(CartItem.selected_item_variation).joinedload(ItemVariation.variation),
+                joinedload(CartItem.selected_addons).joinedload(CartItemAddon.addon_item),
+                joinedload(CartItem.member)
             ).filter(
                 CartItem.session_id == session.id,
                 CartItem.state == 'pending'
             ).all()
             
-            cart_item_infos = [
-                {
+            cart_item_infos = []
+            for cart_item in cart_items:
+                # Calculate final price with variations and addons
+                final_price = cart_item.menu_item.price
+                
+                # Add variation details
+                selected_variation = None
+                if cart_item.selected_item_variation:
+                    final_price = cart_item.selected_item_variation.price  # Use absolute price
+                    selected_variation = {
+                        "variation_name": cart_item.selected_item_variation.variation.name,
+                        "group_name": cart_item.selected_item_variation.variation.group_name,
+                        "price": cart_item.selected_item_variation.price
+                    }
+                
+                # Add addon details
+                selected_addons = []
+                for cart_addon in cart_item.selected_addons:
+                    addon_total = cart_addon.addon_item.price * cart_addon.quantity
+                    final_price += addon_total
+                    
+                    selected_addons.append({
+                        "name": cart_addon.addon_item.name,
+                        "addon_group_name": cart_addon.addon_item.addon_group.name,
+                        "quantity": cart_addon.quantity,
+                        "price": cart_addon.addon_item.price,
+                        "total_price": addon_total,
+                        "tags": cart_addon.addon_item.tags or []
+                    })
+                
+                cart_item_infos.append({
                     "public_id": cart_item.public_id,
-                    "member_pid": db.query(Member).filter(Member.id == cart_item.member_id).first().public_id,
-                    "menu_item_name": menu_item.name,
-                    "price": menu_item.price,
+                    "member_pid": cart_item.member.public_id,
+                    "menu_item_name": cart_item.menu_item.name,
+                    "base_price": cart_item.menu_item.price,
+                    "final_price": final_price,
                     "qty": cart_item.qty,
                     "note": cart_item.note or "",
                     "version": cart_item.version,
-                    "image_url": f"image_data/{restaurant.slug}/{menu_item.image_path}" if menu_item.image_path else None,
-                    "veg_flag": menu_item.veg_flag
-                }
-                for cart_item, menu_item in cart_items
-            ]
+                    "image_url": f"image_data/{restaurant.slug}/{cart_item.menu_item.image_path}" if cart_item.menu_item.image_path else None,
+                    "veg_flag": cart_item.menu_item.veg_flag,
+                    "selected_variation": selected_variation,
+                    "selected_addons": selected_addons
+                })
             
-            # Get orders for this session
+            # Get orders for this session with enhanced item details
             orders = db.query(Order).filter(Order.session_id == session.id).all()
-            order_infos = [
-                {
+            order_infos = []
+            for order in orders:
+                # Enhance order items with detailed customization info 
+                enhanced_items = []
+                for item in order.payload or []:
+                    enhanced_items.append({
+                        "name": item.get("name", ""),
+                        "qty": item.get("qty", 1),
+                        "unit_price": item.get("unit_price", 0),
+                        "final_price": item.get("final_price", 0),
+                        "total": item.get("total", 0),
+                        "note": item.get("note", ""),
+                        "selected_variation": item.get("selected_variation"),
+                        "selected_addons": item.get("selected_addons", [])
+                    })
+                
+                order_infos.append({
                     "order_id": order.public_id,
                     "total_amount": order.total_amount,
-                    # "pay_method": order.pay_method,
+                    "status": order.status,
                     "created_at": order.created_at.isoformat() if order.created_at else None,
-                    "items": order.payload  # Contains the order items data
-                }
-                for order in orders
-            ]
+                    "confirmed_at": order.confirmed_at.isoformat() if hasattr(order, 'confirmed_at') and order.confirmed_at else None,
+                    "items": enhanced_items
+                })
             
             # Calculate totals
-            cart_total = sum(item["price"] * item["qty"] for item in cart_item_infos)
+            cart_total = sum(item["final_price"] * item["qty"] for item in cart_item_infos)
             orders_total = sum(order["total_amount"] for order in order_infos)
             
             return {
