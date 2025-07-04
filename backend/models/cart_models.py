@@ -66,8 +66,12 @@ class MemberInfo(BaseModel):
 class CartSnapshotResponse(BaseModel):
     items: List[CartItemResponse]
     members: List[MemberInfo]
-    orders: List[dict] = []  # Will be populated when order submission is implemented
     cart_version: int
+    cart_locked: bool = False
+    pending_order_id: Optional[str] = None
+    order_processing_status: str = "idle"
+    locked_by_member: Optional[str] = None
+    orders: List[dict] = []  # Completed orders from database
 
 class CartItemCreateResponse(BaseModel):
     success: bool = True

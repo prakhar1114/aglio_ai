@@ -5,7 +5,7 @@ class DashboardManager {
         this.ws = null;
         this.apiKey = null;
         this.tables = [];
-        this.waiterRequests = []; // Store waiter requests as array, ordered by oldest first
+        this.waiterRequests = []; // Store waiter requests and order notifications as array, ordered by oldest first
         this.moveMode = false;
         this.moveSourceId = null;
         this.reconnectAttempts = 0;
@@ -107,6 +107,14 @@ class DashboardManager {
                 this.handleWaiterRequestResolved(message.request_id);
                 break;
                 
+            case 'order_notification':
+                this.handleOrderNotification(message.order);
+                break;
+                
+            case 'order_acknowledged':
+                this.handleOrderAcknowledged(message.order_id);
+                break;
+                
             case 'error':
                 this.showToast(message.detail, 'error');
                 if (message.code === 'invalid_token') {
@@ -153,6 +161,45 @@ class DashboardManager {
             
             // Show success feedback
             this.showToast('Request resolved successfully', 'success');
+        }
+    }
+    
+    handleOrderNotification(order) {
+        // Add new order notification to the array
+        const orderNotification = {
+            id: `order_${order.id}`,
+            type: 'order',
+            table_id: order.table_id,
+            table_number: order.table_number,
+            order_id: order.id,
+            order_number: order.order_number,
+            created_at: order.timestamp,
+            items: order.items
+        };
+        
+        this.waiterRequests.push(orderNotification);
+        
+        // Play alert sound
+        this.playNotificationSound();
+        
+        // Update sidebar
+        this.renderWaiterRequestsSidebar();
+        
+        // Show toast notification
+        this.showToast(`New Order #${order.order_number} from Table ${order.table_number}`, 'info');
+    }
+    
+    handleOrderAcknowledged(orderId) {
+        // Remove the acknowledged order from the array
+        const index = this.waiterRequests.findIndex(req => req.type === 'order' && req.order_id === orderId);
+        if (index !== -1) {
+            this.waiterRequests.splice(index, 1);
+            
+            // Update sidebar
+            this.renderWaiterRequestsSidebar();
+            
+            // Show success feedback
+            this.showToast('Order acknowledged successfully', 'success');
         }
     }
     
@@ -245,33 +292,85 @@ class DashboardManager {
         
         // Render requests (newest first in display, but backend sends oldest first)
         const requestsHTML = this.waiterRequests.map(request => {
-            const icon = request.request_type === 'call_waiter' ? '🔔' : '💰';
-            const typeClass = request.request_type.replace('_', '-');
-            const typeName = request.request_type === 'call_waiter' ? 'Call Waiter' : 'Ask for Bill';
-            const timeAgo = this.calculateTimeAgo(request.created_at);
-            
-            return `
-                <div class="request-card ${typeClass}">
-                    <div class="request-header">
-                        <div class="request-type-badge ${typeClass}">
-                            <span class="request-icon">${icon}</span>
-                            <span class="request-type-text">${typeName}</span>
-                        </div>
-                        <div class="request-time">${timeAgo}</div>
-                    </div>
-                    <div class="request-body">
-                        <div class="table-info">
-                            <div class="table-details">
-                                <span class="table-label">Table ${request.table_number}</span>
-                                <span class="member-name">${request.member_name}</span>
+            if (request.type === 'order') {
+                // Handle order notifications
+                const icon = '🍽️';
+                const typeClass = 'new-order';
+                const typeName = 'New Order';
+                const timeAgo = this.calculateTimeAgo(request.created_at);
+                
+                // Build detailed items list HTML
+                const orderItemsHTML = request.items.map(item => {
+                    const variationHTML = item.selected_variation ? `
+                        <div class="variation-line">(${item.selected_variation.group_name}: ${item.selected_variation.variation_name})</div>
+                    ` : '';
+                    const addonsHTML = (item.selected_addons && item.selected_addons.length > 0) ? `
+                        <ul class="addons-list">
+                            ${item.selected_addons.map(addon => `<li>${addon.name}${addon.quantity > 1 ? ` x${addon.quantity}` : ''}</li>`).join('')}
+                        </ul>
+                    ` : '';
+                    return `
+                        <li class="order-item-line">
+                            <div class="item-main"><strong>${item.name}</strong> x${item.qty}</div>
+                            ${variationHTML}
+                            ${addonsHTML}
+                        </li>
+                    `;
+                }).join('');
+                
+                return `
+                    <div class="request-card ${typeClass}">
+                        <div class="request-header">
+                            <div class="request-type-badge ${typeClass}">
+                                <span class="request-icon">${icon}</span>
+                                <span class="request-type-text">${typeName}</span>
                             </div>
+                            <div class="request-time">${timeAgo}</div>
                         </div>
-                        <button class="resolve-btn" onclick="dashboard.resolveWaiterRequest('${request.id}')">
-                            ✓ Resolve
-                        </button>
+                        <div class="request-body order-body">
+                            <div class="table-info">
+                                <div class="table-details">
+                                    <span class="table-label">Table ${request.table_number}</span>
+                                    <span class="order-id">Order #${request.order_number}</span>
+                                </div>
+                                <ul class="order-items-list">${orderItemsHTML}</ul>
+                            </div>
+                            <button class="acknowledge-btn full-width" onclick="dashboard.acknowledgeOrder('${request.order_id}')">
+                                ✓ Acknowledge
+                            </button>
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
+            } else {
+                // Handle waiter requests
+                const icon = request.request_type === 'call_waiter' ? '🔔' : '💰';
+                const typeClass = request.request_type.replace('_', '-');
+                const typeName = request.request_type === 'call_waiter' ? 'Call Waiter' : 'Ask for Bill';
+                const timeAgo = this.calculateTimeAgo(request.created_at);
+                
+                return `
+                    <div class="request-card ${typeClass}">
+                        <div class="request-header">
+                            <div class="request-type-badge ${typeClass}">
+                                <span class="request-icon">${icon}</span>
+                                <span class="request-type-text">${typeName}</span>
+                            </div>
+                            <div class="request-time">${timeAgo}</div>
+                        </div>
+                        <div class="request-body">
+                            <div class="table-info">
+                                <div class="table-details">
+                                    <span class="table-label">Table ${request.table_number}</span>
+                                    <span class="member-name">${request.member_name}</span>
+                                </div>
+                            </div>
+                            <button class="resolve-btn" onclick="dashboard.resolveWaiterRequest('${request.id}')">
+                                ✓ Resolve
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
         }).join('');
         
         requestsList.innerHTML = requestsHTML;
@@ -415,9 +514,29 @@ class DashboardManager {
                                 <ul class="cart-list">
                                     ${sessionData.cart_items.map(item => `
                                         <li class="cart-item">
-                                            <strong>${item.menu_item_name}</strong> x${item.qty} - $${item.price}
-                                            ${item.note ? `<br><small>Note: ${item.note}</small>` : ''}
-                                            <br><small>Added by: ${sessionData.members.find(m => m.member_pid === item.member_pid)?.nickname || 'Unknown'}</small>
+                                            <div class="item-header">
+                                                <strong>${item.menu_item_name}</strong> x${item.qty} - ₹${item.final_price ? item.final_price.toFixed(2) : item.base_price}
+                                                ${item.veg_flag ? '<span class="veg-badge">🟢</span>' : '<span class="non-veg-badge">🔴</span>'}
+                                            </div>
+                                            ${item.selected_variation ? `
+                                                <div class="variation-info">
+                                                    <small><strong>Variation:</strong> ${item.selected_variation.group_name} - ${item.selected_variation.variation_name} (₹${item.selected_variation.price})</small>
+                                                </div>
+                                            ` : ''}
+                                            ${item.selected_addons && item.selected_addons.length > 0 ? `
+                                                <div class="addons-info">
+                                                    <small><strong>Add-ons:</strong></small>
+                                                    <ul class="addon-list">
+                                                        ${item.selected_addons.map(addon => `
+                                                            <li>${addon.name} x${addon.quantity} - ₹${addon.total_price}</li>
+                                                        `).join('')}
+                                                    </ul>
+                                                </div>
+                                            ` : ''}
+                                            ${item.note ? `<div class="item-note"><small><strong>Note:</strong> ${item.note}</small></div>` : ''}
+                                            <div class="item-meta">
+                                                <small>Added by: ${sessionData.members.find(m => m.member_pid === item.member_pid)?.nickname || 'Unknown'}</small>
+                                            </div>
                                         </li>
                                     `).join('')}
                                 </ul>
@@ -430,9 +549,45 @@ class DashboardManager {
                                 <ul class="order-list">
                                     ${sessionData.orders.map(order => `
                                         <li class="order-item">
-                                            <strong>Order ${order.order_id}</strong> - $${order.total_amount}
-                                            <br><small>Placed: ${new Date(order.created_at).toLocaleString()}</small>
-                                            <br><small>Payment: ${order.pay_method}</small>
+                                            <div class="order-header">
+                                                <strong>Order ${order.order_id}</strong> - ₹${order.total_amount.toFixed ? order.total_amount.toFixed(2) : order.total_amount}
+                                                ${order.status ? `<span class="order-status ${order.status}">${order.status}</span>` : ''}
+                                            </div>
+                                            <div class="order-meta">
+                                                <small>Placed: ${new Date(order.created_at).toLocaleString()}</small>
+                                                ${order.confirmed_at ? `<br><small>Confirmed: ${new Date(order.confirmed_at).toLocaleString()}</small>` : ''}
+                                            </div>
+
+                                            ${Array.isArray(order.items) && order.items.length > 0 ? `
+                                                <details class="order-items-details">
+                                                    <summary>View Items (${order.items.length})</summary>
+                                                    <ul class="order-items-list">
+                                                        ${order.items.map(oi => `
+                                                            <li class="order-item-detail">
+                                                                <div class="item-header">
+                                                                    <strong>${oi.name}</strong> x${oi.qty} - ₹${oi.final_price ?? oi.unit_price ?? 0}
+                                                                </div>
+                                                                ${oi.selected_variation ? `
+                                                                    <div class="variation-info">
+                                                                        <small><strong>Variation:</strong> ${oi.selected_variation.group_name} - ${oi.selected_variation.variation_name} (₹${oi.selected_variation.price})</small>
+                                                                    </div>
+                                                                ` : ''}
+                                                                ${oi.selected_addons && oi.selected_addons.length > 0 ? `
+                                                                    <div class="addons-info">
+                                                                        <small><strong>Add-ons:</strong></small>
+                                                                        <ul class="addon-list">
+                                                                            ${oi.selected_addons.map(addon => `
+                                                                                <li>${addon.name} x${addon.quantity} - ₹${addon.total_price || (addon.price * addon.quantity)}</li>
+                                                                            `).join('')}
+                                                                        </ul>
+                                                                    </div>
+                                                                ` : ''}
+                                                                ${oi.note ? `<div class="item-note"><small><strong>Note:</strong> ${oi.note}</small></div>` : ''}
+                                                            </li>
+                                                        `).join('')}
+                                                    </ul>
+                                                </details>
+                                            ` : ''}
                                         </li>
                                     `).join('')}
                                 </ul>
@@ -443,6 +598,7 @@ class DashboardManager {
                             <h3>Totals</h3>
                             <div class="session-info-grid">
                                 <div class="session-info-card">
+                                    <strong>Cart Total:</strong>
                                     ₹${sessionData.totals.cart_total.toFixed(2)}
                                 </div>
                                 <div class="session-info-card">
@@ -565,6 +721,14 @@ class DashboardManager {
         
         // Show processing feedback
         this.showToast('Resolving request...', 'info');
+    }
+    
+    acknowledgeOrder(orderId) {
+        // Send WebSocket message to acknowledge the order
+        this.sendAction('acknowledge_order', { order_id: orderId });
+        
+        // Show processing feedback
+        this.showToast('Acknowledging order...', 'info');
     }
     
     pickTarget(event) {

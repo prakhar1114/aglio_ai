@@ -24,7 +24,10 @@ from common.utils import download_instagram_content, download_url_content, is_ur
 from common.cloudflare_utils import upload_media_to_cloudflare
 from urls.admin.auth_utils import generate_api_key
 from utils.jwt_utils import create_qr_token  # Unified QR token generation
-from models.schema import Restaurant, RestaurantHours, Table, DailyPass, MenuItem
+from models.schema import (
+    Restaurant, RestaurantHours, Table, DailyPass, MenuItem,
+    POSSystem, Variation, AddonGroup, AddonGroupItem, ItemVariation, ItemAddon
+)
 from config import image_dir, qd
 
 # Initialize ML models for embedding generation
@@ -50,8 +53,8 @@ def validate_and_clean_csv(df_menu: pd.DataFrame) -> pd.DataFrame:
         'cloudflare_image_id', 'cloudflare_video_id', 'external_id'
     ]
     
-    # Check for required columns
-    required_columns = ['name', 'category_brief', 'group_category', 'description', 'price']
+    # Check for required columns, ALWAYS ADD THESE, DO NOT REMOVE ANY
+    required_columns = ['name', 'category_brief', 'group_category', 'description', 'price', 'image_path', 'cloudflare_image_id', 'cloudflare_video_id', 'external_id', 'veg_flag', 'is_bestseller', 'is_recommended', 'promote', 'priority', 'kind']
     missing_columns = [col for col in required_columns if col not in df_menu.columns]
     if missing_columns:
         raise ValueError(f"Missing required columns in CSV: {missing_columns}")
@@ -65,14 +68,14 @@ def validate_and_clean_csv(df_menu: pd.DataFrame) -> pd.DataFrame:
         if col not in df_cleaned.columns:
             if col == 'public_id':
                 df_cleaned[col] = None  # Will be auto-generated
-            elif col in ['veg_flag', 'is_bestseller', 'is_recommended', 'promote']:
-                df_cleaned[col] = False
-            elif col == 'priority':
-                df_cleaned[col] = 0
-            elif col == 'kind':
-                df_cleaned[col] = 'food'
-            elif col in ['image_path', 'cloudflare_image_id', 'cloudflare_video_id', 'external_id']:
-                df_cleaned[col] = None
+            # elif col in ['veg_flag', 'is_bestseller', 'is_recommended', 'promote']:
+            #     df_cleaned[col] = False
+            # elif col == 'priority':
+            #     df_cleaned[col] = 0
+            # elif col == 'kind':
+            #     df_cleaned[col] = 'food'
+            # elif col in ['image_path', 'cloudflare_image_id', 'cloudflare_video_id', 'external_id']:
+            #     df_cleaned[col] = None
     
     logger.info(f"📋 CSV validated and cleaned: {len(df_cleaned)} rows, {len(available_columns)} columns")
     return df_cleaned
@@ -284,21 +287,282 @@ def push_to_qdrant(restaurant_slug: str, df_with_embeddings: pd.DataFrame) -> bo
         logger.error(f"❌ Error uploading to Qdrant: {e}")
         return False
 
+# ---------------------------------------------------------------------------
+# POS-related helpers (used only when meta.json contains pos_config.pos_type)
+# ---------------------------------------------------------------------------
+
+def create_item_relationships(df_menu: pd.DataFrame, menu_api_data: dict, restaurant_id: int, pos_system_id: int, db):
+    """Create item-variation and item-addon relationships from PetPooja data"""
+    logger.info("🔗 Creating item relationships...")
+    
+    # Create lookup maps
+    petpooja_items = {item["itemid"]: item for item in menu_api_data.get("items", [])}
+    
+    # Get existing variations and addon groups
+    variations_map = {v.external_variation_id: v for v in db.query(Variation).filter_by(pos_system_id=pos_system_id).all()}
+    addon_groups_map = {ag.external_group_id: ag for ag in db.query(AddonGroup).filter_by(pos_system_id=pos_system_id).all()}
+    
+    relationships_created = 0
+    
+    for idx, row in df_menu.iterrows():
+        external_id = str(row.get("external_id", "")).strip()
+        if not external_id or external_id not in petpooja_items:
+            continue
+            
+        # Get the menu item from database
+        menu_item = db.query(MenuItem).filter_by(
+            restaurant_id=restaurant_id,
+            external_id=external_id
+        ).first()
+        
+        if not menu_item:
+            continue
+            
+        petpooja_item = petpooja_items[external_id]
+        
+        # Create item-variation relationships
+        if petpooja_item.get("itemallowvariation") == "1" and petpooja_item.get("variation"):
+            for var_data in petpooja_item["variation"]:
+                variation_id = var_data["variationid"]
+                if variation_id in variations_map:
+                    # Check if relationship already exists
+                    existing = db.query(ItemVariation).filter_by(
+                        menu_item_id=menu_item.id,
+                        variation_id=variations_map[variation_id].id
+                    ).first()
+                    
+                    if not existing:
+                        item_variation = ItemVariation(
+                            menu_item_id=menu_item.id,
+                            variation_id=variations_map[variation_id].id,
+                            price=float(var_data["price"]),
+                            is_active=var_data["active"] == "1",
+                            priority=int(var_data.get("variationrank", 0)),
+                            external_id=var_data["id"],  # Use var_data["id"] for orders
+                            external_data=var_data
+                        )
+                        db.add(item_variation)
+                        relationships_created += 1
+        
+        # Create item-addon relationships
+        if petpooja_item.get("itemallowaddon") == "1" and petpooja_item.get("addon"):
+            for addon_data in petpooja_item["addon"]:
+                addon_group_id = addon_data["addon_group_id"]
+                if addon_group_id in addon_groups_map:
+                    # Check if relationship already exists
+                    existing = db.query(ItemAddon).filter_by(
+                        menu_item_id=menu_item.id,
+                        addon_group_id=addon_groups_map[addon_group_id].id
+                    ).first()
+                    
+                    if not existing:
+                        item_addon = ItemAddon(
+                            menu_item_id=menu_item.id,
+                            addon_group_id=addon_groups_map[addon_group_id].id,
+                            min_selection=int(addon_data.get("addon_item_selection_min", 0)),
+                            max_selection=int(addon_data.get("addon_item_selection_max", 1)),
+                            is_active=True,
+                            priority=0
+                        )
+                        db.add(item_addon)
+                        relationships_created += 1
+    
+    db.flush()
+    logger.success(f"✅ Created {relationships_created} item relationships")
+
+# ---------------------------------------------------------------------------
+# NOTE: `pos_config` is loaded from meta.json (if provided) and saved on the
+#       POSSystem record so that downstream services have the credentials
+#       available without additional manual updates.
+# ---------------------------------------------------------------------------
+def process_petpooja_data(menu_api_data: dict, restaurant_id: int, pos_config: dict | None, db) -> dict:
+    """Process PetPooja menu.json data to create variations and addons"""
+    logger.info("🔗 Processing PetPooja variations and addons...")
+    
+    try:
+        # Extract taxes from PetPooja menu data
+        taxes_data = menu_api_data.get("taxes", [])
+        discount_data = menu_api_data.get("discounts", [])
+        logger.info(f"Found {len(taxes_data)} tax rules in PetPooja data")
+        
+        # Process taxes to make them active and usable
+        processed_taxes = []
+        for tax in taxes_data:
+            processed_tax = {
+                "taxid": tax.get("taxid", ""),
+                "taxname": tax.get("taxname", ""),
+                "tax": tax.get("tax", "0"),
+                "taxtype": tax.get("taxtype", "1"),
+                "tax_ordertype": tax.get("tax_ordertype", ""),
+                "active": True,  # Make taxes active by default
+                "tax_coreortotal": tax.get("tax_coreortotal", "2"),
+                "tax_taxtype": tax.get("tax_taxtype", "1"),
+                "rank": tax.get("rank", "1"),
+                "consider_in_core_amount": tax.get("consider_in_core_amount", "0"),
+                "description": tax.get("description", "")
+            }
+            processed_taxes.append(processed_tax)
+        
+        # Create placeholder discount configuration
+        discount_config = discount_data
+        
+        # Create or get POS system record
+        pos_system = db.query(POSSystem).filter_by(
+            restaurant_id=restaurant_id,
+            name="petpooja"
+        ).first()
+        
+        # Merge taxes and discounts with existing config
+        enhanced_config = pos_config.copy() if pos_config else {}
+        enhanced_config["taxes"] = processed_taxes
+        enhanced_config["discounts"] = discount_config
+        
+        if not pos_system:
+            # Insert a new POSSystem row with the enhanced config
+            pos_system = POSSystem(
+                restaurant_id=restaurant_id,
+                name="petpooja",
+                config=enhanced_config,
+                is_active=True,
+            )
+            db.add(pos_system)
+            db.flush()
+            logger.success(
+                f"✅ Created POS system record for restaurant {restaurant_id} with enhanced config including {len(processed_taxes)} tax rules"
+            )
+        else:
+            # Record exists – update the config with taxes and discounts
+            existing_config = pos_system.config.copy() if pos_system.config else {}
+            existing_config.update(enhanced_config)
+            pos_system.config = existing_config
+            db.flush()
+            logger.success(
+                f"🔄 Updated existing POS system config for restaurant {restaurant_id} with {len(processed_taxes)} tax rules and {len(discount_config)} discount placeholders"
+            )
+        
+        # Note: We'll process PetPooja data directly without the integration service for onboarding
+        
+        # Build attributes mapping for tags
+        attributes_map = {attr["attributeid"]: attr["attribute"] for attr in menu_api_data.get("attributes", [])}
+        logger.info(f"Attributes map: {attributes_map}")
+        
+        # Process global variations
+        variations_synced = 0
+        for var_data in menu_api_data.get("variations", []):
+            existing_variation = db.query(Variation).filter_by(
+                external_variation_id=var_data["variationid"],
+                pos_system_id=pos_system.id
+            ).first()
+            
+            if not existing_variation:
+                variation = Variation(
+                    name=var_data["name"],
+                    display_name=var_data["name"],
+                    group_name=var_data["groupname"],
+                    is_active=var_data["status"] == "1",
+                    external_variation_id=var_data["variationid"],
+                    external_data=var_data,
+                    pos_system_id=pos_system.id
+                )
+                db.add(variation)
+                variations_synced += 1
+        
+        # Process global addon groups
+        addon_groups_synced = 0
+        addon_items_synced = 0
+        
+        for addon_group_data in menu_api_data.get("addongroups", []):
+            existing_group = db.query(AddonGroup).filter_by(
+                external_group_id=addon_group_data["addongroupid"],
+                pos_system_id=pos_system.id
+            ).first()
+            
+            if not existing_group:
+                addon_group = AddonGroup(
+                    name=addon_group_data["addongroup_name"],
+                    display_name=addon_group_data["addongroup_name"],
+                    is_active=addon_group_data["active"] == "1",
+                    priority=int(addon_group_data.get("addongroup_rank", 0)),
+                    external_group_id=addon_group_data["addongroupid"],
+                    external_data=addon_group_data,
+                    pos_system_id=pos_system.id
+                )
+                db.add(addon_group)
+                db.flush()
+                addon_groups_synced += 1
+                
+                # Process addon items for this group
+                for addon_item_data in addon_group_data.get("addongroupitems", []):
+                    addon_item = AddonGroupItem(
+                        addon_group_id=addon_group.id,
+                        name=addon_item_data["addonitem_name"],
+                        display_name=addon_item_data["addonitem_name"],
+                        price=float(addon_item_data["addonitem_price"]),
+                        is_active=addon_item_data["active"] == "1",
+                        priority=int(addon_item_data.get("addonitem_rank", 0)),
+                        tags=[attributes_map.get(attr_id.strip()) for attr_id in addon_item_data.get("attributes", "").split(",") if attr_id.strip() and attr_id.strip() in attributes_map],
+                        external_addon_id=addon_item_data["addonitemid"],
+                        external_data=addon_item_data
+                    )
+                    db.add(addon_item)
+                    addon_items_synced += 1
+        
+        db.flush()
+        
+        result = {
+            "success": True,
+            "pos_system_id": pos_system.id,
+            "variations_synced": variations_synced,
+            "addon_groups_synced": addon_groups_synced,
+            "addon_items_synced": addon_items_synced,
+            "taxes_processed": len(processed_taxes),
+            "discounts_configured": len(discount_config),
+        }
+        
+        logger.success(f"✅ PetPooja data processed: {variations_synced} variations, {addon_groups_synced} addon groups, {addon_items_synced} addon items, {len(processed_taxes)} tax rules, {len(discount_config)} discount rules")
+        return result
+        
+    except Exception as e:
+        logger.error(f"❌ Error processing PetPooja data: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "pos_system_id": None,
+            "variations_synced": 0,
+            "addon_groups_synced": 0,
+            "addon_items_synced": 0,
+            "taxes_processed": 0,
+            "discounts_configured": 0
+        }
+
 # ---------- core loader -------------------------------------------------------
 
 def seed_folder(folder: Path):
-    logger.info(f"On‑boarding folder: {folder}")
+    logger.info(f"On-boarding folder: {folder}")
+
+    # ------------------------------------------------------------------
+    # Validate required files (POS vs Non-POS have different expectations)
+    # ------------------------------------------------------------------
+
     assert (folder / "meta.json").exists(), "meta.json missing"
+    meta = json.loads((folder / "meta.json").read_text())
+
+    has_pos_config = bool(meta.get("pos_config") and meta["pos_config"].get("pos_type"))
+    pos_type = meta["pos_config"].get("pos_type") if has_pos_config else None
+
     assert (folder / "tables.json").exists(), "tables.json missing"
     assert (folder / "menu.csv").exists(), "menu.csv missing"
+    if has_pos_config:
+        # POS restaurants must supply additional raw menu data
+        assert (folder / "menu.json").exists(), "menu.json missing for POS onboarding"
     assert (folder / "images").exists(), "images directory missing"
 
-    meta     = json.loads((folder / "meta.json").read_text())
     tbl_cfg  = json.loads((folder / "tables.json").read_text())
     hours_fp = folder / "hours.json"
     hours_cfg = json.loads(hours_fp.read_text()) if hours_fp.exists() else None
 
-    df_menu  = pd.read_csv(folder / "menu.csv")
+    # Load menu assets
+    df_menu = pd.read_csv(folder / "menu.csv")
     logger.info(f"{len(df_menu)} menu rows loaded")
 
     # Validate and clean CSV format
@@ -312,6 +576,18 @@ def seed_folder(folder: Path):
     # Save the updated CSV with processed image paths (only expected columns)
     df_menu.to_csv(folder / "menu_processed.csv", index=False)
     logger.success(f"✅ Saved processed menu data to menu_processed.csv")
+
+    # --------------------------------------------------------------
+    # If POS integration is present, load menu.json for downstream use
+    # --------------------------------------------------------------
+
+    menu_api_data = None
+    petpooja_items_map = {}
+    attributes_map = {}
+    if has_pos_config and pos_type == "petpooja":
+        menu_api_data = json.loads((folder / "menu.json").read_text())
+        petpooja_items_map = {item["itemid"]: item for item in menu_api_data.get("items", [])}
+        attributes_map = {attr["attributeid"]: attr["attribute"] for attr in menu_api_data.get("attributes", [])}
 
     with SessionLocal() as db:
         # ---- restaurant
@@ -435,14 +711,9 @@ def seed_folder(folder: Path):
                     mi.price = 0.0
                 
                 # Set image and cloudflare fields
-                image_path_val = row.get("image_path")
-                mi.image_path = str(image_path_val) if pd.notna(image_path_val) and str(image_path_val).strip() else None
-                
-                cf_image_val = row.get("cloudflare_image_id")
-                mi.cloudflare_image_id = str(cf_image_val) if pd.notna(cf_image_val) and str(cf_image_val).strip() else None
-                
-                cf_video_val = row.get("cloudflare_video_id")
-                mi.cloudflare_video_id = str(cf_video_val) if pd.notna(cf_video_val) and str(cf_video_val).strip() else None
+                mi.image_path = str(row["image_path"]) if pd.notna(row["image_path"]) and str(row["image_path"]).strip() else None
+                mi.cloudflare_image_id = str(row["cloudflare_image_id"]) if pd.notna(row["cloudflare_image_id"]) and str(row["cloudflare_image_id"]).strip() else None
+                mi.cloudflare_video_id = str(row["cloudflare_video_id"]) if pd.notna(row["cloudflare_video_id"]) and str(row["cloudflare_video_id"]).strip() else None
                 
                 # Set boolean and other fields
                 veg_val = row.get("veg_flag")
@@ -472,6 +743,21 @@ def seed_folder(folder: Path):
                 mi.pos_system_id = None  # No POS system integration
                 mi.tags = []  # Empty tags list
                 
+                # Add POS-specific basic fields (external_id, flags) if applicable
+                if menu_api_data:
+                    if mi.external_id and mi.external_id in petpooja_items_map:
+                        p_item = petpooja_items_map[mi.external_id]
+                        mi.itemallowvariation = p_item.get("itemallowvariation", "0") == "1"
+                        mi.itemallowaddon = p_item.get("itemallowaddon", "0") == "1"
+                        mi.external_data = p_item
+                        # basic tag enrichment
+                        tags_list = p_item.get("item_tags", []).copy()
+                        attr_id_val = p_item.get("item_attributeid")
+                        
+                        if attr_id_val and attr_id_val in attributes_map:
+                            tags_list.append(attributes_map[attr_id_val])
+                        mi.tags = tags_list
+                
                 # Flush this individual item to catch any issues early
                 db.flush()
                 menu_items_processed += 1
@@ -483,6 +769,18 @@ def seed_folder(folder: Path):
 
         logger.success(f"✅ Processed {menu_items_processed} menu items in PostgreSQL")
         
+        # ---- POS-specific post-processing ----------------------------------
+        if menu_api_data:
+            logger.info("🔗 Processing PetPooja data...")
+            petpooja_result = process_petpooja_data(menu_api_data, rest.id, meta.get("pos_config"), db)
+            if petpooja_result.get("success"):
+                logger.info("🔗 Updating menu items with POS system reference...")
+                db.query(MenuItem).filter(
+                    MenuItem.restaurant_id == rest.id,
+                    MenuItem.external_id.isnot(None)
+                ).update({"pos_system_id": petpooja_result["pos_system_id"]})
+                create_item_relationships(df_menu, menu_api_data, rest.id, petpooja_result["pos_system_id"], db)
+
         # Commit PostgreSQL changes before proceeding to Qdrant
         db.commit()
         logger.success("PostgreSQL seed complete ✔︎")
@@ -496,7 +794,7 @@ def seed_folder(folder: Path):
     else:
         logger.error("❌ Qdrant seed failed")
 
-    logger.success(f"🎉 On‑boarding finished for {meta['restaurant_name']}")
+    logger.success(f"🎉 On-boarding finished for {meta['restaurant_name']}")
 
 # ---------- cli ---------------------------------------------------------------
 

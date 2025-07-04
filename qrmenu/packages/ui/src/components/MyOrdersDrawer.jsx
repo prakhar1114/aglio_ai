@@ -450,7 +450,7 @@ export function MyOrdersDrawer({ isOpen, onClose }) {
                   {/* Order Items */}
                   <div className="space-y-2">
                     {order.items.map((cartItem, index) => {
-                      const itemPrice = cartItem.final_price || cartItem.base_price || cartItem.price || 0;
+                      const itemPrice = cartItem.final_price ?? 0;
                       return (
                         <div key={`${order.id}-${cartItem.public_id}-${index}`} 
                              className="flex items-center justify-between py-2"
@@ -478,6 +478,22 @@ export function MyOrdersDrawer({ isOpen, onClose }) {
                                }}>
                               Qty: {cartItem.qty} × ₹{itemPrice.toFixed(2)}
                             </p>
+                            {/* Customisations */}
+                            {cartItem.selected_variation && (
+                              <p className="text-xs text-gray-500" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", fontSize: '11px' }}>
+                                {cartItem.selected_variation.group_name}: {cartItem.selected_variation.variation_name}
+                              </p>
+                            )}
+
+                            {cartItem.selected_addons && cartItem.selected_addons.length > 0 && (
+                              <div className="mt-0.5 space-y-0.5">
+                                {cartItem.selected_addons.map((addon, idx) => (
+                                  <p key={idx} className="text-xs text-gray-500" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", fontSize: '11px' }}>
+                                    + {addon.name}{addon.quantity > 1 ? ` × ${addon.quantity}` : ''}
+                                  </p>
+                                ))}
+                              </div>
+                            )}
                           </div>
                           
                           {/* Item Total */}

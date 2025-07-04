@@ -1,12 +1,19 @@
 import asyncio
+from pprint import pprint
 import httpx
 from typing import Dict, List, Optional, Any
+from openai import NoneType
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from uuid import uuid4
+import sys, os
+from pathlib import Path
 
+# Add parent directory to path to import config and models
+sys.path.append(str(Path(__file__).parent.parent.parent))
+from config import logger, BACKEND_URL
 from .interface import POSInterface
-from ...models.schema import (
+from models.schema import (
     POSSystem, Order, CartItem, MenuItem, Variation, AddonGroup, 
     AddonGroupItem, ItemVariation, ItemAddon
 )
@@ -21,8 +28,18 @@ class PetPoojaIntegration(POSInterface):
         self.restaurant_id = self.config.get("restaurant_id")
         self.app_key = self.config.get("app_key")
         self.app_secret = self.config.get("app_secret")
-        self.access_token = self.config.get("access_token")
-        self.base_url = self.config.get("base_url", "https://api.petpooja.com")
+        self.access_token = self.config.get("app_token")
+        # self.base_url = self.config.get("base_url", "https://api.petpooja.com")
+        self.save_order_url = self.config.get("apis", {}).get("saveorder")
+        self.fetch_menu_url = self.config.get("apis", {}).get("fetchmenu")
+        self.restaurant_slug = pos_system.restaurant.slug  # Will be set by the calling code
+        self.callback_url = os.path.join(str(BACKEND_URL), "pp_callback", self.restaurant_slug, "/")
+        
+        # Initialize tax and discount configurations
+        self.tax_config = self.config.get("taxes", [])
+        self.discount_config = self.config.get("discounts", [])
+        
+        logger.info(f"PetPooja integration initialized with {len(self.tax_config)} tax rules and {len(self.discount_config)} discount rules")
 
     async def sync_menu(self, db: Session) -> Dict[str, Any]:
         """Sync menu from PetPooja API following the new architecture"""
@@ -89,7 +106,7 @@ class PetPoojaIntegration(POSInterface):
         
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"{self.base_url}/fetchmenu",
+                self.fetch_menu_url,
                 headers=headers,
                 json=body,
                 timeout=30.0
@@ -324,11 +341,11 @@ class PetPoojaIntegration(POSInterface):
             
             if existing_item_variation:
                 # Update existing relationship
-                existing_item_variation.price = float(var_data["price"])
-                existing_item_variation.is_active = var_data["active"] == "1"
-                existing_item_variation.priority = int(var_data.get("variationrank", 0))
-                existing_item_variation.external_id = var_data["id"]  # variation.id for orders
-                existing_item_variation.external_data = var_data
+                setattr(existing_item_variation, 'price', float(var_data["price"]))
+                setattr(existing_item_variation, 'is_active', var_data["active"] == "1")
+                setattr(existing_item_variation, 'priority', int(var_data.get("variationrank", 0)))
+                setattr(existing_item_variation, 'external_id', var_data["id"])  # variation.id for orders
+                setattr(existing_item_variation, 'external_data', var_data)
             else:
                 # Create new item-variation relationship
                 item_variation = ItemVariation(
@@ -375,9 +392,9 @@ class PetPoojaIntegration(POSInterface):
             
             if existing_item_addon:
                 # Update existing relationship
-                existing_item_addon.min_selection = int(addon_ref.get("addon_item_selection_min", 0))
-                existing_item_addon.max_selection = int(addon_ref.get("addon_item_selection_max", 999))
-                existing_item_addon.is_active = True
+                setattr(existing_item_addon, 'min_selection', int(addon_ref.get("addon_item_selection_min", 0)))
+                setattr(existing_item_addon, 'max_selection', int(addon_ref.get("addon_item_selection_max", 999)))
+                setattr(existing_item_addon, 'is_active', True)
             else:
                 # Create new item-addon relationship
                 item_addon = ItemAddon(
@@ -410,41 +427,381 @@ class PetPoojaIntegration(POSInterface):
     async def place_order(self, order_data: Dict[str, Any]) -> Dict[str, Any]:
         """Place an order with PetPooja"""
         try:
-            petpooja_order = await self._transform_order_to_petpooja(order_data)
+            # Extract data
+            order = order_data["order"]
+            session = order_data["session"] 
+            member = order_data["member"]
+            table_number = order_data["table_number"]
             
+            # Transform to PetPooja format
+            petpooja_order = self._transform_order_to_petpooja(order, session, member, table_number, self.restaurant_slug)
+            
+            # Log the payload for debugging
+            logger.debug(f"PetPooja order payload for order {order.public_id}: {petpooja_order}")
+            
+            # Prepare API call
             headers = {
                 "Content-Type": "application/json",
+                "app-key": self.app_key,
+                "app-secret": self.app_secret, 
+                "access-token": self.access_token
             }
             
+            if not self.save_order_url:
+                raise Exception("Order endpoint not configured in POS system config")
+            
+            logger.debug(f"save_order_url: {self.save_order_url}")
+            logger.debug(f"petpooja_order: {petpooja_order}")
+            logger.debug(f"headers: {headers}")
+            # pprint(petpooja_order)
+
+            # Make API call to PetPooja
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    f"{self.base_url}/api/v1/order/save",
+                    self.save_order_url,
                     headers=headers,
                     json=petpooja_order,
                     timeout=30.0
                 )
                 response.raise_for_status()
-                return response.json()
+                result = response.json()
+
                 
-        except Exception as e:
+                logger.info(f"PetPooja response for order {order.public_id}: {result}")
+                
+                # Check if PetPooja considers this successful
+                if result.get("success") == "1" or result.get("status") == "success":
+                    return {
+                        "success": True,
+                        "pos_order_id": result.get("orderID", order.public_id),
+                        "api_response": result
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "error": result.get("message", "Unknown PetPooja error"),
+                        "pos_order_id": None,
+                        "api_response": result
+                    }
+                
+        except httpx.HTTPStatusError as e:
+            logger.error(f"PetPooja HTTP error for order {order.public_id}: {e.response.status_code} - {e.response.text}")
             return {
                 "success": False,
-                "error": str(e)
+                "error": f"HTTP {e.response.status_code}: {e.response.text}",
+                "pos_order_id": None
+            }
+        except Exception as e:
+            logger.error(f"PetPooja order submission failed for order {order.public_id}: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "pos_order_id": None
             }
 
-    async def _transform_order_to_petpooja(self, order_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Transform our order format to PetPooja format using external IDs"""
-        # This would use the external_id from ItemVariation for items with variations
-        # and external_addon_id from AddonGroupItem for addons
-        # Implementation would depend on the specific order_data structure
-        pass
+    def _calculate_taxes(self, amount: float) -> Dict[str, Any]:
+        """Calculate taxes based on configuration
+        
+        Args:
+            amount (float): Base amount to calculate taxes on
+            
+        Returns:
+            Dict containing tax calculations with structure:
+            {
+                "total_tax_amount": float,
+                "tax_details": [
+                    {
+                        "id": str,
+                        "title": str,
+                        "type": str,
+                        "rate": float,
+                        "percentage": str,
+                        "tax_amount": float,
+                        "restaurant_liable_amt": float
+                    }
+                ]
+            }
+        """
+        total_tax_amount = 0.0
+        tax_details = []
+        
+        for tax in self.tax_config:
+            if not tax.get("active", False):
+                continue
+                
+            rate = float(tax.get("tax", 0))
+            tax_amount = amount * (rate / 100)
+            total_tax_amount += tax_amount
+            
+            tax_detail = {
+                "id": tax.get("taxid", ""),
+                "title": tax.get("taxname", ""),
+                "type": "P",  # Percentage
+                "rate": rate,
+                "percentage": f"{rate}",
+                "tax_amount": tax_amount,
+                "restaurant_liable_amt": tax_amount
+            }
+            tax_details.append(tax_detail)
+        
+        return {
+            "total_tax_amount": total_tax_amount,
+            "tax_details": tax_details
+        }
+    
+    def _calculate_discounts(self, cart_items: List, subtotal: float) -> Dict[str, Any]:
+        """Calculate discounts based on configuration and cart items
+        
+        Args:
+            cart_items (List): List of cart items
+            subtotal (float): Subtotal amount before discounts
+            
+        Returns:
+            Dict containing discount calculations with structure:
+            {
+                "total_discount_amount": float,
+                "discount_details": [
+                    {
+                        "id": str,
+                        "name": str,
+                        "type": str,  # "percentage", "fixed", "item_based"
+                        "amount": float,
+                        "description": str
+                    }
+                ]
+            }
+        """
+        # Placeholder implementation for future discount logic
+        # This can be extended based on specific discount rules like:
+        # - Item-based discounts
+        # - Cart value based discounts
+        # - Time-based discounts
+        # - Category-based discounts
+        # - Combo offers
+        
+        total_discount_amount = 0.0
+        discount_details = []
+        
+        for discount in self.discount_config:
+            if not discount.get("active", False):
+                continue
+            
+            # Example discount logic (to be implemented based on requirements)
+            # if discount.get("type") == "percentage":
+            #     if subtotal >= discount.get("minimum_amount", 0):
+            #         discount_amount = subtotal * (discount.get("rate", 0) / 100)
+            #         total_discount_amount += discount_amount
+            #         discount_details.append({
+            #             "id": discount.get("id", ""),
+            #             "name": discount.get("name", ""),
+            #             "type": discount.get("type", ""),
+            #             "amount": discount_amount,
+            #             "description": discount.get("description", "")
+            #         })
+            
+            pass  # Placeholder for future implementation
+        
+        return {
+            "total_discount_amount": total_discount_amount,
+            "discount_details": discount_details
+        }
+
+    def _transform_order_to_petpooja(self, order, session, member, table_number, restaurant_slug: str) -> Dict[str, Any]:
+        """Transform our order format to PetPooja API format"""
+        from datetime import datetime
+        
+        # Calculate subtotal (already without taxes)
+        subtotal = order.total_amount
+        
+        # Calculate discounts (placeholder for future use)
+        discount_calculation = self._calculate_discounts(order.cart_items, subtotal)
+        discount_amount = discount_calculation["total_discount_amount"]
+        
+        # Apply discounts to subtotal
+        subtotal_after_discount = subtotal - discount_amount
+        
+        # Calculate taxes based on configuration
+        tax_calculation = self._calculate_taxes(subtotal_after_discount)
+        tax_amount = tax_calculation["total_tax_amount"]
+        tax_details = tax_calculation["tax_details"]
+        
+        # Calculate final total
+        total_with_taxes = subtotal_after_discount + tax_amount
+        
+        # Transform cart items to PetPooja order items
+        order_items = []
+        for cart_item in order.cart_items:
+            # Calculate base price (menu item or variation price)
+            base_price = cart_item.menu_item.price
+            if cart_item.selected_item_variation:
+                base_price = cart_item.selected_item_variation.price
+            
+            # Calculate addon total
+            addon_total = 0
+            addon_items = []
+            if cart_item.selected_addons:
+                for addon in cart_item.selected_addons:
+                    addon_price = addon.addon_item.price * addon.quantity
+                    addon_total += addon_price
+                    addon_items.append({
+                        "id": addon.addon_item.external_addon_id,
+                        "name": addon.addon_item.name,
+                        "price": f"{addon.addon_item.price:.2f}",
+                        "quantity": str(addon.quantity)
+                    })
+            
+            # Calculate final price (base price + addons)
+            unit_price_with_addons = base_price + addon_total 
+            final_price = unit_price_with_addons * cart_item.qty
+            
+            # Calculate item-level taxes using configuration
+            item_tax_calculation = self._calculate_taxes(final_price)
+            item_tax_details = item_tax_calculation["tax_details"]
+
+            item_id = cart_item.selected_item_variation.external_id if cart_item.selected_item_variation else cart_item.menu_item.external_id
+
+            # Build item tax array for PetPooja format
+            item_tax_array = []
+            for tax_detail in item_tax_details:
+                item_tax_array.append({
+                    "id": tax_detail["id"],
+                    "name": tax_detail["title"],
+                    "price": tax_detail["percentage"],
+                    "amount": f"{tax_detail['tax_amount']:.2f}"
+                })
+
+            item_data = {
+                "id": item_id,
+                "name": cart_item.menu_item.name,
+                "price": f"{unit_price_with_addons:.2f}",
+                "final_price": f"{final_price:.2f}",
+                "quantity": str(cart_item.qty),
+                "gst_liability": "restaurant",
+                "item_discount": "",
+                "variation_id": cart_item.selected_item_variation.external_id if cart_item.selected_item_variation else "",
+                "variation_name": cart_item.selected_item_variation.variation.name if cart_item.selected_item_variation else "",
+                "item_tax": item_tax_array,
+                "AddonItem": {
+                    "details": addon_items
+                }
+            }
+            
+            order_items.append(item_data)
+        
+        # Current date/time for order
+        now_dt = datetime.utcnow()
+        now = now_dt.isoformat() + "Z"
+        order_date = now_dt.strftime("%Y-%m-%d")
+        order_time = now_dt.strftime("%H:%M:%S")
+        created_on = now_dt.strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Build order-level tax details for PetPooja format
+        order_tax_details = []
+        for tax_detail in tax_details:
+            order_tax_details.append({
+                "id": tax_detail["id"],
+                "title": tax_detail["title"],
+                "type": tax_detail["type"],
+                "price": tax_detail["percentage"],
+                "tax": f"{tax_detail['tax_amount']:.2f}",
+                "restaurant_liable_amt": f"{tax_detail['restaurant_liable_amt']:.2f}"
+            })
+        
+        # Build PetPooja order structure
+        petpooja_order = {
+            "app_key": self.app_key,
+            "app_secret": self.app_secret,
+            "access_token": self.access_token,
+            "orderinfo": {
+                "OrderInfo": {
+                    "Restaurant": {
+                        "details": {
+                            "res_name": "AglioAI - DineIn",
+                            "restID": self.restaurant_id,
+                        }
+                    },
+                    "Customer": {
+                        "details": {
+                            "name": member.nickname,
+                            "email": "",
+                            "phone": ""
+                        }
+                    },
+                    "Order": {
+                        "details": {
+                            "orderID": order.public_id,
+                            "preorder_date": order_date,
+                            "preorder_time": order_time,
+                            "advanced_order": "N",
+                            "order_type": "D",  # Dine-in
+                            "total": f"{total_with_taxes:.2f}",
+                            "tax_total": f"{tax_amount:.2f}",
+                            "description": "",  # Special instructions (optional)
+                            "created_on": created_on,
+                            "payment_type": "COD",  # Cash on Delivery
+                            "enable_delivery": "1",  # Restaurant delivery
+                            "table_no": str(table_number),
+                            "callback_url": self.callback_url,  # PetPooja status callback endpoint
+                            "service_charge": "0",
+                            "delivery_charges": "0", 
+                            "packing_charges": "0",
+                            "discount_total": f"{discount_amount:.2f}",
+                            "discount_type": ""
+                        }
+                    },
+                    "OrderItem": {
+                        "details": order_items
+                    },
+                    "Tax": {
+                        "details": order_tax_details
+                    }
+                }
+            },
+            "device_type": "Web"
+        }
+        
+        return petpooja_order
 
     async def get_order_status(self, external_order_id: str) -> Dict[str, Any]:
         """Get order status from PetPooja"""
         # Implementation for getting order status
-        pass
+        return {"success": False, "error": "Not implemented"}
     
     async def cancel_order(self, external_order_id: str) -> Dict[str, Any]:
         """Cancel order in PetPooja"""
         # Implementation for canceling order
-        pass 
+        return {"success": False, "error": "Not implemented"}
+    
+    def fetch_menu(self) -> Dict:
+        """Fetch menu from PetPooja POS system
+        
+        Returns:
+            Dict: Raw menu data from PetPooja
+        """
+        # This is typically done during onboarding, not real-time
+        # Return empty dict for now as menu sync is handled separately
+        return {"success": True, "message": "Menu fetch handled during onboarding"}
+    
+    def sync_menu_to_internal(self, pos_menu: Dict) -> None:
+        """Transform and sync PetPooja menu to internal structure
+        
+        Args:
+            pos_menu (Dict): Raw menu data from PetPooja
+        """
+        # This is handled by the onboarding scripts
+        # Menu sync is done via the onboarding process, not real-time
+        logger.info("Menu sync handled during restaurant onboarding process")
+        pass
+    
+    def transform_cart_for_pos(self, cart_items: List[CartItem]) -> Dict:
+        """Transform internal cart to PetPooja-specific format
+        
+        Args:
+            cart_items (List[CartItem]): Internal cart items with variations/addons
+            
+        Returns:
+            Dict: PetPooja-formatted order data
+        """
+        # This functionality is handled within place_order method
+        # via _transform_order_to_petpooja method
+        return {"success": True, "message": "Cart transformation handled in place_order"} 

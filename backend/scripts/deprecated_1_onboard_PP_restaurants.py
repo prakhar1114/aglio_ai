@@ -368,33 +368,65 @@ def process_petpooja_data(menu_api_data: dict, restaurant_id: int, pos_config: d
     logger.info("🔗 Processing PetPooja variations and addons...")
     
     try:
+        # Extract taxes from PetPooja menu data
+        taxes_data = menu_api_data.get("taxes", [])
+        discount_data = menu_api_data.get("discounts", [])
+        logger.info(f"Found {len(taxes_data)} tax rules in PetPooja data")
+        
+        # Process taxes to make them active and usable
+        processed_taxes = []
+        for tax in taxes_data:
+            processed_tax = {
+                "taxid": tax.get("taxid", ""),
+                "taxname": tax.get("taxname", ""),
+                "tax": tax.get("tax", "0"),
+                "taxtype": tax.get("taxtype", "1"),
+                "tax_ordertype": tax.get("tax_ordertype", ""),
+                "active": True,  # Make taxes active by default
+                "tax_coreortotal": tax.get("tax_coreortotal", "2"),
+                "tax_taxtype": tax.get("tax_taxtype", "1"),
+                "rank": tax.get("rank", "1"),
+                "consider_in_core_amount": tax.get("consider_in_core_amount", "0"),
+                "description": tax.get("description", "")
+            }
+            processed_taxes.append(processed_tax)
+        
+        # Create placeholder discount configuration
+        discount_config = discount_data
+        
         # Create or get POS system record
         pos_system = db.query(POSSystem).filter_by(
             restaurant_id=restaurant_id,
             name="petpooja"
         ).first()
         
+        # Merge taxes and discounts with existing config
+        enhanced_config = pos_config.copy() if pos_config else {}
+        enhanced_config["taxes"] = processed_taxes
+        enhanced_config["discounts"] = discount_config
+        
         if not pos_system:
-            # Insert a new POSSystem row with the provided config (if any)
+            # Insert a new POSSystem row with the enhanced config
             pos_system = POSSystem(
                 restaurant_id=restaurant_id,
                 name="petpooja",
-                config=pos_config or {},
+                config=enhanced_config,
                 is_active=True,
             )
             db.add(pos_system)
             db.flush()
             logger.success(
-                f"✅ Created POS system record for restaurant {restaurant_id} with config from meta.json"
+                f"✅ Created POS system record for restaurant {restaurant_id} with enhanced config including {len(processed_taxes)} tax rules"
             )
         else:
-            # Record exists – update the config only if meta.json provided one.
-            if pos_config:
-                pos_system.config = pos_config
-                db.flush()
-                logger.success(
-                    f"🔄 Updated existing POS system config for restaurant {restaurant_id} from meta.json"
-                )
+            # Record exists – update the config with taxes and discounts
+            existing_config = pos_system.config.copy() if pos_system.config else {}
+            existing_config.update(enhanced_config)
+            pos_system.config = existing_config
+            db.flush()
+            logger.success(
+                f"🔄 Updated existing POS system config for restaurant {restaurant_id} with {len(processed_taxes)} tax rules and {len(discount_config)} discount placeholders"
+            )
         
         # Note: We'll process PetPooja data directly without the integration service for onboarding
         
@@ -471,9 +503,11 @@ def process_petpooja_data(menu_api_data: dict, restaurant_id: int, pos_config: d
             "variations_synced": variations_synced,
             "addon_groups_synced": addon_groups_synced,
             "addon_items_synced": addon_items_synced,
+            "taxes_processed": len(processed_taxes),
+            "discounts_configured": len(discount_config),
         }
         
-        logger.success(f"✅ PetPooja data processed: {variations_synced} variations, {addon_groups_synced} addon groups, {addon_items_synced} addon items")
+        logger.success(f"✅ PetPooja data processed: {variations_synced} variations, {addon_groups_synced} addon groups, {addon_items_synced} addon items, {len(processed_taxes)} tax rules, {len(discount_config)} discount rules")
         return result
         
     except Exception as e:
@@ -484,7 +518,9 @@ def process_petpooja_data(menu_api_data: dict, restaurant_id: int, pos_config: d
             "pos_system_id": None,
             "variations_synced": 0,
             "addon_groups_synced": 0,
-            "addon_items_synced": 0
+            "addon_items_synced": 0,
+            "taxes_processed": 0,
+            "discounts_configured": 0
         }
 
 # ---------- core loader -------------------------------------------------------
@@ -680,7 +716,6 @@ def seed_folder(folder: Path):
                     if attr_id_val and attr_id_val in attributes_map:
                         tags_list.append(attributes_map[attr_id_val])
                     # Remove duplicates and empty strings
-                    print("tags_list", tags_list)
                     mi.tags = tags_list
                 
                 # Flush this individual item to catch any issues early

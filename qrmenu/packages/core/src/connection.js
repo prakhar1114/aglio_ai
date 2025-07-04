@@ -131,6 +131,31 @@ function handleWebSocketMessage(data) {
       chatStore.handleWebSocketMessage(data);
       break;
       
+    // Order processing messages
+    case 'cart_locked':
+      console.log('Cart locked by member:', data);
+      cartStore.lockCart({
+        orderId: data.order_id,
+        lockedByMember: data.locked_by_member
+      });
+      break;
+      
+    case 'order_confirmed':
+      console.log('Order confirmed:', data);
+      if (data.order) {
+        cartStore.handleOrderSuccess(data.order);
+      } else {
+        // Fallback if only id is sent
+        cartStore.handleOrderSuccess({ id: data.order_id });
+      }
+      // Don't add to orders here - let the backend send order details separately
+      break;
+      
+    case 'order_failed':
+      console.log('Order failed:', data);
+      cartStore.handleOrderFailure(data.error || 'Order processing failed');
+      break;
+      
     case 'table_closed':
       console.log('Table closed by admin:', data.message);
       window.location.href = '/menu';
@@ -273,6 +298,37 @@ export function sendChatMessage(message, senderName, threadId, messageId) {
   } else {
     console.error('WebSocket not connected - cannot send chat message');
   }
+}
+
+// Order placement functions
+export function placeOrder(specialInstructions = '') {
+  const wsConnection = useSessionStore.getState().wsConnection;
+  const cartStore = useCartStore.getState();
+  
+  if (!wsConnection || wsConnection.readyState !== WebSocket.OPEN) {
+    console.error('WebSocket not connected - cannot place order');
+    cartStore.handleOrderFailure('Connection lost');
+    return;
+  }
+  
+  // Check if cart is empty
+  if (cartStore.items.length === 0) {
+    console.error('Cannot place order: cart is empty');
+    cartStore.handleOrderFailure('Cart is empty');
+    return;
+  }
+  
+  // Lock cart immediately
+  cartStore.lockCart();
+  
+  const orderMessage = {
+    type: 'place_order',
+    special_instructions: specialInstructions,
+    total: cartStore.getTotalAmount()
+  };
+  
+  console.log('Sending order placement message:', orderMessage);
+  wsConnection.send(JSON.stringify(orderMessage));
 }
 
 export function addItemToCart(menuItem, qty = 1, note = '') {

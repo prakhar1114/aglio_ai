@@ -1,4 +1,4 @@
-from typing import Dict, Type
+from typing import Dict, Type, Optional
 from sqlalchemy.orm import Session
 
 from .interface import POSInterface
@@ -33,13 +33,13 @@ def get_pos_system(restaurant_id: int, pos_system_name: str, db: Session) -> POS
         POSSystem.is_active == True
     ).first()
     
-    if not pos_system:
-        raise ValueError(f"No active POS system '{pos_system_name}' found for restaurant {restaurant_id}")
+    # if not pos_system:
+    #     raise ValueError(f"No active POS system '{pos_system_name}' found for restaurant {restaurant_id}")
     
     return pos_system
 
 
-def get_pos_integration(pos_system: POSSystem) -> POSInterface:
+def get_pos_integration(pos_system: POSSystem) -> Optional[POSInterface]:
     """Get POS integration instance for a POS system
     
     Args:
@@ -58,7 +58,7 @@ def get_pos_integration(pos_system: POSSystem) -> POSInterface:
     return integration_class(pos_system)
 
 
-def get_pos_integration_by_name(restaurant_id: int, pos_system_name: str, db: Session) -> POSInterface:
+def get_pos_integration_by_name(restaurant_id: int, pos_system_name: str, db: Session) -> Optional[POSInterface]:
     """Get POS integration instance by restaurant ID and POS system name
     
     Args:
@@ -70,4 +70,4 @@ def get_pos_integration_by_name(restaurant_id: int, pos_system_name: str, db: Se
         POSInterface: POS integration instance
     """
     pos_system = get_pos_system(restaurant_id, pos_system_name, db)
-    return get_pos_integration(pos_system) 
+    return get_pos_integration(pos_system) if pos_system else None

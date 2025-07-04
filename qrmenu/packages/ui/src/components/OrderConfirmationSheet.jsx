@@ -95,7 +95,7 @@ export function OrderConfirmationSheet({ isOpen, onClose, onViewOrders, placedOr
                 {/* Order Items */}
                 <div className="space-y-2 mb-3">
                   {placedOrder.items.map((cartItem, index) => {
-                    const itemPrice = cartItem.final_price || cartItem.base_price || cartItem.price || 0;
+                    const itemPrice = cartItem.final_price ?? 0;
                     return (
                       <div key={`${placedOrder.id}-${cartItem.public_id}-${index}`} 
                            className="flex justify-between items-center py-1"
@@ -121,6 +121,22 @@ export function OrderConfirmationSheet({ isOpen, onClose, onViewOrders, placedOr
                              }}>
                             Qty: {cartItem.qty} × ₹{itemPrice.toFixed(2)}
                           </p>
+                          {/* Customisations */}
+                          {cartItem.selected_variation && (
+                            <p className="text-xs text-gray-500" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", fontSize: '11px' }}>
+                              {cartItem.selected_variation.group_name}: {cartItem.selected_variation.variation_name}
+                            </p>
+                          )}
+
+                          {cartItem.selected_addons && cartItem.selected_addons.length > 0 && (
+                            <div className="mt-0.5 space-y-0.5">
+                              {cartItem.selected_addons.map((addon, idx) => (
+                                <p key={idx} className="text-xs text-gray-500" style={{ fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", fontSize: '11px' }}>
+                                  + {addon.name}{addon.quantity > 1 ? ` × ${addon.quantity}` : ''}
+                                </p>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         <p className="font-semibold text-gray-900 ml-3"
                            style={{

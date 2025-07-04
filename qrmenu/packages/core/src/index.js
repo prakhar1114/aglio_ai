@@ -10,6 +10,6 @@ export { generateShortId, isVideoUrl } from './utils/general.js';
 // Export connection bootstrap & helpers from setup.js
 export { setupConnection, updateMemberNickname, validatePassword } from './setup.js';
 // Export WebSocket / cart mutation helpers from connection.js
-export { addItemToCart, updateCartItem, replaceCartItem, deleteCartItem, sendCartMutation, sendChatMessage, confirmCustomisation } from './connection.js';
+export { addItemToCart, updateCartItem, replaceCartItem, deleteCartItem, sendCartMutation, sendChatMessage, confirmCustomisation, placeOrder } from './connection.js';
 export { loadCartSnapshot, submitOrder } from './api/cart.js';
 export { sendWaiterRequest, callWaiter, askForBill, handleWaiterRequest } from './api/waiter.js'; 
