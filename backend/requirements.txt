@@ -19,6 +19,8 @@ aiofiles>=23.0.0
 PyJWT>=2.8.0
 jinja2>=3.0.0
 SQLAlchemy==2.0.41
-psycopg2==2.9.10
+# Use platform-specific wheels to avoid build issues
+psycopg2==2.9.10 ; platform_system == "Darwin"
+psycopg2-binary==2.9.10 ; platform_system == "Linux"
 websockets>=11.0.3
 pytz>=2023.3
