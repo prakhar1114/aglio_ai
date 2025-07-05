@@ -365,6 +365,9 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
                           const allCurrentItems = data ? data.items : [];
                           onItemClick?.(item, allCurrentItems);
                         }}
+                        preload={true}
+                        autoplay={true}
+                        muted={true}
                       />
                     </div>
                   );

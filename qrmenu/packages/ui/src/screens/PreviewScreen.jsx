@@ -108,6 +108,9 @@ function MediaSection({ item, currentIndex, totalItems }) {
           containerHeight={viewportWidth}
           className="w-full h-auto"
           addControls={true}
+          preload={true}
+          autoplay={true}
+          muted={true}
         />
       ) : (
         <div className="text-gray-400 text-6xl py-16">🍽️</div>
@@ -336,7 +339,7 @@ function CategorySection({ categoryItems, currentItem, onItemClick }) {
   // Defer grid rendering after swipe animation completes
   useEffect(() => {
     setShowGrid(false); // Hide grid immediately when item changes
-    const timer = setTimeout(() => setShowGrid(true), 300); // Show after 150ms
+    const timer = setTimeout(() => setShowGrid(true), 1000); // Show after 150ms
     return () => clearTimeout(timer);
   }, [currentItem.id]);
   

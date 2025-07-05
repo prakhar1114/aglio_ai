@@ -2,7 +2,7 @@ import React from 'react';
 import { useCartStore, useSessionStore, addItemToCart, updateCartItem, deleteCartItem, constructImageUrl, getOptimalVariant } from '@qrmenu/core';
 import { OptimizedMedia } from './OptimizedMedia.jsx';
 
-export function ItemCard({ item, containerWidth, onItemClick }) {
+export function ItemCard({ item, containerWidth, onItemClick, preload=false, autoplay=false, muted=true }) {
   // Calculate current quantity for this menu item from shared cart
   const { items } = useCartStore();
   const { memberPid } = useSessionStore();
@@ -297,6 +297,9 @@ export function ItemCard({ item, containerWidth, onItemClick }) {
             containerWidth={cardWidth}
             containerHeight={cardWidth} // Square aspect ratio
             className="w-full h-full"
+            preload={preload}
+            autoplay={autoplay}
+            muted={muted}
           />
           <div style={buttonOverlayStyle}>
             {qty === 0 ? (
