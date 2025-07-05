@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { constructImageUrl, getOptimalVariant } from '@qrmenu/core';
 import Hls from 'hls.js';
+import { StreamPlayerWrapper } from './StreamPlayerWrapper.jsx';
 const customerCode = import.meta.env?.VITE_CLOUDFLARE_STREAM_CUSTOMER_CODE || process.env.CLOUDFLARE_STREAM_CUSTOMER_CODE;
 
 export function OptimizedMedia({ 
@@ -59,45 +60,18 @@ export function OptimizedMedia({
   }
   
   if (mediaResult.type === 'video') {
+    // --- New implementation using Cloudflare Stream React component ---
     return (
-      <div 
+      <StreamPlayerWrapper
+        videoId={cloudflareVideoId}
+        containerWidth="100%"
+        containerHeight={containerHeight || '100%'}
+        addControls={addControls}
+        preload={preload}
+        autoplay={autoplay}
+        muted={muted}
         className={className}
-        style={{ 
-          position: 'relative', 
-          paddingTop: '56.25%', // 16:9 aspect ratio
-          width: containerWidth,
-          maxWidth: '100%',
-          zIndex: 0,
-        }}
-        onClick={onClick}
-      >
-        <iframe
-          src={`https://customer-${customerCode}.cloudflarestream.com/${cloudflareVideoId}/iframe?${muted ? 'muted=true&' : ''}${preload ? 'preload=true&' : ''}${autoplay ? 'autoplay=true&' : ''}loop=true&poster=https%3A%2F%2Fcustomer-${customerCode}.cloudflarestream.com%2F${cloudflareVideoId}%2Fthumbnails%2Fthumbnail.jpg%3Ftime%3D%26height%3D600${addControls ? '' : '&controls=false'}`}
-          loading="lazy"
-          style={{
-            border: 'none',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            height: '100%',
-            width: '100%'
-          }}
-          allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
-          allowFullScreen={true}
-        />
-      </div>
-
-
-      // <VideoPlayer 
-      //   hlsUrl={mediaResult.hls}
-      //   thumbnailUrl={mediaResult.thumbnail}
-      //   className={className}
-      //   containerWidth={containerWidth}
-      //   containerHeight={containerHeight}
-      //   onClick={onClick}
-      //   alt={alt}
-      //   addControls={addControls}
-      // />
+      />
     );
   }
   
