@@ -1,3 +1,4 @@
+import re
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -61,7 +62,10 @@ app = FastAPI(
     title="Aglio Multi-Tenant Restaurant API",
     description="Multi-tenant restaurant recommendation and menu system",
     version="2.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
+    docs_url="/docs" if DEBUG_MODE else None,
+    redoc_url="/redoc" if DEBUG_MODE else None,
+    openapi_url="/openapi.json" if DEBUG_MODE else None,
 )
 
 # Add tenant middleware first (before other middlewares)
@@ -99,16 +103,17 @@ app.include_router(petpooja_callback_router, tags=["petpooja_callback"])
 
 # CORS configuration
 allowed_origins = ["*"] if DEBUG_MODE else [
-    "https://aglioapp.com",
-    "https://*.aglioapp.com",
+    # only third-party domains that aren’t under aglioapp.com
     "https://agliomenu.vercel.app",
     "https://pin-menuapp.vercel.app",
     "https://urchin-creative-supposedly.ngrok-free.app",
 ]
+allow_origin_regex = re.compile(r"^https://([a-z0-9-]+\.)*aglioapp\.com$")
 
 app.add_middleware(
     CORSMiddleware, 
     allow_origins=allowed_origins,
+    allow_origin_regex=allow_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

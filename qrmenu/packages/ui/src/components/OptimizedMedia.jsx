@@ -1,6 +1,8 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { constructImageUrl, getOptimalVariant } from '@qrmenu/core';
 import Hls from 'hls.js';
+import { StreamPlayerWrapper } from './StreamPlayerWrapper.jsx';
+const customerCode = import.meta.env?.VITE_CLOUDFLARE_STREAM_CUSTOMER_CODE || process.env.CLOUDFLARE_STREAM_CUSTOMER_CODE;
 
 export function OptimizedMedia({ 
   imageUrl,
@@ -11,7 +13,12 @@ export function OptimizedMedia({
   containerWidth = 300,
   containerHeight = null,
   onClick = null,
-  addControls = false
+  addControls = false,
+  preload=false,
+  autoplay=false,
+  muted=true,
+  reuseStream=false,
+  contextId=null
 }) {
 
   // Get optimal variant based on container size (DPI-aware)
@@ -54,18 +61,20 @@ export function OptimizedMedia({
     );
   }
   
-  // Handle video with HLS
   if (mediaResult.type === 'video') {
+    // --- New implementation using Cloudflare Stream React component ---
     return (
-      <VideoPlayer 
-        hlsUrl={mediaResult.hls}
-        thumbnailUrl={mediaResult.thumbnail}
-        className={className}
-        containerWidth={containerWidth}
-        containerHeight={containerHeight}
-        onClick={onClick}
-        alt={alt}
+      <StreamPlayerWrapper
+        videoId={cloudflareVideoId}
+        containerWidth="100%"
+        containerHeight={containerHeight || '100%'}
         addControls={addControls}
+        preload={preload}
+        autoplay={autoplay}
+        muted={muted}
+        reuseStream={reuseStream}
+        contextId={contextId}
+        className={className}
       />
     );
   }

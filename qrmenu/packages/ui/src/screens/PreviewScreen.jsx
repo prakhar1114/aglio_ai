@@ -74,7 +74,7 @@ function ProgressDots({ currentIndex, totalItems }) {
 }
 
 // Media Section Component
-function MediaSection({ item, currentIndex, totalItems }) {
+function MediaSection({ item, currentIndex, totalItems, playerContextId }) {
   // Calculate dynamic viewport width for optimal media sizing
   const getViewportWidth = () => {
     if (typeof window !== 'undefined') {
@@ -108,6 +108,11 @@ function MediaSection({ item, currentIndex, totalItems }) {
           containerHeight={viewportWidth}
           className="w-full h-auto"
           addControls={true}
+          preload={true}
+          autoplay={true}
+          muted={true}
+          reuseStream={true}
+          contextId={playerContextId}
         />
       ) : (
         <div className="text-gray-400 text-6xl py-16">🍽️</div>
@@ -320,26 +325,39 @@ function DetailsSection({ item, onAskAI }) {
 }
 
 // Category Section Component
-function CategorySection({ categoryItems, currentItem, onItemClick }) {
-  const otherItems = categoryItems.filter(item => item.id !== currentItem.id);
-  const [showGrid, setShowGrid] = useState(false);
-  
+const CategorySection = React.memo(function CategorySection({ categoryItems, currentItem, onItemClick }) {
+  const otherItems = categoryItems.filter((item) => item.id !== currentItem.id);
+
   // Debug logging
   console.log('CategorySection render:', {
     categoryItems: categoryItems?.length || 0,
     currentItem: currentItem?.name,
     currentItemId: currentItem?.id,
     otherItems: otherItems?.length || 0,
-    category_brief: currentItem?.category_brief
+    category_brief: currentItem?.category_brief,
   });
-  
-  // Defer grid rendering after swipe animation completes
+
+  const gridWrapperRef = React.useRef(null);
+
+  // Defer grid *visibility* (not mounting) to give MediaSection priority –
+  // avoids an extra React render (perf tweak C improved).
   useEffect(() => {
-    setShowGrid(false); // Hide grid immediately when item changes
-    const timer = setTimeout(() => setShowGrid(true), 300); // Show after 150ms
+    const el = gridWrapperRef.current;
+    if (!el) return;
+
+    // Initially hide grid
+    el.style.opacity = '0';
+    el.style.pointerEvents = 'none';
+
+    const timer = setTimeout(() => {
+      el.style.transition = 'opacity 0.25s ease-out';
+      el.style.opacity = '1';
+      el.style.pointerEvents = '';
+    }, 1000); // 1000 ms delay matches previous logic
+
     return () => clearTimeout(timer);
   }, [currentItem.id]);
-  
+
   if (otherItems.length === 0) {
     console.log('CategorySection: No other items to show, returning null');
     return null;
@@ -352,23 +370,16 @@ function CategorySection({ categoryItems, currentItem, onItemClick }) {
   };
 
   const handleWrapperClick = (e) => {
-    // Stop event propagation to prevent parent swipe handlers from interfering
-    e.stopPropagation();
+    e.stopPropagation(); // Prevent parent swipe handlers
   };
 
   const handleWrapperTouch = (e) => {
-    // Only stop propagation for vertical touch events (taps and vertical scrolling)
-    // Let horizontal swipes bubble up to parent swipe handlers
     if (e.type === 'touchstart') {
-      // Store initial touch position to determine if this is a vertical or horizontal gesture
       e.currentTarget._touchStartY = e.touches[0].clientY;
       e.currentTarget._touchStartX = e.touches[0].clientX;
     } else if (e.type === 'touchmove') {
       const deltaY = Math.abs(e.touches[0].clientY - e.currentTarget._touchStartY);
       const deltaX = Math.abs(e.touches[0].clientX - e.currentTarget._touchStartX);
-      
-      // If this is primarily a vertical gesture, stop propagation
-      // If it's primarily horizontal, let it bubble up for swipe detection
       if (deltaY > deltaX) {
         e.stopPropagation();
       }
@@ -376,30 +387,26 @@ function CategorySection({ categoryItems, currentItem, onItemClick }) {
   };
 
   return (
-    <div 
-      onClick={handleWrapperClick} 
+    <div
+      onClick={handleWrapperClick}
       onTouchStart={handleWrapperTouch}
       onTouchMove={handleWrapperTouch}
       className="mt-6"
     >
-      {showGrid ? (
+      <div ref={gridWrapperRef}>
         <SimpleMasonryGrid
           items={otherItems}
           onItemClick={handleItemClick}
           title={`Other ${currentItem.category_brief}`}
           className="flex-1"
         />
-      ) : (
-        <div style={{ height: 200 }} className="flex items-center justify-center">
-          <div className="text-gray-400">Loading more items...</div>
-        </div>
-      )}
+      </div>
     </div>
   );
-}
+});
 
 // Main PreviewScreen Component
-export function PreviewScreen({ 
+function PreviewScreenComponent({ 
   isOpen, 
   item, 
   categoryItems, 
@@ -480,6 +487,11 @@ export function PreviewScreen({
     sendMessageAndOpenDrawer(message, nickname);
   };
 
+  const playerContextIdRef = useRef(null);
+  if (!playerContextIdRef.current) {
+    playerContextIdRef.current = `preview-player-${Math.random().toString(36).slice(2, 8)}`;
+  }
+
   if (!isOpen || !item) return null;
 
   return (
@@ -508,6 +520,7 @@ export function PreviewScreen({
           item={item} 
           currentIndex={currentIndex}
           totalItems={categoryItems.length}
+          playerContextId={playerContextIdRef.current}
         />
         
         {/* Details Section */}
@@ -522,4 +535,24 @@ export function PreviewScreen({
       </div>
     </>
   );
-} 
+}
+
+// Memoised wrapper to prevent re-renders of background previews (perf plan 1)
+const propsAreEqual = (prev, next) => {
+  // If topmost status flips, always re-render
+  if (prev.isTopmost !== next.isTopmost) return false;
+
+  // Always re-render the topmost preview to show new item/progress etc.
+  if (next.isTopmost) {
+    return (
+      prev.item?.id === next.item?.id &&
+      prev.currentIndex === next.currentIndex &&
+      prev.categoryItems.length === next.categoryItems.length
+    );
+  }
+
+  // For non-top previews, skip re-rendering after initial mount
+  return true;
+};
+
+export const PreviewScreen = React.memo(PreviewScreenComponent, propsAreEqual); 

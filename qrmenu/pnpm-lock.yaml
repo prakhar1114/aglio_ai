@@ -67,6 +67,9 @@ importers:
 
   packages/ui:
     dependencies:
+      '@cloudflare/stream-react':
+        specifier: ^1.9.3
+        version: 1.9.3(react@18.3.1)
       '@qrmenu/core':
         specifier: workspace:*
         version: link:../core
@@ -282,6 +285,12 @@ packages:
 
   '@cfcs/core@0.0.5':
     resolution: {integrity: sha512-TZ/RXKV7MUrqFpiX+16uaaptv5jgChWNsuE6w8Rn3eJbO1PFd4Wpn25zeJbii7ch46ck8/ZIIYCcW3pHiYtm4Q==}
+
+  '@cloudflare/stream-react@1.9.3':
+    resolution: {integrity: sha512-ocr7B+zHk/jq0r/wgtFeyoz7Hr+v3Qn0Ho6yUBkWT07ahr/0GU1dhliYJESwNXMuMYCU1sZ02sFH9pW5r1/BIA==}
+    engines: {node: '>=10'}
+    peerDependencies:
+      react: '>=16'
 
   '@egjs/children-differ@1.0.1':
     resolution: {integrity: sha512-DRvyqMf+CPCOzAopQKHtW+X8iN6Hy6SFol+/7zCUiE5y4P/OB8JP8FtU4NxtZwtafvSL4faD5KoQYPj3JHzPFQ==}
@@ -1553,6 +1562,10 @@ snapshots:
   '@cfcs/core@0.0.5':
     dependencies:
       '@egjs/component': 3.0.5
+
+  '@cloudflare/stream-react@1.9.3(react@18.3.1)':
+    dependencies:
+      react: 18.3.1
 
   '@egjs/children-differ@1.0.1':
     dependencies:
