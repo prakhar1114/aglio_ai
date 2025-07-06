@@ -281,7 +281,7 @@ export function OrderConfirmationSheet({ isOpen, onClose, onViewOrders, placedOr
             onClick={onClose}
             className="w-full bg-red-500 text-white py-3 rounded-lg font-medium hover:bg-red-600 transition-all duration-200"
             style={{
-              backgroundColor: '#E23744',
+              backgroundColor: '#C72C48',
               fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
               fontSize: '16px',
               fontWeight: '600',

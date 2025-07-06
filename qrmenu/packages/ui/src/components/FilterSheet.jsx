@@ -264,7 +264,7 @@ export function FilterSheet({ isOpen, onClose, onApplyFilters, initialFilters = 
             </button>
             <button
               onClick={handleApply}
-              className="flex-1 py-2.5 px-4 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+              className="flex-1 py-2.5 px-4 bg-[#C72C48] text-white rounded-lg hover:bg-[#A9253D] transition-colors"
             >
               Apply Filters
             </button>

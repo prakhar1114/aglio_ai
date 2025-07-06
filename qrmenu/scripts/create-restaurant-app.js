@@ -241,7 +241,7 @@ const postcssConfig = `export default {
 `;
 
 const themeJson = {
-  brandColor: "#E23744",
+  brandColor: "#C72C48",
   fontHeading: "'Poppins', sans-serif",
   secondaryColor: "#4ECDC4",
   backgroundColor: "#F7F9FC",
@@ -253,9 +253,9 @@ const themeJson = {
   },
   design: {
     colors: {
-      primary: "#E23744",
-      primarySubtle: "#E2374415",
-      primaryLight: "#E2374430",
+      primary: "#C72C48",
+      primarySubtle: "#C72C4815",
+      primaryLight: "#C72C4830",
       surface: "#FFFFFF",
       surfaceElevated: "#FAFBFC",
       surfacePressed: "#F5F6F7",
@@ -326,7 +326,7 @@ const themeJson = {
   components: {
     button: {
       primary: {
-        background: "#E23744",
+        background: "#C72C48",
         color: "#FFFFFF",
         borderRadius: "6px",
         fontSize: "12px",

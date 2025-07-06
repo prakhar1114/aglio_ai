@@ -250,7 +250,7 @@ function CompactActionButtons({ item, onAskAI }) {
 
   const addButtonStyle = {
     ...buttonBaseStyle,
-    backgroundColor: '#E23744',
+    backgroundColor: '#C72C48',
     color: '#FFFFFF',
     minWidth: '36px',
     padding: '0 12px',
@@ -260,7 +260,7 @@ function CompactActionButtons({ item, onAskAI }) {
   const quantityPillStyle = {
     display: 'flex',
     alignItems: 'center',
-    backgroundColor: '#E23744',
+    backgroundColor: '#C72C48',
     borderRadius: '8px',
     boxShadow: '0 2px 4px rgba(226, 55, 68, 0.2)',
     overflow: 'hidden',

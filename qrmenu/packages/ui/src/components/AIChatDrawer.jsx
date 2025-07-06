@@ -64,7 +64,7 @@ export function AIChatDrawer() {
       {/* Drawer */}
       <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl z-[110] rounded-t-3xl shadow-2xl animate-slide-up max-h-[85vh] flex flex-col border-t border-black/10">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-black/8 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-t-3xl">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-black/8 bg-gradient-to-r from-[#C72C48] to-[#A9253D] text-white rounded-t-3xl">
           <div className="flex items-center space-x-3">
             <div className="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center">
               <span className="text-sm">🤖</span>
@@ -122,7 +122,7 @@ export function AIChatDrawer() {
                   <div className="w-full">
                     {/* AI Header */}
                     <div className="flex items-center space-x-2 mb-2">
-                      <div className="w-6 h-6 bg-gradient-to-r from-red-500 to-red-600 rounded-full flex items-center justify-center">
+                      <div className="w-6 h-6 bg-transparent rounded-full flex items-center justify-center">
                         <span className="text-xs text-white">🤖</span>
                       </div>
                       <span className="text-xs font-medium text-gray-600" style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif" }}>
@@ -153,7 +153,7 @@ export function AIChatDrawer() {
           {isTyping && (
             <div className="w-full">
               <div className="flex items-center space-x-2 mb-2">
-                <div className="w-6 h-6 bg-gradient-to-r from-red-500 to-red-600 rounded-full flex items-center justify-center">
+                <div className="w-6 h-6 bg-transparent rounded-full flex items-center justify-center">
                   <span className="text-xs text-white">🤖</span>
                 </div>
                 <span className="text-xs font-medium text-gray-600" style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif" }}>
