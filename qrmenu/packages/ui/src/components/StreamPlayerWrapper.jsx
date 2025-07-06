@@ -7,6 +7,7 @@ import React, {
   useState,
 } from 'react';
 import { Stream } from '@cloudflare/stream-react';
+import { streamRegistry } from '../utils/streamRegistry.js';
 
 // Retrieve Cloudflare customer code from Vite or Node environment variables
 const customerCode =
@@ -34,6 +35,8 @@ export const StreamPlayerWrapper = memo(
       autoplay = false,
       muted = true,
       loop = true,
+      reuseStream = false,
+      contextId = null,
       transformations = {}, // { scale, x, y, animated }
       className = '',
       onStreamReady,
@@ -41,6 +44,7 @@ export const StreamPlayerWrapper = memo(
     ref,
   ) {
     const internalRef = useRef();
+    const containerRef = useRef();
     const [isMutedState, setIsMutedState] = useState(muted);
     const [progress, setProgress] = useState(0); // 0..1
     const [buffered, setBuffered] = useState(0); // 0..1
@@ -119,6 +123,14 @@ export const StreamPlayerWrapper = memo(
       };
     }, [internalRef]);
 
+    // Whenever the video source changes, reset progress & show loading spinner
+    useEffect(() => {
+      setIsLoading(true);
+      setProgress(0);
+      setBuffered(0);
+      console.log('rendering stream ', videoId, 'contextId ', contextId);
+    }, [videoId]);
+
     return (
       <div
         className={`stream-wrapper ${className}`}
@@ -131,6 +143,7 @@ export const StreamPlayerWrapper = memo(
           transformOrigin: 'center',
           transition: animated ? 'transform 0.35s ease-out' : undefined,
         }}
+        ref={containerRef}
       >
         {/* Mute/Unmute Toggle (custom) */}
         {addControls && (
@@ -161,7 +174,7 @@ export const StreamPlayerWrapper = memo(
         )}
 
         {/* Minimal progress bar */}
-        {addControls && (
+        {!isLoading && addControls && (
           <ProgressBar
             progress={progress}
             buffered={buffered}
@@ -192,6 +205,7 @@ export const StreamPlayerWrapper = memo(
             overflow: 'hidden',
           }}
         >
+          {/* Render Stream */}
           <Stream
             streamRef={internalRef}
             src={videoId}
@@ -204,7 +218,13 @@ export const StreamPlayerWrapper = memo(
             responsive={true}
             height={containerHeight}
             width={containerWidth}
-            onReady={() => onStreamReady?.(internalRef.current)}
+            // onLoadedMetaData={() => {
+            //   if (reuseStream && internalRef.current) {
+            //     streamRegistry.register(videoId, internalRef.current);
+            //   }
+            //   onStreamReady?.(internalRef.current);
+            //   setIsLoading(false);
+            // }}
           />
         </div>
       </div>

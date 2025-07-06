@@ -368,6 +368,7 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
                         preload={true}
                         autoplay={true}
                         muted={true}
+                        context_namespace={`masonry-feed`}
                       />
                     </div>
                   );

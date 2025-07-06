@@ -7,17 +7,17 @@
 
 export class StreamRegistry {
   constructor() {
-    this.streams = new Map(); // videoId -> streamRef
+    this.streams = new Map(); // videoId -> { api, lastUsed }
   }
 
   /**
    * Register a stream reference for a given videoId.
    * @param {string} videoId
-   * @param {object} streamRef – reference returned by <Stream>
+   * @param {object} api – API object
    */
-  register(videoId, streamRef) {
-    if (!videoId || !streamRef) return;
-    this.streams.set(videoId, streamRef);
+  register(videoId, api) {
+    if (!videoId || !api) return;
+    this.streams.set(videoId, { api, lastUsed: Date.now() });
   }
 
   /**
@@ -26,7 +26,9 @@ export class StreamRegistry {
    * @returns {object|undefined}
    */
   get(videoId) {
-    return this.streams.get(videoId);
+    const entry = this.streams.get(videoId);
+    if (entry) entry.lastUsed = Date.now();
+    return entry;
   }
 
   has(videoId) {
@@ -39,6 +41,26 @@ export class StreamRegistry {
    */
   remove(videoId) {
     this.streams.delete(videoId);
+  }
+
+  cleanup(maxStreams = 10, maxIdleMs = 5 * 60 * 1000) {
+    const now = Date.now();
+    for (const [id, entry] of this.streams) {
+      if (now - entry.lastUsed > maxIdleMs) {
+        this.streams.delete(id);
+      }
+    }
+
+    // enforce maxStreams via LRU
+    if (this.streams.size > maxStreams) {
+      const sorted = Array.from(this.streams.entries()).sort(
+        (a, b) => a[1].lastUsed - b[1].lastUsed,
+      );
+      const surplus = this.streams.size - maxStreams;
+      sorted.slice(0, surplus).forEach(([id]) => {
+        this.streams.delete(id);
+      });
+    }
   }
 }
 

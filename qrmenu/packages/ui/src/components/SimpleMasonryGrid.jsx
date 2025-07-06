@@ -49,11 +49,17 @@ export function SimpleMasonryGrid({
   const [columnCount, setColumnCount] = useState(getColumnCount());
   const [cardWidth, setCardWidth] = useState(getCardWidth());
 
-  // Update column count and card width on window resize
+  // Update column count and card width on window resize – only trigger
+  // state updates when the computed values actually change to avoid
+  // unnecessary renders (performance tweak B).
   useEffect(() => {
     const handleResize = () => {
-      setColumnCount(getColumnCount());
-      setCardWidth(getCardWidth());
+      const nextCols = getColumnCount();
+      const nextWidth = getCardWidth();
+
+      // Only update if different – avoids a redundant render pass.
+      setColumnCount((prev) => (prev === nextCols ? prev : nextCols));
+      setCardWidth((prev) => (prev === nextWidth ? prev : nextWidth));
     };
 
     window.addEventListener('resize', handleResize);
@@ -120,6 +126,7 @@ export function SimpleMasonryGrid({
                 console.log('SimpleMasonryGrid item clicked:', item.name);
                 onItemClick?.(item);
               }}
+              context_namespace={`simple-masonry-grid`}
             />
           </div>
         ))}

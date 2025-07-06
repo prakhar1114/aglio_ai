@@ -16,7 +16,9 @@ export function OptimizedMedia({
   addControls = false,
   preload=false,
   autoplay=false,
-  muted=true
+  muted=true,
+  reuseStream=false,
+  contextId=null
 }) {
 
   // Get optimal variant based on container size (DPI-aware)
@@ -70,6 +72,8 @@ export function OptimizedMedia({
         preload={preload}
         autoplay={autoplay}
         muted={muted}
+        reuseStream={reuseStream}
+        contextId={contextId}
         className={className}
       />
     );

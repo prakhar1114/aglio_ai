@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { useCartStore, setupConnection, useChatStore, handleWaiterRequest } from '@qrmenu/core';
 import { MasonryFeed } from '../components/MasonryFeed.jsx';
@@ -12,6 +12,9 @@ import { InformationModal } from '../components/InformationModal.jsx';
 import { ItemCustomisations } from '../components/ItemCustomisations.jsx';
 import { NicknamePrompt } from '../components/NicknamePrompt.jsx';
 import { PreviewScreen } from './PreviewScreen.jsx';
+
+// Memoised version to avoid unnecessary re-renders when previewStack updates
+const MemoisedMasonryFeed = React.memo(MasonryFeed);
 
 function MenuPage() {
   const location = useLocation();
@@ -82,7 +85,7 @@ function MenuPage() {
   };
 
   // Preview Screen Handlers
-  const handleItemClick = (clickedItem, allCurrentItems) => {
+  const handleItemClick = useCallback((clickedItem, allCurrentItems) => {
     // Filter items by same category and ensure they have the 'kind' property
     const categoryItems = allCurrentItems
       .filter(item => item.category_brief === clickedItem.category_brief)
@@ -109,34 +112,28 @@ function MenuPage() {
     };
     
     setPreviewStack(prev => [...prev, newPreview]);
-  };
+  }, []);
 
-  const handlePreviewClose = () => {
-    setPreviewStack(prev => {
+  const handlePreviewClose = useCallback(() => {
+    setPreviewStack((prev) => {
       const newStack = [...prev];
-      newStack.pop(); // Remove the top preview
+      newStack.pop();
       return newStack;
     });
-  };
+  }, []);
 
-  const handleItemChange = (newIndex) => {
-    setPreviewStack(prev => {
+  const handleItemChange = useCallback((newIndex) => {
+    setPreviewStack((prev) => {
       const newStack = [...prev];
       const topPreview = newStack[newStack.length - 1];
       if (topPreview) {
         const newItem = topPreview.categoryItems[newIndex];
-        topPreview.item = { ...newItem, kind: newItem.kind || 'food' }; // Ensure kind property
+        topPreview.item = { ...newItem, kind: newItem.kind || 'food' };
         topPreview.currentIndex = newIndex;
-        
-        console.log('Item changed to:', {
-          index: newIndex,
-          item: topPreview.item.name,
-          kind: topPreview.item.kind
-        });
       }
       return newStack;
     });
-  };
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
@@ -144,7 +141,7 @@ function MenuPage() {
       <div className="max-w-md mx-auto bg-white min-h-screen">
         {/* Main Feed */}
         <main className="flex-1">
-          <MasonryFeed 
+          <MemoisedMasonryFeed 
             filters={currentFilters}
             onItemClick={handleItemClick}
           />
@@ -193,7 +190,7 @@ function MenuPage() {
           item={preview.item}
           categoryItems={preview.categoryItems}
           currentIndex={preview.currentIndex}
-          onClose={handlePreviewClose}
+          onClose={index === previewStack.length - 1 ? handlePreviewClose : null}
           onItemChange={index === previewStack.length - 1 ? handleItemChange : null}
           onItemClick={index === previewStack.length - 1 ? handleItemClick : null}
           zIndex={50 + index} // Stack them with increasing z-index
