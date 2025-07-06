@@ -209,6 +209,7 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
           boxSizing: 'border-box',
           padding: '1px', // Minimal padding
           overflow: 'hidden', // Ensure no horizontal scroll
+          backgroundColor: '#D8D8DD',
         }}
       >
         <GroupedVirtuoso
@@ -248,10 +249,10 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
                   onClick={() => setIsDropdownOpen((prev) => !prev)}
                   style={{
                     position: 'absolute',
-                    top: '4px',
-                    left: '6px',
+                    top: '3px',
+                    left: '5px',
                     zIndex: 100,
-                    background: 'rgba(255, 255, 255, 0.92)', // Subtle transparency as requested
+                    background: 'rgba(255, 255, 255, 0.9)', // Subtle transparency as requested
                     backdropFilter: 'blur(8px)', // Light blur for premium feel
                     WebkitBackdropFilter: 'blur(8px)',
                     padding: '6px 10px', // Reduced footprint: smaller padding
@@ -311,9 +312,10 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
             // Apple-like subtle alternating backgrounds for visual differentiation
             const getBackgroundForCategory = (index) => {
               const backgrounds = [
-                '#F7F9FC', // theme colors.background
-                'rgba(226, 55, 68, 0.02)', // theme colors.primarySubtle (very subtle Zomato red tint)
-                'rgba(250, 251, 252, 1)', // theme colors.surfaceElevated
+                // '#F7F9FC', // theme colors.background
+                // 'rgba(226, 55, 68, 0.02)', // theme colors.primarySubtle (very subtle Zomato red tint)
+                // 'rgba(250, 251, 252, 1)', // theme colors.surfaceElevated
+                'transparent',
               ];
               return backgrounds[index % backgrounds.length];
             };

@@ -373,7 +373,7 @@ export function MyOrdersDrawer({ isOpen, onClose }) {
                 onClick={onClose}
                 className="bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600 transition-all duration-200"
                 style={{
-                  backgroundColor: '#E23744',
+                  backgroundColor: '#C72C48',
                   fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                   fontWeight: '600',
                   fontSize: '14px',
@@ -432,7 +432,7 @@ export function MyOrdersDrawer({ isOpen, onClose }) {
                            fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                            fontSize: '18px',
                            fontWeight: '700',
-                           color: '#E23744'
+                           color: '#C72C48'
                          }}>
                         ₹{order.total.toFixed(2)}
                       </p>
@@ -552,7 +552,7 @@ export function MyOrdersDrawer({ isOpen, onClose }) {
                      fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                      fontSize: '24px',
                      fontWeight: '800',
-                     color: '#E23744'
+                     color: '#C72C48'
                    }}>
                   ₹{totalBill.toFixed(2)}
                 </p>

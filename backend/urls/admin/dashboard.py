@@ -10,6 +10,7 @@ from sqlalchemy import desc
 
 from models.schema import SessionLocal, Restaurant, Table, Session as TableSession, Member, CartItem, MenuItem, Order, WaiterRequest
 from .auth_utils import auth, get_restaurant_api_keys, validate_api_key, create_admin_jwt_token, decode_admin_jwt_token
+from config import FRONTEND_URL, DEBUG_MODE
 
 import os
 
@@ -863,4 +864,75 @@ def resolve_waiter_request(
     return StandardResponse(
         success=True,
         data={"message": "Waiter request resolved successfully"}
-    ) 
+    )
+
+
+# ------------------------------------------------------------------------------------
+# QR Code URL generator endpoint
+# ------------------------------------------------------------------------------------
+
+# This endpoint returns a QR code URL for a specific table. The URL format is:
+# FRONTEND_URL + "/" + "t=<public_id>&token=<qr_token>"
+
+@router.get("/api/table/{table_id}/qr")
+async def get_table_qr(
+    table_id: int,
+    authorization: str = Header(None)
+):
+    """Return a QR-ready URL for the given table (admin only)."""
+
+    # --------------------------------------
+    # Auth – same logic as get_session_details
+    # --------------------------------------
+    if not authorization:
+        raise HTTPException(
+            status_code=401,
+            detail={"success": False, "code": "missing_auth", "detail": "Authorization header required"}
+        )
+
+    token = authorization
+    if authorization.startswith("Bearer "):
+        token = authorization.split()[1]
+
+    restaurant_slug: Optional[str] = None
+
+    jwt_data = decode_admin_jwt_token(token)
+    if jwt_data:
+        restaurant_slug = jwt_data["restaurant_slug"]
+    else:
+        restaurant_slug = validate_api_key(token)
+
+    if not restaurant_slug:
+        raise HTTPException(
+            status_code=403,
+            detail={"success": False, "code": "invalid_auth", "detail": "Invalid API key or token"}
+        )
+
+    with SessionLocal() as db:
+        restaurant = db.query(Restaurant).filter(Restaurant.slug == restaurant_slug).first()
+        if not restaurant:
+            raise HTTPException(
+                status_code=404,
+                detail={"success": False, "code": "restaurant_not_found", "detail": "Restaurant not found"}
+            )
+
+        table = db.query(Table).filter(
+            Table.id == table_id,
+            Table.restaurant_id == restaurant.id
+        ).first()
+
+        if not table:
+            raise HTTPException(
+                status_code=404,
+                detail={"success": False, "code": "table_not_found", "detail": "Table not found"}
+            )
+
+        url = FRONTEND_URL if DEBUG_MODE else f"https://{restaurant.slug}.aglioapp.com"
+
+        qr_url = f"{url}/?t={table.public_id}&token={table.qr_token}"
+
+        return {
+            "success": True,
+            "table_number": table.number,
+            "url": qr_url
+        } 

@@ -139,9 +139,9 @@ export const StreamPlayerWrapper = memo(
           height: containerHeight,
           position: 'relative',
           overflow: 'hidden',
-          // transform: `translate(${x}px, ${y}px) scale(${scale * calculatedScale})`,
           transformOrigin: 'center',
           transition: animated ? 'transform 0.35s ease-out' : undefined,
+          pointerEvents: addControls ? 'auto' : 'none',
         }}
         ref={containerRef}
       >
@@ -156,8 +156,11 @@ export const StreamPlayerWrapper = memo(
                 setIsMutedState(player.muted);
               }
             }}
-            className="absolute bottom-3 right-3 z-20 bg-black/60 hover:bg-black/70 text-white w-8 h-8 rounded-full flex items-center justify-center transition-colors"
-            style={{ pointerEvents: 'auto' }}
+            className="absolute bottom-3 right-3 bg-black/60 hover:bg-black/70 text-white w-8 h-8 rounded-full flex items-center justify-center transition-colors"
+            style={{ 
+              pointerEvents: 'auto',
+              zIndex: 25
+            }}
           >
             {isMutedState ? (
               // Muted icon
@@ -189,7 +192,7 @@ export const StreamPlayerWrapper = memo(
 
         {/* Loading spinner */}
         {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ zIndex: 15 }}>
             <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
           </div>
         )}
@@ -200,9 +203,10 @@ export const StreamPlayerWrapper = memo(
             top: '50%',
             left: 0,
             width: '100%',
-            // height: `${heightPercent}%`,
             transform: 'translateY(-50%)',
             overflow: 'hidden',
+            pointerEvents: 'none',
+            zIndex: 1,
           }}
         >
           {/* Render Stream */}
@@ -218,13 +222,6 @@ export const StreamPlayerWrapper = memo(
             responsive={true}
             height={containerHeight}
             width={containerWidth}
-            // onLoadedMetaData={() => {
-            //   if (reuseStream && internalRef.current) {
-            //     streamRegistry.register(videoId, internalRef.current);
-            //   }
-            //   onStreamReady?.(internalRef.current);
-            //   setIsLoading(false);
-            // }}
           />
         </div>
       </div>
@@ -249,6 +246,7 @@ function ProgressBar({ progress, buffered, onSeek }) {
 
   const handlePointerDown = (e) => {
     e.preventDefault();
+    e.stopPropagation(); // Prevent parent interactions
     draggingRef.current = true;
     const fraction = computeFraction(e.clientX || e.touches?.[0]?.clientX || 0);
     onSeek(fraction);
@@ -275,7 +273,12 @@ function ProgressBar({ progress, buffered, onSeek }) {
       ref={barRef}
       onPointerDown={handlePointerDown}
       className="absolute bottom-0 left-0 w-full"
-      style={{ height: '3px', cursor: 'pointer', zIndex: 20 }}
+      style={{ 
+        height: '3px', 
+        cursor: 'pointer', 
+        zIndex: 25, // Same level as mute button, higher than ItemCard add buttons
+        pointerEvents: 'auto' // Ensure progress bar is always interactive when rendered
+      }}
     >
       {/* background track */}
       <div

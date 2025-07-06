@@ -103,7 +103,7 @@ export function CategoryDropdownButton({setIsDropdownOpen, currentVisibleCategor
         setIsDropdownOpen((prev) => !prev);
       }}
       style={{
-        background: 'rgba(255, 255, 255, 0.92)', // Subtle transparency as requested
+        background: 'rgba(255, 255, 255, 0.9)', // Subtle transparency as requested
         backdropFilter: 'blur(8px)', // Light blur for premium feel
         WebkitBackdropFilter: 'blur(8px)',
         padding: '6px 10px', // Reduced footprint: smaller padding

@@ -53,11 +53,11 @@ export function ItemCard({ item, containerWidth, onItemClick, preload=false, aut
   const cardStyle = {
     borderRadius: '12px', // theme radius.lg
     overflow: 'hidden',
-    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06)', // theme shadows.lg
+    // boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06)', // theme shadows.lg
     backgroundColor: '#FFFFFF', // theme colors.surface
     display: 'flex',
     flexDirection: 'column',
-    border: '1px solid #E5E7EB', // theme colors.border.light
+    // border: '1px solid #E5E7EB', // theme colors.border.light
     width: '100%',
     margin: 0,
     transition: 'all 0.2s ease-in-out'
@@ -116,7 +116,7 @@ export function ItemCard({ item, containerWidth, onItemClick, preload=false, aut
 
   const priceStyle = {
     fontSize: '12px', // theme typography.sizes.xs
-    color: '#E23744', // theme colors.primary (Zomato Red)
+    color: '#C72C48', // theme colors.primary (Zomato Red)
     whiteSpace: 'nowrap',
     fontWeight: '700', // theme typography.weights.bold
     fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
@@ -137,7 +137,7 @@ export function ItemCard({ item, containerWidth, onItemClick, preload=false, aut
     color: '#FFFFFF', // theme colors.text.inverse
     borderRadius: '6px', // Slightly smaller radius to match smaller size
     border: 'none',
-    background: '#E23744', // theme colors.primary (Zomato Red)
+    background: '#C72C48', // theme colors.primary (Zomato Red)
     cursor: 'pointer',
     boxShadow: '0 2px 4px rgba(0, 0, 0, 0.15)', // Subtle shadow for smaller element
     fontWeight: '600', // theme typography.weights.semibold
@@ -228,7 +228,7 @@ export function ItemCard({ item, containerWidth, onItemClick, preload=false, aut
 
   const noImagePriceStyle = {
     fontSize: '12px', // theme typography.sizes.xs
-    color: '#E23744', // theme colors.primary (Zomato Red)
+    color: '#C72C48', // theme colors.primary (Zomato Red)
     fontWeight: '700', // theme typography.weights.bold
     fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     margin: '0'
@@ -240,7 +240,7 @@ export function ItemCard({ item, containerWidth, onItemClick, preload=false, aut
     color: '#FFFFFF', // theme colors.text.inverse
     borderRadius: '6px', // Slightly smaller radius to match smaller size
     border: 'none',
-    background: '#E23744', // theme colors.primary (Zomato Red)
+    background: '#C72C48', // theme colors.primary (Zomato Red)
     cursor: 'pointer',
     boxShadow: '0 2px 4px rgba(0, 0, 0, 0.15)', // Subtle shadow for smaller element
     fontWeight: '600', // theme typography.weights.semibold

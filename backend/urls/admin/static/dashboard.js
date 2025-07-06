@@ -32,7 +32,9 @@ class DashboardManager {
         }
         
         this.connect();
+        this.setupQRButton();
         this.setupEventListeners();
+        // QR Code generator setup
     }
     
     connect() {
@@ -880,6 +882,122 @@ class DashboardManager {
         
         // Redirect to login
         window.location.href = '/admin/login';
+    }
+
+    // -------- QR Code Generator --------
+    setupQRButton() {
+        const btn = document.createElement('button');
+        btn.id = 'qr-code-btn';
+        btn.textContent = 'Get Table QR Code';
+        // Style similar to existing #logout button
+        btn.style.background = 'rgba(255,255,255,0.2)';
+        btn.style.color = 'white';
+        btn.style.border = '1px solid rgba(255,255,255,0.3)';
+        btn.style.padding = '0.7rem 1.5rem';
+        btn.style.borderRadius = '8px';
+        btn.style.cursor = 'pointer';
+        btn.style.transition = 'all 0.3s ease';
+        btn.style.fontWeight = '600';
+        btn.style.backdropFilter = 'blur(10px)';
+        btn.style.marginRight = '12px';
+
+        btn.addEventListener('mouseover', () => {
+            btn.style.background = 'rgba(255,255,255,0.3)';
+            btn.style.transform = 'translateY(-2px)';
+            btn.style.boxShadow = '0 4px 15px rgba(0,0,0,0.2)';
+        });
+        btn.addEventListener('mouseout', () => {
+            btn.style.background = 'rgba(255,255,255,0.2)';
+            btn.style.transform = 'none';
+            btn.style.boxShadow = 'none';
+        });
+
+        btn.addEventListener('click', () => this.openQRModal());
+
+        // Insert inside header, before the logout button
+        const header = document.querySelector('header');
+        const logoutBtn = document.getElementById('logout');
+        if (header) {
+            if (logoutBtn) {
+                header.insertBefore(btn, logoutBtn);
+            } else {
+                header.appendChild(btn);
+            }
+        } else {
+            document.body.appendChild(btn); // fallback
+        }
+    }
+
+    openQRModal() {
+        this.closeQRModal();
+
+        if (!this.tables || this.tables.length === 0) {
+            this.showToast('Table data not loaded yet', 'error');
+            return;
+        }
+
+        const options = this.tables.map(t => `<option value="${t.id}">Table ${t.number}</option>`).join('');
+
+        const modalHTML = `
+            <div id="qrCodeModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:100;">
+                <div style="background:#fff;padding:24px;border-radius:8px;max-width:340px;width:90%;text-align:center;position:relative;">
+                    <button style="position:absolute;top:8px;right:8px;background:none;border:none;font-size:24px;cursor:pointer;" onclick="dashboard.closeQRModal()">&times;</button>
+                    <h3 style="margin-bottom:12px;">Generate Table QR Code</h3>
+                    <select id="qrTableSelect" style="width:100%;padding:8px 4px;margin-bottom:12px;">${options}</select>
+                    <button id="qrGenerateBtn" style="padding:8px 12px;background:#2563eb;color:#fff;border:none;border-radius:4px;cursor:pointer;">Generate</button>
+                    <div id="qrResult" style="margin-top:16px;"></div>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        document.getElementById('qrGenerateBtn').addEventListener('click', () => this.generateQRCode());
+    }
+
+    closeQRModal() {
+        const modal = document.getElementById('qrCodeModal');
+        if (modal) modal.remove();
+    }
+
+    async generateQRCode() {
+        const selectEl = document.getElementById('qrTableSelect');
+        if (!selectEl) return;
+        const tableId = parseInt(selectEl.value);
+        try {
+            const response = await fetch(`/admin/api/table/${tableId}/qr`, {
+                headers: {
+                    'Authorization': `Bearer ${this.apiKey}`
+                }
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                throw new Error(data.detail?.detail || 'Failed to generate QR code');
+            }
+
+            const imgSrc = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(data.url)}`;
+            const qrResult = document.getElementById('qrResult');
+            qrResult.innerHTML = `
+                <img src="${imgSrc}" alt="QR Code" style="width:200px;height:200px;margin-bottom:12px;" />
+                <div style="display:flex;align-items:center;justify-content:center;">
+                    <input id="qrLinkInput" type="text" readonly value="${data.url}" style="flex:1;border:1px solid #ccc;padding:6px;border-radius:4px;margin-right:4px;" />
+                    <button id="copyLinkBtn" style="padding:6px 8px;background:#4caf50;color:#fff;border:none;border-radius:4px;cursor:pointer;">Copy</button>
+                </div>`;
+
+            document.getElementById('copyLinkBtn').addEventListener('click', () => {
+                const input = document.getElementById('qrLinkInput');
+                if (!input) return;
+                input.select();
+                try {
+                    document.execCommand('copy');
+                    this.showToast('Link copied', 'success');
+                } catch (err) {
+                    this.showToast('Copy failed', 'error');
+                }
+            });
+        } catch (error) {
+            console.error('QR generation failed:', error);
+            this.showToast(error.message || 'Failed to generate QR', 'error');
+        }
     }
 }
 

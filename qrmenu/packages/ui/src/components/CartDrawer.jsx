@@ -264,7 +264,7 @@ export function CartDrawer({ isOpen, onClose }) {
                 onClick={onClose}
                 className="bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600 transition-all duration-200"
                 style={{
-                  backgroundColor: '#E23744',
+                  backgroundColor: '#C72C48',
                   fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                   fontWeight: '600',
                   fontSize: '14px',
@@ -406,7 +406,7 @@ export function CartDrawer({ isOpen, onClose }) {
                                      fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                                      fontSize: '14px',
                                      fontWeight: '700',
-                                     color: '#E23744'
+                                     color: '#C72C48'
                                    }}>
                                    {(() => {
                                      const unit = item.final_price ?? item.price ?? item.base_price ?? 0;
@@ -595,7 +595,7 @@ export function CartDrawer({ isOpen, onClose }) {
                   fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                   fontSize: '16px',
                   fontWeight: '700',
-                  color: '#E23744'
+                  color: '#C72C48'
                 }}>
                   ₹{total.toFixed(2)}
                 </span>
@@ -635,7 +635,7 @@ export function CartDrawer({ isOpen, onClose }) {
                     ? '#9CA3AF' 
                     : orderProcessingStatus === 'failed'
                     ? '#F97316'
-                    : '#E23744',
+                    : '#C72C48',
                 fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                 fontSize: '16px',
                 fontWeight: '600',

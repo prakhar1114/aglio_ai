@@ -105,8 +105,8 @@ const useMenuStore = create(
         
         // Apply category filter
         if (filters.category && filters.category.length > 0) {
-          filteredItems = filteredItems.filter(item => 
-            filters.category.includes(item.category_brief)
+          filteredItems = filteredItems.filter(item =>
+            filters.category.includes(item.group_category)
           );
         }
         

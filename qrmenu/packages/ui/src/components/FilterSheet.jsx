@@ -192,9 +192,9 @@ export function FilterSheet({ isOpen, onClose, onApplyFilters, initialFilters = 
                   <button
                     key={category.id}
                     onClick={() => handleCategoryToggle(category.id)}
-                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-150 transform active:scale-95 shadow-sm ${
                       filters.category.includes(category.id)
-                        ? 'bg-red-500 text-white'
+                        ? 'bg-red-500 text-white shadow-md'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
@@ -264,7 +264,7 @@ export function FilterSheet({ isOpen, onClose, onApplyFilters, initialFilters = 
             </button>
             <button
               onClick={handleApply}
-              className="flex-1 py-2.5 px-4 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+              className="flex-1 py-2.5 px-4 bg-[#C72C48] text-white rounded-lg hover:bg-[#A9253D] transition-colors"
             >
               Apply Filters
             </button>
