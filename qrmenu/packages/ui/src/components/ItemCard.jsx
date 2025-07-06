@@ -53,11 +53,11 @@ export function ItemCard({ item, containerWidth, onItemClick, preload=false, aut
   const cardStyle = {
     borderRadius: '12px', // theme radius.lg
     overflow: 'hidden',
-    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06)', // theme shadows.lg
+    // boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06)', // theme shadows.lg
     backgroundColor: '#FFFFFF', // theme colors.surface
     display: 'flex',
     flexDirection: 'column',
-    border: '1px solid #E5E7EB', // theme colors.border.light
+    // border: '1px solid #E5E7EB', // theme colors.border.light
     width: '100%',
     margin: 0,
     transition: 'all 0.2s ease-in-out'

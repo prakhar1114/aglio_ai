@@ -2,7 +2,6 @@ import React, { useRef, useEffect, useState } from 'react';
 import { constructImageUrl, getOptimalVariant } from '@qrmenu/core';
 import Hls from 'hls.js';
 import { StreamPlayerWrapper } from './StreamPlayerWrapper.jsx';
-const customerCode = import.meta.env?.VITE_CLOUDFLARE_STREAM_CUSTOMER_CODE || process.env.CLOUDFLARE_STREAM_CUSTOMER_CODE;
 
 export function OptimizedMedia({ 
   imageUrl,
@@ -84,9 +83,9 @@ export function OptimizedMedia({
     <img
       src={mediaResult.url}
       alt={alt}
-      className={`w-full h-full object-cover ${className} ${onClick ? 'cursor-pointer' : ''}`}
+      className={`w-full h-full object-cover object-center ${className} ${onClick ? 'cursor-pointer' : ''}`}
       style={{ 
-        width: containerWidth, 
+        width: '100%', 
         height: containerHeight || 'auto',
         maxWidth: '100%'
       }}

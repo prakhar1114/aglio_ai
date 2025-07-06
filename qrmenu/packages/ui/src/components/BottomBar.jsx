@@ -1,11 +1,12 @@
 import { ShoppingCartIcon, AdjustmentsHorizontalIcon, ChatBubbleLeftIcon, ClipboardDocumentListIcon, BellIcon } from '@heroicons/react/24/outline';
-import { useCartStore, useSessionStore } from '@qrmenu/core';
+import { useCartStore, useSessionStore, useChatStore } from '@qrmenu/core';
 
 export function BottomBar({ onFiltersOpen, onAIChatOpen, onCartOpen, onMyOrdersOpen, onCallWaiterOpen }) {
   const totalCount = useCartStore((state) => state.totalCount());
   const filterCount = useCartStore((state) => state.getFilterCount());
   const ordersCount = useCartStore((state) => state.getOrdersCount());
   const tableNumber = useSessionStore((state) => state.tableNumber);
+  const hasUnreadMessages = useChatStore((state) => state.hasUnreadMessages);
 
   // Show My Table tab if there are orders OR if there's a table number
   const showMyTable = ordersCount > 0 || tableNumber !== null;
@@ -47,9 +48,14 @@ export function BottomBar({ onFiltersOpen, onAIChatOpen, onCartOpen, onMyOrdersO
         {/* AI Chat Button */}
         <button
           onClick={onAIChatOpen}
-          className="flex flex-col items-center p-2 text-gray-600 hover:text-gray-800 transition-colors"
+          className="relative flex flex-col items-center p-2 text-gray-600 hover:text-gray-800 transition-colors"
         >
           <ChatBubbleLeftIcon className="w-6 h-6" />
+          {hasUnreadMessages && (
+            <span
+              className="absolute -top-0.5 -right-0.5 block w-2 h-2 bg-red-500 rounded-full transform scale-90"
+            />
+          )}
           <span className="text-xs mt-1">Ask AI</span>
         </button>
 

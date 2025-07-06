@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { getAIResponse } from '../utils/aiResponses.js';
 import { generateShortId } from '../utils/general.js';
+import { useSessionStore } from './session.js';
 
 
 export const useChatStore = create((set, get) => ({
@@ -36,6 +37,9 @@ export const useChatStore = create((set, get) => ({
   // UI states
   isDrawerOpen: false,
   isTyping: false,
+  
+  // Notification flag for unread inbound messages (not persisted)
+  hasUnreadMessages: false,
   
   // Thread context for conversation continuity
   threadId: null,
@@ -80,8 +84,8 @@ export const useChatStore = create((set, get) => ({
   setTyping: (isTyping) => set({ isTyping }),
   
   // Drawer controls
-  openDrawer: () => set({ isDrawerOpen: true }),
-  closeDrawer: () => set({ isDrawerOpen: false }),
+  openDrawer: () => set({ isDrawerOpen: true, hasUnreadMessages: false }),
+  closeDrawer: () => set({ isDrawerOpen: false, hasUnreadMessages: false }),
   
   // Thread management
   setThreadId: (threadId) => set({ threadId }),
@@ -161,6 +165,7 @@ export const useChatStore = create((set, get) => ({
   
   // WebSocket integration methods (Phase 1 implementation)
   handleWebSocketMessage: (data) => {
+    const sessionNickname = useSessionStore.getState().nickname;
     switch (data.type) {
       case 'chat_user_message':
         // User message confirmed by server - remove from optimistic set
@@ -179,6 +184,10 @@ export const useChatStore = create((set, get) => ({
           content: data.message,
           thread_id: data.thread_id
         });
+        // Mark unread if drawer closed & message from another user
+        if (!get().isDrawerOpen && data.sender_name !== sessionNickname) {
+          set({ hasUnreadMessages: true });
+        }
         break;
         
       case 'chat_response':
@@ -192,6 +201,10 @@ export const useChatStore = create((set, get) => ({
           thread_id: data.thread_id
         });
         get().setTyping(false);
+        // Mark unread if drawer closed
+        if (!get().isDrawerOpen) {
+          set({ hasUnreadMessages: true });
+        }
         break;
         
       default:

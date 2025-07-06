@@ -99,7 +99,7 @@ export function SimpleMasonryGrid({
           padding: '2px 4px', // Minimal padding - just enough to prevent edge collision
           margin: '0',
           lineHeight: '1',
-          backgroundColor: '#F7F9FC', // theme colors.background (same as MasonryFeed)
+          backgroundColor: '#D8D8DD', // theme colors.background (same as MasonryFeed)
           borderRadius: '8px', // theme radius.md for gentle container feel
           marginBottom: '4px', // theme spacing.xs for category separation
         }}
