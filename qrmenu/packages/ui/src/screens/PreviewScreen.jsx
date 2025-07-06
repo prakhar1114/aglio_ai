@@ -39,7 +39,8 @@ function SwipeIndicators({ show }) {
         pointerEvents: 'none'
       }}>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-          <path d="M15 18l-6-6 6-6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M17 18l-6-6 6-6" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M11 18l-6-6 6-6" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </div>
 
@@ -60,7 +61,8 @@ function SwipeIndicators({ show }) {
         pointerEvents: 'none'
       }}>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-          <path d="M9 18l6-6-6-6" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M7 6l6 6-6 6" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M13 6l6 6-6 6" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </div>
     </>
