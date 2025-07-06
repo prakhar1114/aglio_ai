@@ -1,6 +1,7 @@
+import React, { useState, useEffect, useRef } from 'react';
 import { ShoppingCartIcon, AdjustmentsHorizontalIcon, ChatBubbleLeftIcon, ClipboardDocumentListIcon, BellIcon } from '@heroicons/react/24/outline';
 import { useCartStore, useSessionStore, useChatStore } from '@qrmenu/core';
-import { useState, useEffect } from 'react';
+import { WaiterOptionsPopup } from './WaiterOptionsPopup.jsx';
 
 export function BottomBar({ onFiltersOpen, onAIChatOpen, onCartOpen, onMyOrdersOpen, onCallWaiterOpen }) {
   const totalCount = useCartStore((state) => state.totalCount());
@@ -17,6 +18,19 @@ export function BottomBar({ onFiltersOpen, onAIChatOpen, onCartOpen, onMyOrdersO
   const [previousCartCount, setPreviousCartCount] = useState(0);
   const [previousMemberCount, setPreviousMemberCount] = useState(0);
   const [previousHasUnreadMessages, setPreviousHasUnreadMessages] = useState(false);
+
+  // Waiter options popup state
+  const waiterButtonRef = useRef(null);
+  const [isWaiterOptionsOpen, setIsWaiterOptionsOpen] = useState(false);
+  const [waiterAnchor, setWaiterAnchor] = useState({ x: 0, y: 0 });
+
+  const toggleWaiterOptions = () => {
+    if (waiterButtonRef.current) {
+      const rect = waiterButtonRef.current.getBoundingClientRect();
+      setWaiterAnchor({ x: rect.left + rect.width / 2, y: rect.top });
+    }
+    setIsWaiterOptionsOpen((prev) => !prev);
+  };
 
   // Show My Table tab if there are orders OR if there's a table number
   const showMyTable = ordersCount > 0 || tableNumber !== null;
@@ -49,18 +63,19 @@ export function BottomBar({ onFiltersOpen, onAIChatOpen, onCartOpen, onMyOrdersO
     setPreviousHasUnreadMessages(hasUnreadMessages);
   }, [hasUnreadMessages, previousHasUnreadMessages]);
 
-  const TabButton = ({ 
+  const TabButton = React.forwardRef(({ 
     onClick, 
     icon: Icon, 
     label, 
     badge, 
     bounceAnimation = false,
     notificationDot = false 
-  }) => {
+  }, ref) => {
     const [isPressed, setIsPressed] = useState(false);
     
     return (
       <button
+        ref={ref}
         onClick={onClick}
         onMouseDown={() => setIsPressed(true)}
         onMouseUp={() => setIsPressed(false)}
@@ -106,7 +121,7 @@ export function BottomBar({ onFiltersOpen, onAIChatOpen, onCartOpen, onMyOrdersO
         </span>
       </button>
     );
-  };
+  });
 
   return (
     <>
@@ -149,11 +164,12 @@ export function BottomBar({ onFiltersOpen, onAIChatOpen, onCartOpen, onMyOrdersO
               notificationDot={hasUnreadMessages}
             />
 
-            {/* Call Waiter Button */}
+            {/* Waiter Options Button */}
             <TabButton
-              onClick={onCallWaiterOpen}
+              ref={waiterButtonRef}
+              onClick={toggleWaiterOptions}
               icon={BellIcon}
-              label="Call Waiter"
+              label="Waiter"
             />
 
             {/* Cart Button */}
@@ -168,6 +184,14 @@ export function BottomBar({ onFiltersOpen, onAIChatOpen, onCartOpen, onMyOrdersO
           </div>
         </div>
       </div>
+
+      {/* Waiter Options Popup */}
+      {isWaiterOptionsOpen && (
+        <WaiterOptionsPopup
+          anchor={waiterAnchor}
+          onClose={() => setIsWaiterOptionsOpen(false)}
+        />
+      )}
     </>
   );
 } 
