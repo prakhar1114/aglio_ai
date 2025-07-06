@@ -4,7 +4,68 @@ import { useSwipeable } from 'react-swipeable';
 import { SimpleMasonryGrid } from '../components/SimpleMasonryGrid.jsx';
 import { OptimizedMedia } from '../components/OptimizedMedia.jsx';
 
+// Simple Swipe Indicators
+function SwipeIndicators({ show }) {
+  if (!show) return null;
 
+  return (
+    <>
+      <style jsx>{`
+        @keyframes bounceLeft {
+          0%, 50%, 100% { transform: translateY(-50%) translateX(0); }
+          25% { transform: translateY(-50%) translateX(-3px); }
+        }
+        
+        @keyframes bounceRight {
+          0%, 50%, 100% { transform: translateY(-50%) translateX(0); }
+          25% { transform: translateY(-50%) translateX(3px); }
+        }
+      `}</style>
+      
+      <div style={{
+        position: 'absolute',
+        left: '12px',
+        top: '50%',
+        transform: 'translateY(-50%)',
+        zIndex: 15,
+        width: '24px',
+        height: '24px',
+        backgroundColor: 'rgba(0, 0, 0, 0.3)',
+        borderRadius: '50%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        animation: 'bounceLeft 1.5s ease-in-out infinite',
+        pointerEvents: 'none'
+      }}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+          <path d="M15 18l-6-6 6-6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </div>
+
+      <div style={{
+        position: 'absolute',
+        right: '12px',
+        top: '50%',
+        transform: 'translateY(-50%)',
+        zIndex: 15,
+        width: '24px',
+        height: '24px',
+        backgroundColor: 'rgba(0, 0, 0, 0.3)',
+        borderRadius: '50%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        animation: 'bounceRight 1.5s ease-in-out infinite',
+        pointerEvents: 'none'
+      }}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+          <path d="M9 18l6-6-6-6" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </div>
+    </>
+  );
+}
 
 // Header Component - Minimal design
 function Header({ onClose }) {
@@ -74,7 +135,7 @@ function ProgressDots({ currentIndex, totalItems }) {
 }
 
 // Media Section Component
-function MediaSection({ item, currentIndex, totalItems, playerContextId }) {
+function MediaSection({ item, currentIndex, totalItems, playerContextId, showSwipeIndicators }) {
   // Calculate dynamic viewport width for optimal media sizing
   const getViewportWidth = () => {
     if (typeof window !== 'undefined') {
@@ -120,6 +181,11 @@ function MediaSection({ item, currentIndex, totalItems, playerContextId }) {
       
       {/* Progress Dots */}
       <ProgressDots currentIndex={currentIndex} totalItems={totalItems} />
+      
+      {/* Swipe Indicators */}
+      {totalItems > 1 && (
+        <SwipeIndicators show={showSwipeIndicators} />
+      )}
     </div>
   );
 }
@@ -421,11 +487,22 @@ function PreviewScreenComponent({
   const sendMessageAndOpenDrawer = useChatStore((state) => state.sendMessageAndOpenDrawer);
   const { nickname } = useSessionStore();
   
+  // State for swipe indicators
+  const [showSwipeIndicators, setShowSwipeIndicators] = useState(false);
+  
+  // Show indicators when preview opens
+  useEffect(() => {
+    if (isOpen && isTopmost && categoryItems.length > 1) {
+      setShowSwipeIndicators(true);
+    }
+  }, [isOpen, isTopmost, categoryItems.length]);
+  
   // Define navigation functions
   const navigateToNext = () => {
     if (!isTopmost || !onItemChange) {
       return;
     }
+    setShowSwipeIndicators(false); // Hide on navigation
     const nextIndex = (currentIndex + 1) % categoryItems.length;
     onItemChange(nextIndex);
   };
@@ -434,6 +511,7 @@ function PreviewScreenComponent({
     if (!isTopmost || !onItemChange) {
       return;
     }
+    setShowSwipeIndicators(false); // Hide on navigation
     // console.log('Navigating to previous item, current index:', currentIndex, 'total items:', categoryItems.length);
     const prevIndex = currentIndex === 0 
       ? categoryItems.length - 1 
@@ -521,6 +599,7 @@ function PreviewScreenComponent({
           currentIndex={currentIndex}
           totalItems={categoryItems.length}
           playerContextId={playerContextIdRef.current}
+          showSwipeIndicators={showSwipeIndicators}
         />
         
         {/* Details Section */}
