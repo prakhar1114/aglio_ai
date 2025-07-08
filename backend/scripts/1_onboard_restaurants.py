@@ -237,18 +237,20 @@ def push_to_qdrant(restaurant_slug: str, df_with_embeddings: pd.DataFrame) -> bo
         collection_names = [col.name for col in collections]
         collection_exists = collection_name in collection_names
         
-        if not collection_exists:
-            logger.info(f"🆕 Creating new Qdrant collection: {collection_name}")
-            from qdrant_client.models import VectorParams, Distance
-            qd.create_collection(
-                collection_name=collection_name,
-                vectors_config=VectorParams(
-                    size=1280, distance=Distance.COSINE
-                )
+        if collection_exists:
+            logger.info(f"🗑️ Deleting existing Qdrant collection: {collection_name}")
+            qd.delete_collection(collection_name=collection_name)
+            logger.success(f"✅ Deleted Qdrant collection: {collection_name}")
+        
+        logger.info(f"🆕 Creating new Qdrant collection: {collection_name}")
+        from qdrant_client.models import VectorParams, Distance
+        qd.create_collection(
+            collection_name=collection_name,
+            vectors_config=VectorParams(
+                size=1280, distance=Distance.COSINE
             )
-            logger.success(f"✅ Created Qdrant collection: {collection_name}")
-        else:
-            logger.info(f"📋 Using existing Qdrant collection: {collection_name}")
+        )
+        logger.success(f"✅ Created Qdrant collection: {collection_name}")
         
         # Prepare points for upsert
         points = []

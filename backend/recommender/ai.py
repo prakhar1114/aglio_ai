@@ -127,7 +127,7 @@ def generate_blocks(payload: Dict[str, Any], thread_id: str, restaurant_slug: st
                 if fn_name == "get_cart_pairings":
                     fn_args["cart"] = cart
 
-                logger.debug(f"Calling tool {fn_name} with args {fn_args}")
+                logger.info(f"Calling tool {fn_name} with args {fn_args}")
                 result = _TOOL_MAP[fn_name](**fn_args)
 
                 msgs.append({"type": "function_call_output", "output": str(result), "call_id": call_id})
