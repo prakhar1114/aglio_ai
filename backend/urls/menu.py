@@ -9,7 +9,7 @@ from models.schema import (
     SessionLocal, Restaurant, MenuItem as MenuItemModel,
     ItemVariation, Variation, AddonGroup, AddonGroupItem, ItemAddon, ItemVariationAddon
 )
-from config import rdb
+from config import rdb, DEBUG_MODE
 
 router = APIRouter()
 
@@ -160,12 +160,20 @@ def read_menu(
             
             # 3. Fetch promoted items first, then the rest (no pagination)
             promoted_query = db.query(MenuItemModel).options(
+                # Load variations and their base Variation entity
                 joinedload(MenuItemModel.item_variations)
-                    .joinedload(ItemVariation.variation)
+                    .joinedload(ItemVariation.variation),
+
+                # Load variation-specific addon groups and their nested addon items
+                joinedload(MenuItemModel.item_variations)
                     .joinedload(ItemVariation.variation_addons)
                     .joinedload(ItemVariationAddon.addon_group)
                     .joinedload(AddonGroup.addon_items),
-                joinedload(MenuItemModel.item_addons).joinedload(ItemAddon.addon_group).joinedload(AddonGroup.addon_items)
+
+                # Load base-item addon groups and their items
+                joinedload(MenuItemModel.item_addons)
+                    .joinedload(ItemAddon.addon_group)
+                    .joinedload(AddonGroup.addon_items)
             ).filter(
                 and_(MenuItemModel.promote == True, *filter_conditions)
             )
@@ -181,11 +189,16 @@ def read_menu(
             # Fetch all other items excluding promoted ones
             regular_query = db.query(MenuItemModel).options(
                 joinedload(MenuItemModel.item_variations)
-                    .joinedload(ItemVariation.variation)
+                    .joinedload(ItemVariation.variation),
+
+                joinedload(MenuItemModel.item_variations)
                     .joinedload(ItemVariation.variation_addons)
                     .joinedload(ItemVariationAddon.addon_group)
                     .joinedload(AddonGroup.addon_items),
-                joinedload(MenuItemModel.item_addons).joinedload(ItemAddon.addon_group).joinedload(AddonGroup.addon_items)
+
+                joinedload(MenuItemModel.item_addons)
+                    .joinedload(ItemAddon.addon_group)
+                    .joinedload(AddonGroup.addon_items)
             ).filter(
                 and_(*filter_conditions)
             ).order_by(MenuItemModel.id)
@@ -204,6 +217,8 @@ def read_menu(
     except HTTPException:
         raise
     except Exception as e:
+        if DEBUG_MODE:
+            raise e
         raise HTTPException(
             status_code=500,
             detail={"success": False, "code": "internal_error", "detail": "Internal server error"}
@@ -290,7 +305,7 @@ def _build_menu_item_response(item: MenuItemModel, restaurant_slug: str, overrid
                                     )
                                 )
                 else:
-                    var_addon_groups = base_addon_groups
+                    var_addon_groups = []
 
                 variation_groups_dict[group_name]["variations"].append(
                     VariationResponse(

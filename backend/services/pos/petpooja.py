@@ -453,7 +453,7 @@ class PetPoojaIntegration(POSInterface):
             logger.debug(f"save_order_url: {self.save_order_url}")
             logger.debug(f"petpooja_order: {petpooja_order}")
             logger.debug(f"headers: {headers}")
-            # pprint(petpooja_order)
+            pprint(petpooja_order)
 
             # Make API call to PetPooja
             async with httpx.AsyncClient() as client:
@@ -639,8 +639,15 @@ class PetPoojaIntegration(POSInterface):
             # Calculate addon total
             addon_total = 0
             addon_items = []
-            if cart_item.selected_addons:
-                for addon in cart_item.selected_addons:
+            # Prefer variation-specific addons if they exist (variation override)
+            selected_addon_rows = (
+                cart_item.selected_variation_addons
+                if cart_item.selected_variation_addons
+                else cart_item.selected_addons
+            )
+
+            if selected_addon_rows:
+                for addon in selected_addon_rows:
                     addon_price = addon.addon_item.price * addon.quantity
                     addon_total += addon_price
                     addon_items.append({

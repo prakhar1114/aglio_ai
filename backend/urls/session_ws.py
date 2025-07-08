@@ -255,7 +255,7 @@ async def handle_place_order(websocket, session_pid, member_pid, data):
             # Create Order record in database
             restaurant = db.query(Restaurant).filter(Restaurant.id == session.restaurant_id).first()
             new_order = Order(
-                public_id=f"{restaurant.slug[0:4]}_{order_id}",
+                public_id=f"{restaurant.slug[0:4].upper()}_{order_id}",
                 session_id=session.id,
                 initiated_by_member_id=member.id,  # Track who initiated the order
                 payload=[],  # Will be filled after processing
@@ -450,23 +450,23 @@ async def process_order_with_pos(restaurant_id: int, order: Order, session: Sess
         return False, None, {"error": str(e)}, False
 
 
-async def process_order_dummy(order_id, order_payload, total_amount):
-    """Dummy POS integration - simulates order processing with 3 second delay"""
-    import asyncio
-    import random
+# async def process_order_dummy(order_id, order_payload, total_amount):
+#     """Dummy POS integration - simulates order processing with 3 second delay"""
+#     import asyncio
+#     import random
     
-    logger.info(f"Processing order {order_id} with dummy POS system...")
+#     logger.info(f"Processing order {order_id} with dummy POS system...")
     
-    # Simulate 3-second processing time
-    await asyncio.sleep(3)
+#     # Simulate 3-second processing time
+#     await asyncio.sleep(3)
     
-    # 90% success rate for testing
-    if random.random() < 0.9:
-        logger.info(f"Order {order_id} processed successfully")
-        return True
-    else:
-        logger.warning(f"Order {order_id} failed - POS system error")
-        return False
+#     # 90% success rate for testing
+#     if random.random() < 0.9:
+#         logger.info(f"Order {order_id} processed successfully")
+#         return True
+#     else:
+#         logger.warning(f"Order {order_id} failed - POS system error")
+#         return False
 
 # ---------------------------------------------------------------------------
 # Cart-mutation helpers
@@ -613,15 +613,15 @@ async def handle_cart_create(
 
         # Add selected addons to appropriate table
         if variation_has_override:
-        for addon_item, quantity in addon_items:
-                db.add(
-                    CartItemVariationAddon(
-                cart_item_id=cart_item.id,
-                        item_variation_id=selected_variation.id if selected_variation else None,
-                addon_item_id=addon_item.id,
-                        quantity=quantity,
-                    )
-            )
+            for addon_item, quantity in addon_items:
+                    db.add(
+                        CartItemVariationAddon(
+                    cart_item_id=cart_item.id,
+                            item_variation_id=selected_variation.id if selected_variation else None,
+                    addon_item_id=addon_item.id,
+                            quantity=quantity,
+                        )
+                )
         else:
             for addon_item, quantity in addon_items:
                 db.add(
@@ -956,17 +956,12 @@ async def handle_cart_replace(
                 if not addon_item:
                     await connection_manager.send_error(websocket, "invalid_addon", f"Invalid addon item: {addon_selection.addon_group_item_id}")
                     return
-                
-                # Check if this addon group is linked to this menu item
-                addon_link = db.query(ItemAddon).filter(
-                    ItemAddon.menu_item_id == menu_item.id,
-                    ItemAddon.addon_group_id == addon_item.addon_group_id,
-                    ItemAddon.is_active == True
-                ).first()
-                if not addon_link:
-                    await connection_manager.send_error(websocket, "addon_not_allowed", f"Addon not allowed for this menu item: {addon_item.name}")
+
+                # Ensure the addon's group is allowed for this menu item / variation
+                if addon_item.addon_group_id not in allowed_group_ids:
+                    await connection_manager.send_error(websocket, "addon_not_allowed", f"Addon not allowed for this selection: {addon_item.name}")
                     return
-                
+
                 addon_items.append((addon_item, addon_selection.quantity))
 
         # Get restaurant for image URL construction
@@ -985,13 +980,26 @@ async def handle_cart_replace(
         db.flush()  # Ensure delete is processed before adding new ones
 
         # Add new selected addons
-        for addon_item, quantity in addon_items:
-            cart_addon = CartItemAddon(
-                cart_item_id=cart_item.id,
-                addon_item_id=addon_item.id,
-                quantity=quantity
-            )
-            db.add(cart_addon)
+        if variation_has_override:
+            # Store addons in variation-specific table
+            for addon_item, quantity in addon_items:
+                db.add(
+                    CartItemVariationAddon(
+                        cart_item_id=cart_item.id,
+                        item_variation_id=selected_variation.id if selected_variation else None,
+                        addon_item_id=addon_item.id,
+                        quantity=quantity,
+                    )
+                )
+        else:
+            for addon_item, quantity in addon_items:
+                db.add(
+                    CartItemAddon(
+                        cart_item_id=cart_item.id,
+                        addon_item_id=addon_item.id,
+                        quantity=quantity,
+                    )
+                )
 
         # Build response with updated item and price calculations
         final_price = menu_item.price
