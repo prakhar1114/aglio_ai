@@ -26,7 +26,7 @@ from urls.admin.auth_utils import generate_api_key
 from utils.jwt_utils import create_qr_token  # Unified QR token generation
 from models.schema import (
     Restaurant, RestaurantHours, Table, DailyPass, MenuItem,
-    POSSystem, Variation, AddonGroup, AddonGroupItem, ItemVariation, ItemAddon
+    POSSystem, Variation, AddonGroup, AddonGroupItem, ItemVariation, ItemAddon, ItemVariationAddon
 )
 from config import image_dir, qd
 
@@ -344,7 +344,31 @@ def create_item_relationships(df_menu: pd.DataFrame, menu_api_data: dict, restau
                             external_data=var_data
                         )
                         db.add(item_variation)
+                        db.flush()  # Flush to get the ID for variation addons
                         relationships_created += 1
+                        
+                        # Create variation-addon relationships if variation allows addons
+                        if var_data.get("variationallowaddon") == 1 and var_data.get("addon"):
+                            for variation_addon_data in var_data["addon"]:
+                                addon_group_id = variation_addon_data["addon_group_id"]
+                                if addon_group_id in addon_groups_map:
+                                    # Check if variation addon relationship already exists
+                                    existing_var_addon = db.query(ItemVariationAddon).filter_by(
+                                        item_variation_id=item_variation.id,
+                                        addon_group_id=addon_groups_map[addon_group_id].id
+                                    ).first()
+                                    
+                                    if not existing_var_addon:
+                                        item_variation_addon = ItemVariationAddon(
+                                            item_variation_id=item_variation.id,
+                                            addon_group_id=addon_groups_map[addon_group_id].id,
+                                            min_selection=int(variation_addon_data.get("addon_item_selection_min", 0)),
+                                            max_selection=int(variation_addon_data.get("addon_item_selection_max", 1)),
+                                            is_active=True,
+                                            priority=0
+                                        )
+                                        db.add(item_variation_addon)
+                                        relationships_created += 1
         
         # Create item-addon relationships
         if petpooja_item.get("itemallowaddon") == "1" and petpooja_item.get("addon"):
