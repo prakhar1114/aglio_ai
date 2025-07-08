@@ -11,7 +11,7 @@ from loguru import logger
 
 from models.schema import (
     SessionLocal, Session, Member, CartItem, MenuItem, Restaurant, Order,
-    CartItemAddon, ItemVariation, AddonGroupItem, ItemAddon
+    CartItemAddon, ItemVariation, AddonGroupItem, ItemAddon, CartItemVariationAddon
 )
 from models.cart_models import (
     CartItemCreateRequest, CartItemUpdateRequest, CartItemDeleteRequest,
@@ -22,6 +22,7 @@ from models.cart_models import (
 )
 from utils.jwt_utils import decode_ws_token
 from websocket.manager import connection_manager
+from utils.addon_helpers import resolve_addon_context, build_selected_addon_responses
 
 router = APIRouter()
 
@@ -66,10 +67,10 @@ def calculate_cart_hash(items: list) -> str:
         # Include variation and addon data in hash
         variation_str = f"v:{item.selected_item_variation_id}" if item.selected_item_variation_id else "v:none"
         
-        # Sort addons by addon_item_id for consistency
+        # Sort addons by addon_item_id for consistency – use variation overrides first
+        addon_rows, _ = resolve_addon_context(item)
         addon_strs = []
-        if hasattr(item, 'selected_addons'):
-            for addon in sorted(item.selected_addons, key=lambda x: x.addon_item_id):
+        for addon in sorted(addon_rows, key=lambda x: x.addon_item_id):
                 addon_strs.append(f"a:{addon.addon_item_id}:{addon.quantity}")
         addon_str = ",".join(addon_strs) if addon_strs else "a:none"
         
@@ -174,21 +175,14 @@ async def get_cart_snapshot(
                         price=cart_item.selected_item_variation.price
                     )
                 
-                # Add addon prices and build addon responses
-                selected_addons = []
-                for cart_addon in cart_item.selected_addons:
-                    addon_total = cart_addon.addon_item.price * cart_addon.quantity
-                    final_price += addon_total
-                    
-                    selected_addons.append(SelectedAddonResponse(
-                        addon_group_item_id=cart_addon.addon_item.id,
-                        name=cart_addon.addon_item.name,
-                        price=cart_addon.addon_item.price,
-                        quantity=cart_addon.quantity,
-                        total_price=addon_total,
-                        addon_group_name=cart_addon.addon_item.addon_group.name,
-                        tags=cart_addon.addon_item.tags or []
-                    ))
+                # Addon handling – supports variation-specific overrides
+                addon_rows, source = resolve_addon_context(cart_item)
+                selected_addons_response, addons_total = build_selected_addon_responses(addon_rows)
+                final_price += addons_total
+
+                # Split into correct fields for response
+                selected_addons = selected_addons_response if source == "base" else []
+                selected_variation_addons = selected_addons_response if source == "variation" else []
                 
                 items.append(CartItemResponse(
                     public_id=cart_item.public_id,
@@ -205,7 +199,8 @@ async def get_cart_snapshot(
                     cloudflare_video_id=cart_item.menu_item.cloudflare_video_id,
                     veg_flag=cart_item.menu_item.veg_flag,
                     selected_variation=selected_variation,
-                    selected_addons=selected_addons
+                    selected_addons=selected_addons,
+                    selected_variation_addons=selected_variation_addons
                 ))
             
             # Get all members

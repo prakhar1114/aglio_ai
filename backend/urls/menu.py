@@ -7,24 +7,11 @@ from sqlalchemy import and_, or_
 
 from models.schema import (
     SessionLocal, Restaurant, MenuItem as MenuItemModel,
-    ItemVariation, Variation, AddonGroup, AddonGroupItem, ItemAddon
+    ItemVariation, Variation, AddonGroup, AddonGroupItem, ItemAddon, ItemVariationAddon
 )
 from config import rdb
 
 router = APIRouter()
-
-class VariationResponse(BaseModel):
-    id: int
-    name: str
-    display_name: str
-    price: float
-    group_name: str
-    tags: List[str] = []
-
-class VariationGroup(BaseModel):
-    group_name: str
-    display_name: str
-    variations: List[VariationResponse]
 
 class AddonItemResponse(BaseModel):
     id: int
@@ -40,6 +27,22 @@ class AddonGroupResponse(BaseModel):
     min_selection: int
     max_selection: int
     addons: List[AddonItemResponse]
+
+class VariationResponse(BaseModel):
+    id: int
+    name: str
+    display_name: str
+    price: float
+    group_name: str
+    tags: List[str] = []
+    # Optional variation-specific addon groups. Populated only when a variation
+    # overrides the base-item addon groups.
+    addon_groups: List[AddonGroupResponse] = []
+
+class VariationGroup(BaseModel):
+    group_name: str
+    display_name: str
+    variations: List[VariationResponse]
 
 class MenuItem(BaseModel):
     id: str
@@ -79,7 +82,11 @@ def read_menu_item(
             
             # 2. Look up menu item by public_id and restaurant_id
             menu_item = db.query(MenuItemModel).options(
-                joinedload(MenuItemModel.item_variations).joinedload(ItemVariation.variation),
+                joinedload(MenuItemModel.item_variations)
+                    .joinedload(ItemVariation.variation)
+                    .joinedload(ItemVariation.variation_addons)
+                    .joinedload(ItemVariationAddon.addon_group)
+                    .joinedload(AddonGroup.addon_items),
                 joinedload(MenuItemModel.item_addons).joinedload(ItemAddon.addon_group).joinedload(AddonGroup.addon_items)
             ).filter(
                 and_(
@@ -153,7 +160,11 @@ def read_menu(
             
             # 3. Fetch promoted items first, then the rest (no pagination)
             promoted_query = db.query(MenuItemModel).options(
-                joinedload(MenuItemModel.item_variations).joinedload(ItemVariation.variation),
+                joinedload(MenuItemModel.item_variations)
+                    .joinedload(ItemVariation.variation)
+                    .joinedload(ItemVariation.variation_addons)
+                    .joinedload(ItemVariationAddon.addon_group)
+                    .joinedload(AddonGroup.addon_items),
                 joinedload(MenuItemModel.item_addons).joinedload(ItemAddon.addon_group).joinedload(AddonGroup.addon_items)
             ).filter(
                 and_(MenuItemModel.promote == True, *filter_conditions)
@@ -169,7 +180,11 @@ def read_menu(
 
             # Fetch all other items excluding promoted ones
             regular_query = db.query(MenuItemModel).options(
-                joinedload(MenuItemModel.item_variations).joinedload(ItemVariation.variation),
+                joinedload(MenuItemModel.item_variations)
+                    .joinedload(ItemVariation.variation)
+                    .joinedload(ItemVariation.variation_addons)
+                    .joinedload(ItemVariationAddon.addon_group)
+                    .joinedload(AddonGroup.addon_items),
                 joinedload(MenuItemModel.item_addons).joinedload(ItemAddon.addon_group).joinedload(AddonGroup.addon_items)
             ).filter(
                 and_(*filter_conditions)
@@ -198,10 +213,42 @@ def read_menu(
 def _build_menu_item_response(item: MenuItemModel, restaurant_slug: str, override_category: Optional[str] = None) -> MenuItem:
     """Build MenuItem response with variations and addons based on item flags"""
     
-    variation_groups = []
-    addon_groups = []
-    
-    # Only process variations if itemallowvariation is True
+    # ------------------------------------------------------------------
+    # Build base-item addon groups FIRST (needed for variation fallback)
+    # ------------------------------------------------------------------
+    base_addon_groups: List[AddonGroupResponse] = []
+    if item.itemallowaddon is True:
+        for item_addon in item.item_addons:
+            if item_addon.is_active and item_addon.addon_group.is_active:
+                base_items_tmp = [
+                    AddonItemResponse(
+                        id=ai.id,
+                        name=ai.name,
+                        display_name=ai.display_name,
+                        price=ai.price,
+                        tags=ai.tags or [],
+                    )
+                    for ai in item_addon.addon_group.addon_items if ai.is_active
+                ]
+                if base_items_tmp:
+                    base_addon_groups.append(
+                        AddonGroupResponse(
+                            id=item_addon.addon_group.id,
+                            name=item_addon.addon_group.name,
+                            display_name=item_addon.addon_group.display_name,
+                            min_selection=item_addon.min_selection,
+                            max_selection=item_addon.max_selection,
+                            addons=base_items_tmp,
+                        )
+                    )
+
+    # Will be used for MenuItem-level field (backwards compatibility)
+    addon_groups: List[AddonGroupResponse] = base_addon_groups.copy()
+
+    # ------------------------------------------------------------------
+    # Build variations (may override addon groups)
+    # ------------------------------------------------------------------
+    variation_groups: List[VariationGroup] = []
     if item.itemallowvariation is True:
         # Build variation groups from item variations
         variation_groups_dict = {}
@@ -216,14 +263,44 @@ def _build_menu_item_response(item: MenuItemModel, restaurant_slug: str, overrid
                         "variations": []
                     }
                 
+                # Determine addon groups for this variation (override logic)
+                if item_variation.variation_addons:
+                    var_addon_groups: List[AddonGroupResponse] = []
+                    for iva in item_variation.variation_addons:
+                        if iva.is_active and iva.addon_group.is_active:
+                            addons_items_var = [
+                                AddonItemResponse(
+                                    id=ai.id,
+                                    name=ai.name,
+                                    display_name=ai.display_name,
+                                    price=ai.price,
+                                    tags=ai.tags or [],
+                                )
+                                for ai in iva.addon_group.addon_items if ai.is_active
+                            ]
+                            if addons_items_var:
+                                var_addon_groups.append(
+                                    AddonGroupResponse(
+                                        id=iva.addon_group.id,
+                                        name=iva.addon_group.name,
+                                        display_name=iva.addon_group.display_name,
+                                        min_selection=iva.min_selection,
+                                        max_selection=iva.max_selection,
+                                        addons=addons_items_var,
+                                    )
+                                )
+                else:
+                    var_addon_groups = base_addon_groups
+
                 variation_groups_dict[group_name]["variations"].append(
                     VariationResponse(
-                        id=item_variation.id,  # Use ItemVariation ID for selection
+                        id=item_variation.id,
                         name=item_variation.variation.name,
                         display_name=item_variation.variation.display_name,
-                        price=item_variation.price,  # Absolute price
+                        price=item_variation.price,
                         group_name=group_name,
-                        tags=[]
+                        tags=[],
+                        addon_groups=var_addon_groups,
                     )
                 )
         
@@ -231,35 +308,6 @@ def _build_menu_item_response(item: MenuItemModel, restaurant_slug: str, overrid
             VariationGroup(**group_data) 
             for group_data in variation_groups_dict.values()
         ]
-    
-    # Only process addons if itemallowaddon is True
-    if item.itemallowaddon is True:
-        # Build addon groups from item addons
-        for item_addon in item.item_addons:
-            if item_addon.is_active and item_addon.addon_group.is_active:
-                addon_items = [
-                    AddonItemResponse(
-                        id=addon_item.id,
-                        name=addon_item.name,
-                        display_name=addon_item.display_name,
-                        price=addon_item.price,
-                        tags=addon_item.tags or []
-                    )
-                    for addon_item in item_addon.addon_group.addon_items
-                    if addon_item.is_active
-                ]
-                
-                if addon_items:  # Only include if there are active addon items
-                    addon_groups.append(
-                        AddonGroupResponse(
-                            id=item_addon.addon_group.id,
-                            name=item_addon.addon_group.name,
-                            display_name=item_addon.addon_group.display_name,
-                            min_selection=item_addon.min_selection,
-                            max_selection=item_addon.max_selection,
-                            addons=addon_items
-                        )
-                    )
     
     return MenuItem(
         id=item.public_id,

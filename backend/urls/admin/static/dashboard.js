@@ -306,9 +306,10 @@ class DashboardManager {
                     const variationHTML = item.selected_variation ? `
                         <div class="variation-line">(${item.selected_variation.group_name}: ${item.selected_variation.variation_name})</div>
                     ` : '';
-                    const addonsHTML = (item.selected_addons && item.selected_addons.length > 0) ? `
+                    const addonsArr = (item.selected_variation_addons && item.selected_variation_addons.length > 0) ? item.selected_variation_addons : (item.selected_addons || []);
+                    const addonsHTML = addonsArr.length > 0 ? `
                         <ul class="addons-list">
-                            ${item.selected_addons.map(addon => `<li>${addon.name}${addon.quantity > 1 ? ` x${addon.quantity}` : ''}</li>`).join('')}
+                            ${addonsArr.map(addon => `<li>${addon.name}${addon.quantity > 1 ? ` x${addon.quantity}` : ''}</li>`).join('')}
                         </ul>
                     ` : '';
                     return `
@@ -525,11 +526,11 @@ class DashboardManager {
                                                     <small><strong>Variation:</strong> ${item.selected_variation.group_name} - ${item.selected_variation.variation_name} (₹${item.selected_variation.price})</small>
                                                 </div>
                                             ` : ''}
-                                            ${item.selected_addons && item.selected_addons.length > 0 ? `
+                                            ${((item.selected_variation_addons && item.selected_variation_addons.length > 0) || (item.selected_addons && item.selected_addons.length > 0)) ? `
                                                 <div class="addons-info">
                                                     <small><strong>Add-ons:</strong></small>
                                                     <ul class="addon-list">
-                                                        ${item.selected_addons.map(addon => `
+                                                        ${((item.selected_variation_addons && item.selected_variation_addons.length > 0) ? item.selected_variation_addons : item.selected_addons).map(addon => `
                                                             <li>${addon.name} x${addon.quantity} - ₹${addon.total_price}</li>
                                                         `).join('')}
                                                     </ul>
@@ -574,13 +575,13 @@ class DashboardManager {
                                                                         <small><strong>Variation:</strong> ${oi.selected_variation.group_name} - ${oi.selected_variation.variation_name} (₹${oi.selected_variation.price})</small>
                                                                     </div>
                                                                 ` : ''}
-                                                                ${oi.selected_addons && oi.selected_addons.length > 0 ? `
+                                                                ${(oi.selected_variation_addons && oi.selected_variation_addons.length > 0) || (oi.selected_addons && oi.selected_addons.length > 0) ? `
                                                                     <div class="addons-info">
                                                                         <small><strong>Add-ons:</strong></small>
                                                                         <ul class="addon-list">
-                                                                            ${oi.selected_addons.map(addon => `
-                                                                                <li>${addon.name} x${addon.quantity} - ₹${addon.total_price || (addon.price * addon.quantity)}</li>
-                                                                            `).join('')}
+                                                                            ${(oi.selected_variation_addons && oi.selected_variation_addons.length > 0 ? oi.selected_variation_addons : oi.selected_addons).map(addon => `
+                                                                                 <li>${addon.name} x${addon.quantity} - ₹${addon.total_price || (addon.price * addon.quantity)}</li>
+                                                                             `).join('')}
                                                                         </ul>
                                                                     </div>
                                                                 ` : ''}

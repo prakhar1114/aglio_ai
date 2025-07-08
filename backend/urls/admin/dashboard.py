@@ -14,6 +14,9 @@ from config import FRONTEND_URL, DEBUG_MODE
 
 import os
 
+from models.schema import ItemVariation, CartItemAddon, CartItemVariationAddon
+from utils.addon_helpers import resolve_addon_context, build_selected_addon_responses
+
 # Setup templates
 templates_dir = os.path.join(os.path.dirname(__file__), "templates")
 templates = Jinja2Templates(directory=templates_dir)
@@ -677,20 +680,14 @@ async def get_session_details(
                         "price": cart_item.selected_item_variation.price
                     }
                 
-                # Add addon details
-                selected_addons = []
-                for cart_addon in cart_item.selected_addons:
-                    addon_total = cart_addon.addon_item.price * cart_addon.quantity
-                    final_price += addon_total
+                # Add addon details (supports variation-specific)
+                addon_rows, source = resolve_addon_context(cart_item)
+                addons_resp_objs, addons_total = build_selected_addon_responses(addon_rows)
+                addons_resp = [a.model_dump() for a in addons_resp_objs]
+                final_price += addons_total
                     
-                    selected_addons.append({
-                        "name": cart_addon.addon_item.name,
-                        "addon_group_name": cart_addon.addon_item.addon_group.name,
-                        "quantity": cart_addon.quantity,
-                        "price": cart_addon.addon_item.price,
-                        "total_price": addon_total,
-                        "tags": cart_addon.addon_item.tags or []
-                    })
+                selected_addons = addons_resp if source == "base" else []
+                selected_variation_addons = addons_resp if source == "variation" else []
                 
                 cart_item_infos.append({
                     "public_id": cart_item.public_id,
@@ -704,7 +701,8 @@ async def get_session_details(
                     "image_url": f"image_data/{restaurant.slug}/{cart_item.menu_item.image_path}" if cart_item.menu_item.image_path else None,
                     "veg_flag": cart_item.menu_item.veg_flag,
                     "selected_variation": selected_variation,
-                    "selected_addons": selected_addons
+                    "selected_addons": selected_addons,
+                    "selected_variation_addons": selected_variation_addons
                 })
             
             # Get orders for this session with enhanced item details
