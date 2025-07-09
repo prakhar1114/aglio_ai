@@ -25,7 +25,5 @@ headers = {
 
 response = requests.post(data['apis']['fetchmenu'], json=values, headers=headers)
 
-response.raise_for_status()
-
 with open(output_path, 'w') as file:
     json.dump(response.json(), file, indent=4)

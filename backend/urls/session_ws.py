@@ -22,10 +22,6 @@ from models.cart_models import (
 from utils.jwt_utils import decode_ws_token
 from websocket.manager import connection_manager
 from services.pos.utils import get_pos_integration_by_name
-from utils.addon_helpers import resolve_addon_context, build_selected_addon_responses
-
-# Import new models
-from models.schema import CartItemVariationAddon, ItemVariationAddon
 
 # Import AI chat functionality
 from recommender.ai import generate_blocks
@@ -255,7 +251,7 @@ async def handle_place_order(websocket, session_pid, member_pid, data):
             # Create Order record in database
             restaurant = db.query(Restaurant).filter(Restaurant.id == session.restaurant_id).first()
             new_order = Order(
-                public_id=f"{restaurant.slug[0:4].upper()}_{order_id}",
+                public_id=f"{restaurant.slug[0:4]}_{order_id}",
                 session_id=session.id,
                 initiated_by_member_id=member.id,  # Track who initiated the order
                 payload=[],  # Will be filled after processing
@@ -450,23 +446,23 @@ async def process_order_with_pos(restaurant_id: int, order: Order, session: Sess
         return False, None, {"error": str(e)}, False
 
 
-# async def process_order_dummy(order_id, order_payload, total_amount):
-#     """Dummy POS integration - simulates order processing with 3 second delay"""
-#     import asyncio
-#     import random
+async def process_order_dummy(order_id, order_payload, total_amount):
+    """Dummy POS integration - simulates order processing with 3 second delay"""
+    import asyncio
+    import random
     
-#     logger.info(f"Processing order {order_id} with dummy POS system...")
+    logger.info(f"Processing order {order_id} with dummy POS system...")
     
-#     # Simulate 3-second processing time
-#     await asyncio.sleep(3)
+    # Simulate 3-second processing time
+    await asyncio.sleep(3)
     
-#     # 90% success rate for testing
-#     if random.random() < 0.9:
-#         logger.info(f"Order {order_id} processed successfully")
-#         return True
-#     else:
-#         logger.warning(f"Order {order_id} failed - POS system error")
-#         return False
+    # 90% success rate for testing
+    if random.random() < 0.9:
+        logger.info(f"Order {order_id} processed successfully")
+        return True
+    else:
+        logger.warning(f"Order {order_id} failed - POS system error")
+        return False
 
 # ---------------------------------------------------------------------------
 # Cart-mutation helpers
@@ -553,46 +549,28 @@ async def handle_cart_create(
                 await connection_manager.send_error(websocket, "invalid_variation", "Invalid variation for this menu item")
                 return
 
-        # Determine if variation overrides addon groups
-        variation_has_override = bool(selected_variation and selected_variation.variation_addons)
-
-        # Build allowed addon group id set
-        allowed_group_ids: set[int] = set()
-        if variation_has_override:
-            for iva in selected_variation.variation_addons:
-                if iva.is_active and iva.addon_group.is_active:
-                    allowed_group_ids.add(iva.addon_group_id)
-        else:
-            # Base item addon groups
-            for ia in menu_item.item_addons:
-                if ia.is_active and ia.addon_group.is_active:
-                    allowed_group_ids.add(ia.addon_group_id)
-
         # Validate addons if provided
-        addon_items: list[tuple] = []
+        addon_items = []
         if event.selected_addons:
-
+            from models.schema import AddonGroupItem, ItemAddon
             for addon_selection in event.selected_addons:
                 # Get the addon item
                 addon_item = db.query(AddonGroupItem).filter(
                     AddonGroupItem.id == addon_selection.addon_group_item_id,
-                    AddonGroupItem.is_active == True,
+                    AddonGroupItem.is_active == True
                 ).first()
-
                 if not addon_item:
-                    await connection_manager.send_error(
-                        websocket,
-                        "invalid_addon",
-                        f"Invalid addon item: {addon_selection.addon_group_item_id}",
-                    )
+                    await connection_manager.send_error(websocket, "invalid_addon", f"Invalid addon item: {addon_selection.addon_group_item_id}")
                     return
                 
-                if addon_item.addon_group_id not in allowed_group_ids:
-                    await connection_manager.send_error(
-                        websocket,
-                        "addon_not_allowed",
-                        f"Addon not allowed for this selection: {addon_item.name}",
-                    )
+                # Check if this addon group is linked to this menu item
+                addon_link = db.query(ItemAddon).filter(
+                    ItemAddon.menu_item_id == menu_item.id,
+                    ItemAddon.addon_group_id == addon_item.addon_group_id,
+                    ItemAddon.is_active == True
+                ).first()
+                if not addon_link:
+                    await connection_manager.send_error(websocket, "addon_not_allowed", f"Addon not allowed for this menu item: {addon_item.name}")
                     return
                 
                 addon_items.append((addon_item, addon_selection.quantity))
@@ -611,26 +589,14 @@ async def handle_cart_create(
         db.add(cart_item)
         db.flush()
 
-        # Add selected addons to appropriate table
-        if variation_has_override:
-            for addon_item, quantity in addon_items:
-                    db.add(
-                        CartItemVariationAddon(
-                    cart_item_id=cart_item.id,
-                            item_variation_id=selected_variation.id if selected_variation else None,
-                    addon_item_id=addon_item.id,
-                            quantity=quantity,
-                        )
-                )
-        else:
-            for addon_item, quantity in addon_items:
-                db.add(
-                    CartItemAddon(
-                        cart_item_id=cart_item.id,
-                        addon_item_id=addon_item.id,
-                        quantity=quantity,
-                    )
-                )
+        # Add selected addons
+        for addon_item, quantity in addon_items:
+            cart_addon = CartItemAddon(
+                cart_item_id=cart_item.id,
+                addon_item_id=addon_item.id,
+                quantity=quantity
+            )
+            db.add(cart_addon)
 
         # Build response with price calculations
         restaurant: Restaurant | None = db.query(Restaurant).filter(Restaurant.id == session.restaurant_id).first()
@@ -650,17 +616,20 @@ async def handle_cart_create(
             )
         
         # Add addon prices and build addon responses
-        selected_addons_response, addons_total = build_selected_addon_responses([
-            type('obj', (object,), {
-                'addon_item': addon_item,
-                'quantity': quantity
-            }) for addon_item, quantity in addon_items
-        ])
-        final_price += addons_total
-
-        # Split responses for payload fields
-        selected_addons_field = selected_addons_response if not variation_has_override else []
-        selected_variation_addons_field = selected_addons_response if variation_has_override else []
+        selected_addons_response = []
+        for addon_item, quantity in addon_items:
+            addon_total = addon_item.price * quantity
+            final_price += addon_total
+            
+            selected_addons_response.append(SelectedAddonResponse(
+                addon_group_item_id=addon_item.id,
+                name=addon_item.name,
+                price=addon_item.price,
+                quantity=quantity,
+                total_price=addon_total,
+                addon_group_name=addon_item.addon_group.name,
+                tags=addon_item.tags or []
+            ))
         
         response_item = CartItemResponse(
             public_id=cart_item.public_id,
@@ -677,8 +646,7 @@ async def handle_cart_create(
             cloudflare_video_id=menu_item.cloudflare_video_id,
             veg_flag=menu_item.veg_flag,
             selected_variation=selected_variation_response,
-            selected_addons=selected_addons_field,
-            selected_variation_addons=selected_variation_addons_field
+            selected_addons=selected_addons_response
         )
 
         setattr(session, 'last_activity_at', datetime.utcnow())
@@ -770,12 +738,29 @@ async def handle_cart_update(
                     price=selected_variation.price
                 )
         
-        addon_rows, source = resolve_addon_context(cart_item)
-        selected_addons_response, addons_total = build_selected_addon_responses(addon_rows)
-        final_price += addons_total
+        # Read current addons from database
+        selected_addons_response = []
+        current_addons = (
+            db.query(CartItemAddon)
+            .join(AddonGroupItem, CartItemAddon.addon_item_id == AddonGroupItem.id)
+            .filter(CartItemAddon.cart_item_id == cart_item.id)
+            .all()
+        )
+        
+        for cart_addon in current_addons:
+            addon_item = cart_addon.addon_item
+            addon_total = addon_item.price * cart_addon.quantity
+            final_price += addon_total
             
-        selected_addons_field = selected_addons_response if source == "base" else []
-        selected_variation_addons_field = selected_addons_response if source == "variation" else []
+            selected_addons_response.append(SelectedAddonResponse(
+                addon_group_item_id=addon_item.id,
+                name=addon_item.name,
+                price=addon_item.price,
+                quantity=cart_addon.quantity,
+                total_price=addon_total,
+                addon_group_name=addon_item.addon_group.name,
+                tags=addon_item.tags or []
+            ))
 
         response_item = CartItemResponse(
             public_id=cart_item.public_id,
@@ -792,8 +777,7 @@ async def handle_cart_update(
             cloudflare_video_id=menu_item.cloudflare_video_id,
             veg_flag=menu_item.veg_flag,
             selected_variation=selected_variation_response,
-            selected_addons=selected_addons_field,
-            selected_variation_addons=selected_variation_addons_field
+            selected_addons=selected_addons_response
         )
 
         setattr(session, 'last_activity_at', datetime.utcnow())
@@ -861,9 +845,8 @@ async def handle_cart_delete(
             veg_flag=menu_item.veg_flag,
         )
 
-        # Delete associated addon records first (both base & variation)
+        # Delete associated CartItemAddon records first
         db.query(CartItemAddon).filter(CartItemAddon.cart_item_id == cart_item.id).delete()
-        db.query(CartItemVariationAddon).filter(CartItemVariationAddon.cart_item_id == cart_item.id).delete()
         db.delete(cart_item)
         setattr(session, 'last_activity_at', datetime.utcnow())
         db.commit()
@@ -929,24 +912,10 @@ async def handle_cart_replace(
                 await connection_manager.send_error(websocket, "invalid_variation", "Invalid variation for this menu item")
                 return
 
-        # Determine if variation overrides addon groups
-        variation_has_override = bool(selected_variation and selected_variation.variation_addons)
-
-        # Build allowed addon group id set
-        allowed_group_ids: set[int] = set()
-        if variation_has_override:
-            for iva in selected_variation.variation_addons:
-                if iva.is_active and iva.addon_group.is_active:
-                    allowed_group_ids.add(iva.addon_group_id)
-        else:
-            # Base item addon groups
-            for ia in menu_item.item_addons:
-                if ia.is_active and ia.addon_group.is_active:
-                    allowed_group_ids.add(ia.addon_group_id)
-
         # Validate new addons if provided
-        addon_items: list[tuple] = []
+        addon_items = []
         if event.selected_addons:
+            from models.schema import AddonGroupItem, ItemAddon
             for addon_selection in event.selected_addons:
                 # Get the addon item
                 addon_item = db.query(AddonGroupItem).filter(
@@ -956,12 +925,17 @@ async def handle_cart_replace(
                 if not addon_item:
                     await connection_manager.send_error(websocket, "invalid_addon", f"Invalid addon item: {addon_selection.addon_group_item_id}")
                     return
-
-                # Ensure the addon's group is allowed for this menu item / variation
-                if addon_item.addon_group_id not in allowed_group_ids:
-                    await connection_manager.send_error(websocket, "addon_not_allowed", f"Addon not allowed for this selection: {addon_item.name}")
+                
+                # Check if this addon group is linked to this menu item
+                addon_link = db.query(ItemAddon).filter(
+                    ItemAddon.menu_item_id == menu_item.id,
+                    ItemAddon.addon_group_id == addon_item.addon_group_id,
+                    ItemAddon.is_active == True
+                ).first()
+                if not addon_link:
+                    await connection_manager.send_error(websocket, "addon_not_allowed", f"Addon not allowed for this menu item: {addon_item.name}")
                     return
-
+                
                 addon_items.append((addon_item, addon_selection.quantity))
 
         # Get restaurant for image URL construction
@@ -974,32 +948,18 @@ async def handle_cart_replace(
         cart_item.note = event.note
         cart_item.version += 1  # Increment version
         
-        # Clear existing addons (both base and variation) before inserting new ones
+        # Clear existing addons and add new ones
         db.query(CartItemAddon).filter(CartItemAddon.cart_item_id == cart_item.id).delete()
-        db.query(CartItemVariationAddon).filter(CartItemVariationAddon.cart_item_id == cart_item.id).delete()
         db.flush()  # Ensure delete is processed before adding new ones
 
         # Add new selected addons
-        if variation_has_override:
-            # Store addons in variation-specific table
-            for addon_item, quantity in addon_items:
-                db.add(
-                    CartItemVariationAddon(
-                        cart_item_id=cart_item.id,
-                        item_variation_id=selected_variation.id if selected_variation else None,
-                        addon_item_id=addon_item.id,
-                        quantity=quantity,
-                    )
-                )
-        else:
-            for addon_item, quantity in addon_items:
-                db.add(
-                    CartItemAddon(
-                        cart_item_id=cart_item.id,
-                        addon_item_id=addon_item.id,
-                        quantity=quantity,
-                    )
-                )
+        for addon_item, quantity in addon_items:
+            cart_addon = CartItemAddon(
+                cart_item_id=cart_item.id,
+                addon_item_id=addon_item.id,
+                quantity=quantity
+            )
+            db.add(cart_addon)
 
         # Build response with updated item and price calculations
         final_price = menu_item.price
@@ -1016,17 +976,20 @@ async def handle_cart_replace(
             )
         
         # Add addon prices and build addon responses
-        selected_addons_response, addons_total = build_selected_addon_responses([
-            type('obj', (object,), {
-                'addon_item': addon_item,
-                'quantity': quantity
-            }) for addon_item, quantity in addon_items
-        ])
-        final_price += addons_total
-
-        # Split responses for payload fields
-        selected_addons_field = selected_addons_response if not variation_has_override else []
-        selected_variation_addons_field = selected_addons_response if variation_has_override else []
+        selected_addons_response = []
+        for addon_item, quantity in addon_items:
+            addon_total = addon_item.price * quantity
+            final_price += addon_total
+            
+            selected_addons_response.append(SelectedAddonResponse(
+                addon_group_item_id=addon_item.id,
+                name=addon_item.name,
+                price=addon_item.price,
+                quantity=quantity,
+                total_price=addon_total,
+                addon_group_name=addon_item.addon_group.name,
+                tags=addon_item.tags or []
+            ))
         
         response_item = CartItemResponse(
             public_id=cart_item.public_id,  # Same cart item ID
@@ -1043,8 +1006,7 @@ async def handle_cart_replace(
             cloudflare_video_id=menu_item.cloudflare_video_id,
             veg_flag=menu_item.veg_flag,
             selected_variation=selected_variation_response,
-            selected_addons=selected_addons_field,
-            selected_variation_addons=selected_variation_addons_field
+            selected_addons=selected_addons_response
         )
 
         session.last_activity_at = datetime.utcnow()
@@ -1060,7 +1022,18 @@ async def handle_cart_replace(
 
 # Helper to compute addon details (mirrors cart snapshot logic)
 def build_addon_details(cart_item):
-    addon_rows, _ = resolve_addon_context(cart_item)
-    details, total = build_selected_addon_responses(addon_rows)
-    # Convert list of SelectedAddonResponse objects to dicts for legacy payload shape
-    return [d.model_dump() for d in details], total
+    addon_details = []
+    addon_total = 0.0
+    for cart_addon in cart_item.selected_addons:
+        addon_line_total = cart_addon.addon_item.price * cart_addon.quantity
+        addon_total += addon_line_total
+        addon_details.append({
+            "addon_group_item_id": cart_addon.addon_item.id,
+            "name": cart_addon.addon_item.name,
+            "price": cart_addon.addon_item.price,
+            "quantity": cart_addon.quantity,
+            "total_price": addon_line_total,
+            "addon_group_name": cart_addon.addon_item.addon_group.name,
+            "tags": cart_addon.addon_item.tags or []
+        })
+    return addon_details, addon_total

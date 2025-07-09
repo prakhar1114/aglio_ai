@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useCartStore, getMenuItem, confirmCustomisation, constructImageUrl, getActiveAddonGroups } from '@qrmenu/core';
+import { useCartStore, getMenuItem, confirmCustomisation, constructImageUrl } from '@qrmenu/core';
 
 export function ItemCustomisations() {
   const {
@@ -36,7 +36,7 @@ export function ItemCustomisations() {
   // Compute pricing (hooks need consistent order, so declare before any early return)
   const selectedVariation = React.useMemo(() => {
     if (!menuItem || !customisationData.selectedVariationId) return null;
-    let found = null; 
+    let found = null;
     menuItem.variation_groups?.forEach(vg => {
       const v = vg.variations.find(varn => varn.id === customisationData.selectedVariationId);
       if (v) found = v;
@@ -46,10 +46,9 @@ export function ItemCustomisations() {
 
   const addonsPrice = React.useMemo(() => {
     if (!menuItem || !customisationData.selectedAddons) return 0;
-    const activeGroups = getActiveAddonGroups(menuItem, customisationData.selectedVariationId);
     let total = 0;
     customisationData.selectedAddons.forEach(sel => {
-      activeGroups.forEach(group => {
+      menuItem.addon_groups?.forEach(group => {
         const addon = group.addons.find(a => a.id === sel.addon_group_item_id);
         if (addon) {
           total += addon.price * (sel.quantity || 1);
@@ -57,7 +56,7 @@ export function ItemCustomisations() {
       });
     });
     return total;
-  }, [menuItem, customisationData.selectedAddons, customisationData.selectedVariationId]);
+  }, [menuItem, customisationData.selectedAddons]);
 
   const unitPrice = (menuItem?.base_price || 0) + (selectedVariation?.price || 0) + addonsPrice;
   const totalPrice = unitPrice * (customisationData.qty || 1);
@@ -67,43 +66,20 @@ export function ItemCustomisations() {
   }
 
   const handleVariationSelect = (variationId) => {
-    // When the user switches variation, drop any previously selected addons that
-    // don’t belong to the addon groups enabled for the new variation.
-    const activeGroupsAfterSwitch = getActiveAddonGroups(menuItem, variationId);
-    const allowedAddonIds = activeGroupsAfterSwitch.flatMap((g) => g.addons.map((a) => a.id));
-
-    const cleansedAddons = (customisationData.selectedAddons || []).filter((addon) =>
-      allowedAddonIds.includes(addon.addon_group_item_id)
-    );
-
-    updateCustomisationData({
-      selectedVariationId: variationId,
-      selectedAddons: cleansedAddons,
-    });
+    updateCustomisationData({ selectedVariationId: variationId });
   };
 
   const handleAddonToggle = (addonId) => {
-    // First, keep only addons that belong to the current active addon groups
-    const activeGroups = getActiveAddonGroups(menuItem, customisationData.selectedVariationId);
-    const allowedAddonIds = activeGroups.flatMap((g) => g.addons.map((a) => a.id));
-
-    const currentAddons = (customisationData.selectedAddons || []).filter((addon) =>
-      allowedAddonIds.includes(addon.addon_group_item_id)
-    );
-
-    const existingAddon = currentAddons.find(
-      (addon) => addon.addon_group_item_id === addonId
-    );
-
+    const currentAddons = customisationData.selectedAddons || [];
+    const existingAddon = currentAddons.find(addon => addon.addon_group_item_id === addonId);
+    
     let newAddons;
     if (existingAddon) {
-      newAddons = currentAddons.filter(
-        (addon) => addon.addon_group_item_id !== addonId
-      );
+      newAddons = currentAddons.filter(addon => addon.addon_group_item_id !== addonId);
     } else {
       newAddons = [...currentAddons, { addon_group_item_id: addonId, quantity: 1 }];
     }
-
+    
     updateCustomisationData({ selectedAddons: newAddons });
   };
 
@@ -271,8 +247,8 @@ export function ItemCustomisations() {
                 </div>
               ))}
 
-              {/* Addons - Compact with Inline Controls (variation override aware) */}
-              {getActiveAddonGroups(menuItem, customisationData.selectedVariationId)?.map((addonGroup) => (
+              {/* Addons - Compact with Inline Controls */}
+              {menuItem.addon_groups?.map((addonGroup) => (
                 <div key={addonGroup.id} className="bg-gray-50 rounded-xl p-3">
                   <div className="mb-2">
                     <h3 className="text-sm font-semibold text-gray-900">

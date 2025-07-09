@@ -172,10 +172,6 @@ class CartItem(Base):
     menu_item = relationship("MenuItem")
     selected_item_variation = relationship("ItemVariation")
     selected_addons = relationship("CartItemAddon", back_populates="cart_item")
-    # Add relationship for variation-specific addons (override base item addons)
-    selected_variation_addons = relationship(
-        "CartItemVariationAddon", back_populates="cart_item"
-    )
     order = relationship("Order", back_populates="cart_items")
 
     __table_args__ = (
@@ -193,45 +189,6 @@ class CartItemAddon(Base):
 
     cart_item = relationship("CartItem", back_populates="selected_addons")
     addon_item = relationship("AddonGroupItem")
-
-
-# ---------------------------------------------------------------------------
-# CartItem variation-specific addons
-# ---------------------------------------------------------------------------
-
-
-class CartItemVariationAddon(Base):
-    """Selected add-on items that belong to a specific ItemVariation for a cart item."""
-
-    __tablename__ = "cart_item_variation_addons"
-
-    id = Column(Integer, primary_key=True)
-
-    # Link to the cart item row
-    cart_item_id = Column(
-        Integer, ForeignKey("cart_items.id", ondelete="CASCADE"), nullable=False
-    )
-
-    # Which variation enabled this add-on
-    item_variation_id = Column(
-        Integer, ForeignKey("item_variations.id", ondelete="CASCADE"), nullable=False
-    )
-
-    # The concrete add-on picked
-    addon_item_id = Column(Integer, ForeignKey("addon_group_items.id"), nullable=False)
-
-    quantity = Column(Integer, default=1)
-
-    cart_item = relationship("CartItem", back_populates="selected_variation_addons")
-    item_variation = relationship("ItemVariation")
-    addon_item = relationship("AddonGroupItem")
-
-    __table_args__ = (
-        # Avoid duplicates for same cart item, variation and addon item
-        UniqueConstraint(
-            "cart_item_id", "item_variation_id", "addon_item_id", name="uix_cart_item_var_addon"
-        ),
-    )
 
 
 class Order(Base):
@@ -407,7 +364,6 @@ class AddonGroup(Base):
     # Relationships
     addon_items = relationship("AddonGroupItem", back_populates="addon_group")
     item_addons = relationship("ItemAddon", back_populates="addon_group")
-    variation_addons = relationship("ItemVariationAddon", back_populates="addon_group")
 
     __table_args__ = (
         UniqueConstraint("external_group_id", "pos_system_id", name="uix_addon_group_pos"),
@@ -457,7 +413,6 @@ class ItemVariation(Base):
 
     menu_item = relationship("MenuItem", back_populates="item_variations")
     variation = relationship("Variation", back_populates="item_variations")
-    variation_addons = relationship("ItemVariationAddon", back_populates="item_variation")
 
     __table_args__ = (
         UniqueConstraint("menu_item_id", "variation_id", name="uix_item_variation"),
@@ -481,26 +436,6 @@ class ItemAddon(Base):
 
     __table_args__ = (
         UniqueConstraint("menu_item_id", "addon_group_id", name="uix_item_addon"),
-    )
-
-
-class ItemVariationAddon(Base):
-    """Junction table: ItemVariation ←→ AddonGroup with selection rules for variation-specific addons"""
-    __tablename__ = "item_variation_addons"
-
-    id = Column(Integer, primary_key=True)
-    item_variation_id = Column(Integer, ForeignKey("item_variations.id"), nullable=False)
-    addon_group_id = Column(Integer, ForeignKey("addon_groups.id"), nullable=False)
-    min_selection = Column(Integer, default=0)
-    max_selection = Column(Integer, default=1)
-    is_active = Column(Boolean, default=True)
-    priority = Column(Integer, default=0)
-
-    item_variation = relationship("ItemVariation", back_populates="variation_addons")
-    addon_group = relationship("AddonGroup", back_populates="variation_addons")
-
-    __table_args__ = (
-        UniqueConstraint("item_variation_id", "addon_group_id", name="uix_item_variation_addon"),
     )
 
 

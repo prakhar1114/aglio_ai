@@ -421,18 +421,12 @@ export function replaceCartItem(public_id, menuItem, qty, note, version) {
     let selectedAddonsRequest = [];
     if (cartItem.selected_addons_request && cartItem.selected_addons_request.length > 0) {
       selectedAddonsRequest = cartItem.selected_addons_request;
-    } else {
-      // dont think this selected_variation_addons is needed here
-      const sourceArray = (cartItem.selected_variation_addons && cartItem.selected_variation_addons.length > 0)
-        ? cartItem.selected_variation_addons
-        : cartItem.selected_addons;
-
-      if (sourceArray && sourceArray.length > 0) {
-        selectedAddonsRequest = sourceArray.map((addon) => ({
-          addon_group_item_id: addon.addon_group_item_id || addon.id,
-          quantity: addon.quantity || 1,
-        }));
-      }
+    } else if (cartItem.selected_addons && cartItem.selected_addons.length > 0) {
+      // Map snapshot-style addon objects -> request objects
+      selectedAddonsRequest = cartItem.selected_addons.map((addon) => ({
+        addon_group_item_id: addon.addon_group_item_id || addon.id, // fallback for legacy key
+        quantity: addon.quantity || 1,
+      }));
     }
 
     cartStore.openCustomisation('replace', menuItem, {

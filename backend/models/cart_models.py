@@ -57,7 +57,6 @@ class CartItemResponse(BaseModel):
     veg_flag: bool = False  # Add veg flag for dietary indicators
     selected_variation: Optional[SelectedVariationResponse] = None
     selected_addons: List[SelectedAddonResponse] = []
-    selected_variation_addons: List[SelectedAddonResponse] = []
 
 class MemberInfo(BaseModel):
     member_pid: str
