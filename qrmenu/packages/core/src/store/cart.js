@@ -1,6 +1,24 @@
 import { create } from 'zustand';
 import { useSessionStore } from './session.js';
 import { generateShortId } from '../utils/general.js';
+import { getActiveAddonGroups } from '../utils/variationAddons.js';
+
+// Helper to normalise addon arrays coming from backend so UI can rely on a single key
+const mergeAddonArrays = (item) => {
+  if (!item) return item;
+  const variationArray = item.selected_variation_addons || [];
+  const baseArray = item.selected_addons || [];
+  const merged = (variationArray.length > 0) ? variationArray : baseArray;
+
+  return {
+    ...item,
+    selected_addons: merged,
+    selected_addons_request: merged.map((a) => ({
+      addon_group_item_id: a.addon_group_item_id || a.id,
+      quantity: a.quantity || 1,
+    })),
+  };
+};
 
 export const useCartStore = create((set, get) => ({
   // Cart data - new shared cart structure
@@ -191,8 +209,9 @@ export const useCartStore = create((set, get) => ({
               if (v) variationPrice = v.price;
             }
           }
+          const activeGroups = getActiveAddonGroups(menuItem, selectedVariationId);
           const addonsPrice = (selectedAddons || []).reduce((acc, { addon_group_item_id, quantity }) => {
-            for (const ag of (menuItem.addon_groups || [])) {
+            for (const ag of activeGroups) {
               const a = ag.addons.find((ad) => ad.id === addon_group_item_id);
               if (a) return acc + (a.price * quantity);
             }
@@ -226,8 +245,9 @@ export const useCartStore = create((set, get) => ({
         selected_addons: (() => {
           const list = [];
           if (!selectedAddons || selectedAddons.length === 0) return list;
+          const activeGroupsLocal = getActiveAddonGroups(menuItem, selectedVariationId);
           selectedAddons.forEach(({ addon_group_item_id, quantity }) => {
-            for (const ag of (menuItem.addon_groups || [])) {
+            for (const ag of activeGroupsLocal) {
               const a = ag.addons.find((ad) => ad.id === addon_group_item_id);
               if (a) list.push({ addon_group_item_id, name: a.display_name, quantity, price: a.price });
             }
@@ -292,8 +312,9 @@ export const useCartStore = create((set, get) => ({
               if (v) variationPrice = v.price;
             }
           }
+          const activeGroups = getActiveAddonGroups(menuItem, selectedVariationId);
           const addonsPrice = (selectedAddons || []).reduce((acc, { addon_group_item_id, quantity }) => {
-            for (const ag of (menuItem.addon_groups || [])) {
+            for (const ag of activeGroups) {
               const a = ag.addons.find((ad) => ad.id === addon_group_item_id);
               if (a) return acc + (a.price * quantity);
             }
@@ -324,8 +345,9 @@ export const useCartStore = create((set, get) => ({
         selected_addons: (() => {
           const list = [];
           if (!selectedAddons || selectedAddons.length === 0) return list;
+          const activeGroupsLocal = getActiveAddonGroups(menuItem, selectedVariationId);
           selectedAddons.forEach(({ addon_group_item_id, quantity }) => {
-            for (const ag of (menuItem.addon_groups || [])) {
+            for (const ag of activeGroupsLocal) {
               const a = ag.addons.find((ad) => ad.id === addon_group_item_id);
               if (a) list.push({ addon_group_item_id, name: a.display_name, quantity, price: a.price });
             }
@@ -366,16 +388,15 @@ export const useCartStore = create((set, get) => ({
             const optimisticIndex = newItems.findIndex(cartItem => cartItem.tmpId === tmpId);
             if (optimisticIndex >= 0) {
               newItems[optimisticIndex] = {
-                ...item,
+                ...mergeAddonArrays(item),
                 tmpId: undefined // Clear tmpId since it's now confirmed
               };
             } else {
-              // Add new item if optimistic item not found
-              newItems.push(item);
+              newItems.push(mergeAddonArrays(item));
             }
           } else {
             // Add new item
-            newItems.push(item);
+            newItems.push(mergeAddonArrays(item));
           }
         } else if (op === 'update') {
           // Update existing item
@@ -383,7 +404,7 @@ export const useCartStore = create((set, get) => ({
           if (itemIndex >= 0) {
             newItems[itemIndex] = {
               ...newItems[itemIndex],
-              ...item
+              ...mergeAddonArrays(item)
             };
           }
         } else if (op === 'delete') {
@@ -409,8 +430,11 @@ export const useCartStore = create((set, get) => ({
   
   // Cart snapshot loading
   loadCartSnapshot: (snapshot) => {
+    // Merge addon arrays per item for easier UI handling
+    const processedItems = (snapshot.items || []).map(mergeAddonArrays);
+
     set({
-      items: snapshot.items || [],
+      items: processedItems,
       orders: snapshot.orders || [], // Load orders from backend
       cart_version: snapshot.cart_version || 0,
       cartLocked: snapshot.cart_locked || false,
@@ -547,7 +571,11 @@ export const useCartStore = create((set, get) => ({
       if (!menuItem) return false;
       
       const hasVariations = menuItem.variation_groups && menuItem.variation_groups.length > 0;
-      const hasAddons = menuItem.addon_groups && menuItem.addon_groups.length > 0;
+      const hasBaseAddons = menuItem.addon_groups && menuItem.addon_groups.length > 0;
+      const hasVariationAddons = (menuItem.variation_groups || []).some((vg) =>
+        vg.variations?.some?.((v) => Array.isArray(v.addon_groups) && v.addon_groups.length > 0)
+      );
+      const hasAddons = hasBaseAddons || hasVariationAddons;
       
       return hasVariations || hasAddons;
     } catch (error) {

@@ -7,6 +7,7 @@ export { useChatStore } from './store/chat.js';
 export { default as useMenuStore } from './store/menu.js';
 export { getAIResponse } from './utils/aiResponses.js';
 export { generateShortId, isVideoUrl } from './utils/general.js';
+export { getActiveAddonGroups } from './utils/variationAddons.js';
 // Export connection bootstrap & helpers from setup.js
 export { setupConnection, updateMemberNickname, validatePassword } from './setup.js';
 // Export WebSocket / cart mutation helpers from connection.js
