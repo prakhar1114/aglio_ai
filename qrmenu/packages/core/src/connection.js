@@ -423,9 +423,7 @@ export function replaceCartItem(public_id, menuItem, qty, note, version) {
       selectedAddonsRequest = cartItem.selected_addons_request;
     } else {
       // dont think this selected_variation_addons is needed here
-      const sourceArray = (cartItem.selected_variation_addons && cartItem.selected_variation_addons.length > 0)
-        ? cartItem.selected_variation_addons
-        : cartItem.selected_addons;
+      const sourceArray = cartItem.selected_addons;
 
       if (sourceArray && sourceArray.length > 0) {
         selectedAddonsRequest = sourceArray.map((addon) => ({

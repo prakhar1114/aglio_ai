@@ -328,7 +328,7 @@ class PetPoojaIntegration(POSInterface):
             ).scalar_one_or_none()
             
             if not global_variation:
-                print(f"Warning: Global variation {var_data['variationid']} not found for item {menu_item.name}")
+                logger.info(f"Warning: Global variation {var_data['variationid']} not found for item {menu_item.name}")
                 continue
             
             # Check if item-variation relationship exists
@@ -379,7 +379,7 @@ class PetPoojaIntegration(POSInterface):
             ).scalar_one_or_none()
             
             if not global_addon_group:
-                print(f"Warning: Global addon group {addon_group_id} not found for item {menu_item.name}")
+                logger.info(f"Warning: Global addon group {addon_group_id} not found for item {menu_item.name}")
                 continue
             
             # Check if item-addon relationship exists
@@ -453,7 +453,7 @@ class PetPoojaIntegration(POSInterface):
             logger.debug(f"save_order_url: {self.save_order_url}")
             logger.debug(f"petpooja_order: {petpooja_order}")
             logger.debug(f"headers: {headers}")
-            pprint(petpooja_order)
+            # pprint(petpooja_order)
 
             # Make API call to PetPooja
             async with httpx.AsyncClient() as client:
@@ -532,7 +532,7 @@ class PetPoojaIntegration(POSInterface):
             applicable_ids = {str(tid) for tid in tax_ids}
             # If an explicit but empty list is provided, no taxes apply
             if not applicable_ids:
-                print(f"No applicable tax ids found")
+                logger.info(f"No applicable tax ids found")
                 return {"total_tax_amount": 0.0, "tax_details": []}
 
         for tax in self.tax_config:
@@ -756,7 +756,7 @@ class PetPoojaIntegration(POSInterface):
 
             # Calculate item-level taxes using configuration. If no specific IDs, pass None to apply all taxes.
             applicable_tax_ids = item_tax_ids if item_tax_ids else None
-            print(f"applicable_tax_ids: {applicable_tax_ids}")
+            logger.info(f"applicable_tax_ids: {applicable_tax_ids}")
             item_tax_calculation = self._calculate_taxes(discounted_total, applicable_tax_ids)
             item_tax_details = item_tax_calculation["tax_details"]
 
