@@ -33,7 +33,7 @@ class PetPoojaIntegration(POSInterface):
         self.save_order_url = self.config.get("apis", {}).get("saveorder")
         self.fetch_menu_url = self.config.get("apis", {}).get("fetchmenu")
         self.restaurant_slug = pos_system.restaurant.slug  # Will be set by the calling code
-        self.callback_url = os.path.join(str(BACKEND_URL), "pp_callback", self.restaurant_slug, "/")
+        self.callback_url = os.path.join(str(BACKEND_URL), "pp_callback", self.restaurant_slug) + "/"
         
         # Initialize tax and discount configurations
         self.tax_config = self.config.get("taxes", [])
@@ -453,7 +453,7 @@ class PetPoojaIntegration(POSInterface):
             logger.debug(f"save_order_url: {self.save_order_url}")
             logger.debug(f"petpooja_order: {petpooja_order}")
             logger.debug(f"headers: {headers}")
-            # pprint(petpooja_order)
+            pprint(petpooja_order)
 
             # Make API call to PetPooja
             async with httpx.AsyncClient() as client:
@@ -688,7 +688,8 @@ class PetPoojaIntegration(POSInterface):
 
         return {
             "total_discount_amount": total_discount_amount,
-            "discount_details": discount_details
+            "discount_details": discount_details,
+            "discount_type": "P" if is_percentage else "F"
         }
 
     def _transform_order_to_petpooja(self, order, session, member, table_number, restaurant_slug: str) -> Dict[str, Any]:
@@ -788,7 +789,7 @@ class PetPoojaIntegration(POSInterface):
                 "quantity": str(cart_item.qty),
                 "gst_liability": "restaurant",
                 "item_discount": f"{discount_for_item:.2f}" if discount_for_item else "",
-                "variation_id": cart_item.selected_item_variation.external_id if cart_item.selected_item_variation else "",
+                "variation_id": cart_item.selected_item_variation.variation.external_variation_id if cart_item.selected_item_variation else "",
                 "variation_name": cart_item.selected_item_variation.variation.name if cart_item.selected_item_variation else "",
                 "item_tax": item_tax_array,
                 "AddonItem": {
@@ -860,7 +861,7 @@ class PetPoojaIntegration(POSInterface):
                             "delivery_charges": "0", 
                             "packing_charges": "0",
                             "discount_total": f"{discount_amount:.2f}",
-                            "discount_type": ""
+                            "discount_type": discount_calculation["discount_type"]
                         }
                     },
                     "OrderItem": {

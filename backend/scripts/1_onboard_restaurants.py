@@ -458,9 +458,9 @@ def process_petpooja_data(menu_api_data: dict, restaurant_id: int, pos_config: d
             )
         else:
             # Record exists – update the config with taxes and discounts
-            existing_config = pos_system.config.copy() if pos_system.config else {}
-            existing_config.update(enhanced_config)
-            pos_system.config = existing_config
+            # existing_config = pos_system.config.copy() if pos_system.config else {}
+            # existing_config.update(enhanced_config)
+            pos_system.config = enhanced_config.copy()
             db.flush()
             logger.success(
                 f"🔄 Updated existing POS system config for restaurant {restaurant_id} with {len(processed_taxes)} tax rules and {len(discount_config)} discount placeholders"
