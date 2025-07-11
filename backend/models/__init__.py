@@ -12,7 +12,7 @@ from .schema import (
     Event,
     WaiterRequest,
     MenuItem,
-    init_db,
+    # init_db,
 )
 
 __all__ = ['ResponseDishCard', 'ResponseDishCarouselBlock', 'ResponseBlocks', 'PreviousOrderBlock', 'PreviousOrdersResponse',

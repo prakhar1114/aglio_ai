@@ -508,12 +508,12 @@ class ItemVariationAddon(Base):
     )
 
 
-# ---------------------------------------------------------------------------
-# Database initialization
-# ---------------------------------------------------------------------------
-def init_db():
-    """Initialize the database tables."""
-    Base.metadata.create_all(bind=engine)
+# # ---------------------------------------------------------------------------
+# # Database initialization
+# # ---------------------------------------------------------------------------
+# def init_db():
+#     """Initialize the database tables."""
+#     Base.metadata.create_all(bind=engine)
 
 
 def get_db():

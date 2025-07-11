@@ -8,7 +8,7 @@ import uvicorn
 from loguru import logger
 import sys
 from contextlib import asynccontextmanager
-from models.schema import init_db
+# from models.schema import init_db
 
 
 from config import rdb, qd, root_dir, DEBUG_MODE, image_dir
@@ -32,7 +32,7 @@ from urls.petpooja_callback import router as petpooja_callback_router
 
 
 
-init_db()
+# init_db()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
