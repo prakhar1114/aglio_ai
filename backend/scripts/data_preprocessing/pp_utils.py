@@ -30,6 +30,16 @@ def extract_menu_items_from_json(menu_json_path: Path) -> list:
         cat["categoryid"]: cat["categoryname"] 
         for cat in menu_data.get("categories", [])
     }
+    # Map category → parent_category_id
+    category_parent_map = {
+        cat["categoryid"]: str(cat.get("parent_category_id", "0"))
+        for cat in menu_data.get("categories", [])
+    }
+    # Parent category id → name mapping
+    parent_categories_map = {
+        str(pc.get("id")): pc.get("name", "")
+        for pc in menu_data.get("parentcategories", [])
+    }
     
     # Create attributes mapping
     attributes_map = {
@@ -41,7 +51,15 @@ def extract_menu_items_from_json(menu_json_path: Path) -> list:
     
     for item_data in menu_data.get("items", []):
         # Get category name
-        category_name = categories_map.get(item_data.get("item_categoryid", ""), "Uncategorized")
+        category_id = item_data.get("item_categoryid", "")
+        category_name = categories_map.get(category_id, "Uncategorized")
+        
+        # Determine group category using parent category if available
+        parent_id = category_parent_map.get(category_id, "0")
+        if parent_id and parent_id != "0":
+            group_category = parent_categories_map.get(parent_id, category_name)
+        else:
+            group_category = category_name
         
         # Determine veg flag from attributes
         veg_flag = item_data.get("item_attributeid") == "1"  # "1" typically means veg in PetPooja
@@ -56,7 +74,7 @@ def extract_menu_items_from_json(menu_json_path: Path) -> list:
             "external_id": item_data["itemid"],
             "name": item_data["itemname"],
             "category_brief": category_name,
-            "group_category": category_name,
+            "group_category": group_category,
             "description": item_data.get("itemdescription", ""),
             "price": float(item_data["price"]),
             "image_path": "",  # To be filled manually

@@ -1,0 +1,6 @@
+- run pp_dinein_fetchmenu.py
+- edit menu.csv
+- copy areas.json, menu.json, menu.csv
+- put it in the "setup" folder
+- in meta.json, in pos_config, along with the pos_details also add pos_type=="petpooja_dining"
+- then run 1_onboard_restaurants.py

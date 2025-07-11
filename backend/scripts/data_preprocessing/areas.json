@@ -1,0 +1,181 @@
+{
+    "success": "1",
+    "message": "Menu items are successfully listed.",
+    "restaurants": [
+        {
+          "active": "1",
+          "details": {
+            "restaurantname": "FFFF",
+            "country": "India",
+            "images": [
+
+            ],
+            "address": "CORPORATE AVENUE BUILDING GROUND FLOOR PRAHLAD NAGAR - 321005",
+            "contact": "9999999999",
+            "latitude": "1",
+            "longitude": "1",
+            "cuisines": "",
+            "landmark": "",
+            "city": "Ahmedabad",
+            "state": "Gujarat"
+          }
+        }],
+    "areas": [
+      {
+        "restaurantareaid": "7",
+        "areaid": "1",
+        "displayname": "AC",
+        "active": "1",
+        "rank": "1"
+      },
+      {
+        "restaurantareaid": "8",
+        "areaid": "2",
+        "displayname": "Garden",
+        "active": "1",
+        "rank": "1"
+      },
+      {
+        "restaurantareaid": "16",
+        "areaid": "3",
+        "displayname": "Non AC",
+        "active": "1",
+        "rank": "1"
+      },
+      {
+        "restaurantareaid": "17",
+        "areaid": "6",
+        "displayname": "Family",
+        "active": "1",
+        "rank": "1"
+      },
+      {
+        "restaurantareaid": "18",
+        "areaid": "12",
+        "displayname": "Dining",
+        "active": "1",
+        "rank": "1"
+      },
+      {
+        "restaurantareaid": "19",
+        "areaid": "8",
+        "displayname": "AC Smoking",
+        "active": "1",
+        "rank": "1"
+      },
+      {
+        "restaurantareaid": "20",
+        "areaid": "9",
+        "displayname": "Non-AC Smoking",
+        "active": "1",
+        "rank": "1"
+      },
+      {
+        "restaurantareaid": "21",
+        "areaid": "22",
+        "displayname": "Banquet",
+        "active": "1",
+        "rank": "1"
+      }
+    ],
+    "tables": [
+      {
+        "id": "70",
+        "restaurantareaid": "7",
+        "table_no": "T-01",
+        "active": "1",
+        "rank": "0"
+      },
+      {
+        "id": "71",
+        "restaurantareaid": "8",
+        "table_no": "T-02",
+        "active": "1",
+        "rank": "0"
+      },
+      {
+        "id": "72",
+        "restaurantareaid": "0",
+        "table_no": "T-03",
+        "active": "1",
+        "rank": "0"
+      },
+      {
+        "id": "73",
+        "restaurantareaid": "0",
+        "table_no": "T-04",
+        "active": "1",
+        "rank": "0"
+      },
+      {
+        "id": "74",
+        "restaurantareaid": "0",
+        "table_no": "T-05",
+        "active": "1",
+        "rank": "0"
+      },
+      {
+        "id": "75",
+        "restaurantareaid": "0",
+        "table_no": "T-06",
+        "active": "1",
+        "rank": "0"
+      },
+      {
+        "id": "76",
+        "restaurantareaid": "0",
+        "table_no": "T-07",
+        "active": "1",
+        "rank": "0"
+      },
+      {
+        "id": "77",
+        "restaurantareaid": "0",
+        "table_no": "T-08",
+        "active": "1",
+        "rank": "0"
+      },
+      {
+        "id": "78",
+        "restaurantareaid": "0",
+        "table_no": "T-09",
+        "active": "1",
+        "rank": "0"
+      },
+      {
+        "id": "79",
+        "restaurantareaid": "0",
+        "table_no": "T-10",
+        "active": "1",
+        "rank": "0"
+      },
+      {
+        "id": "80",
+        "restaurantareaid": "0",
+        "table_no": "T-11",
+        "active": "1",
+        "rank": "0"
+      },
+      {
+        "id": "81",
+        "restaurantareaid": "0",
+        "table_no": "T-12",
+        "active": "1",
+        "rank": "0"
+      },
+      {
+        "id": "82",
+        "restaurantareaid": "0",
+        "table_no": "T-13",
+        "active": "1",
+        "rank": "0"
+      },
+      {
+        "id": "83",
+        "restaurantareaid": "0",
+        "table_no": "T-14",
+        "active": "1",
+        "rank": "0"
+      }
+    ]
+}

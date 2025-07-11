@@ -82,6 +82,10 @@ class Table(Base):
     number = Column(Integer, nullable=False)
     qr_token = Column(Text, unique=True, nullable=False)
     status = Column(Enum("open", "dirty", "disabled", name="table_status"), default="open")
+    
+    # PetPooja dine-in integration
+    external_data = Column(JSON, nullable=True)  # Complete PetPooja table data
+    external_table_id = Column(String, nullable=True)  # PetPooja table_no
 
     restaurant = relationship("Restaurant", back_populates="tables")
     sessions = relationship("Session", back_populates="table")
