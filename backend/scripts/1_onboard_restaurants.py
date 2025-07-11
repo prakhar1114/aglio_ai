@@ -13,6 +13,8 @@ import pandas as pd
 import numpy as np
 import torch
 import clip
+import requests
+from io import BytesIO
 from sentence_transformers import SentenceTransformer
 from PIL import Image
 from loguru import logger
@@ -75,14 +77,6 @@ def validate_and_clean_csv(df_menu: pd.DataFrame) -> pd.DataFrame:
         if col not in df_cleaned.columns:
             if col == 'public_id':
                 df_cleaned[col] = None  # Will be auto-generated
-            # elif col in ['veg_flag', 'is_bestseller', 'is_recommended', 'promote']:
-            #     df_cleaned[col] = False
-            # elif col == 'priority':
-            #     df_cleaned[col] = 0
-            # elif col == 'kind':
-            #     df_cleaned[col] = 'food'
-            # elif col in ['image_path', 'cloudflare_image_id', 'cloudflare_video_id', 'external_id']:
-            #     df_cleaned[col] = None
     
     logger.info(f"📋 CSV validated and cleaned: {len(df_cleaned)} rows, {len(available_columns)} columns")
     return df_cleaned
@@ -188,7 +182,7 @@ def process_image_urls_and_upload_to_cloudflare(df_menu: pd.DataFrame, image_dir
     return processed_df
 
 def generate_embeddings_for_menu_items(df_menu: pd.DataFrame, image_directory: str) -> pd.DataFrame:
-    """Generate embeddings for menu items using text and image data"""
+    """Generate embeddings for menu items using text, image, and video thumbnail data"""
     logger.info(f"🏗️  Generating embeddings for {len(df_menu)} menu items...")
     
     processed_df = df_menu.copy()
@@ -201,23 +195,59 @@ def generate_embeddings_for_menu_items(df_menu: pd.DataFrame, image_directory: s
         t_vec = txt_model.encode(text)
         
         i_vec = np.zeros(512)  # Default zero vector
-        # Process image
+        
+        # Process image or video thumbnail
         try:
+            # First, try to process local image
             image_path_val = row.get('image_path')
-            has_image = image_path_val is not None and pd.notna(image_path_val)
+            has_image = image_path_val is not None and pd.notna(image_path_val) and pd.notna(row.get('cloudflare_image_id'))
             if has_image:
                 specified_image_path = image_dir_path / str(image_path_val)
                 if specified_image_path.exists():
                     img = Image.open(specified_image_path)
                     # Convert PIL Image to tensor properly
                     img_preprocessed = clip_preprocess(img)
-                    img_tensor = img_preprocessed.unsqueeze(0) if hasattr(img_preprocessed, 'unsqueeze') else torch.tensor(img_preprocessed).unsqueeze(0)
+                    # Ensure proper tensor conversion
+                    if isinstance(img_preprocessed, torch.Tensor):
+                        img_tensor = img_preprocessed.unsqueeze(0)
+                    else:
+                        img_tensor = torch.tensor(img_preprocessed).unsqueeze(0)
                     with torch.no_grad():
                         i_vec = clip_model.encode_image(img_tensor)[0].cpu().numpy()
                     logger.info(f"📷 Using specified image: {image_path_val}")
+            
+            # If no local image, try to get video thumbnail from Cloudflare
+            elif pd.notna(row.get('cloudflare_video_id')):
+                video_id_val = row.get('cloudflare_video_id')
+                has_video = video_id_val is not None and pd.notna(video_id_val) and str(video_id_val).strip()
+                if has_video:
+                    video_id = str(video_id_val).strip()
+                    # Generate Cloudflare Stream thumbnail URL
+                    # Using the standard videodelivery.net domain for Cloudflare Stream
+                    thumbnail_url = f"https://videodelivery.net/{video_id}/thumbnails/thumbnail.jpg?time=1s&height=480"
+                    
+                    try:
+                        # Download thumbnail image
+                        response = requests.get(thumbnail_url, timeout=10)
+                        if response.status_code == 200:
+                            img = Image.open(BytesIO(response.content))
+                            # Convert PIL Image to tensor properly
+                            img_preprocessed = clip_preprocess(img)
+                            # Ensure proper tensor conversion
+                            if isinstance(img_preprocessed, torch.Tensor):
+                                img_tensor = img_preprocessed.unsqueeze(0)
+                            else:
+                                img_tensor = torch.tensor(img_preprocessed).unsqueeze(0)
+                            with torch.no_grad():
+                                i_vec = clip_model.encode_image(img_tensor)[0].cpu().numpy()
+                            logger.info(f"🎬 Using video thumbnail for: {row['name']} (video ID: {video_id})")
+                        else:
+                            logger.warning(f"⚠️  Failed to fetch video thumbnail for {row['name']}: HTTP {response.status_code}")
+                    except Exception as video_error:
+                        logger.warning(f"⚠️  Error processing video thumbnail for {row['name']}: {video_error}")
                 
         except Exception as e:
-            logger.warning(f"⚠️  Error processing image for {row['name']}: {e}")
+            logger.warning(f"⚠️  Error processing media for {row['name']}: {e}")
             i_vec = np.zeros(512)
 
         # Concatenate text and image embeddings
@@ -300,183 +330,193 @@ def push_to_qdrant(restaurant_slug: str, df_with_embeddings: pd.DataFrame) -> bo
 
 def seed_folder(folder: Path):
     logger.info(f"On-boarding folder: {folder}")
-
-    # ------------------------------------------------------------------
-    # Validate required files (POS vs Non-POS have different expectations)
-    # ------------------------------------------------------------------
-
-    assert (folder / "meta.json").exists(), "meta.json missing"
-    meta = json.loads((folder / "meta.json").read_text())
-
-    has_pos_config = bool(meta.get("pos_config") and meta["pos_config"].get("pos_type"))
-    pos_type = meta["pos_config"].get("pos_type") if has_pos_config else None
-    is_dinein = pos_type == "petpooja_dinein"
-
-    tbl_cfg = None
-    # tables.json not required for petpooja_dinein since tables come from areas.json
-    if not is_dinein:
-        assert (folder / "tables.json").exists(), "tables.json missing"
-        tbl_cfg = json.loads((folder / "tables.json").read_text())
-    assert (folder / "menu.csv").exists(), "menu.csv missing"
-    if has_pos_config:
-        # POS restaurants must supply additional raw menu data
-        assert (folder / "menu.json").exists(), "menu.json missing for POS onboarding"
-        if is_dinein:
-            # Dine-in requires areas.json for table management
-            assert (folder / "areas.json").exists(), "areas.json missing for petpooja_dinein"
-    assert (folder / "images").exists(), "images directory missing"
-
-    hours_fp = folder / "hours.json"
-    hours_cfg = json.loads(hours_fp.read_text()) if hours_fp.exists() else None
-
-    # Load menu assets
-    df_menu = pd.read_csv(folder / "menu.csv")
-    logger.info(f"{len(df_menu)} menu rows loaded")
-
-    # Validate and clean CSV format
-    df_menu = validate_and_clean_csv(df_menu)
-
-    # Always use images/ subfolder in the restaurant folder
-    image_directory = str(folder / "images")
-    logger.info(f"🖼️  Using images directory: {image_directory}")
-    df_menu = process_image_urls_and_upload_to_cloudflare(df_menu, image_directory, meta["slug"])
     
-    # Save the updated CSV with processed image paths (only expected columns)
-    df_menu.to_csv(folder / "menu_processed.csv", index=False)
-    logger.success(f"✅ Saved processed menu data to menu_processed.csv")
+    # Keep track of created resources for rollback
+    created_qdrant_collection = None
+    restaurant_id = None
 
-    # --------------------------------------------------------------
-    # If POS integration is present, load menu.json and areas.json for downstream use
-    # --------------------------------------------------------------
+    try:
+        # ------------------------------------------------------------------
+        # Validate required files (POS vs Non-POS have different expectations)
+        # ------------------------------------------------------------------
 
-    menu_api_data = None
-    areas_data = None
-    petpooja_items_map = {}
-    attributes_map = {}
-    if has_pos_config:
-        menu_api_data = json.loads((folder / "menu.json").read_text())
-        if pos_type == "petpooja":
-            petpooja_items_map = {item["itemid"]: item for item in menu_api_data.get("items", [])}
-            attributes_map = {attr["attributeid"]: attr["attribute"] for attr in menu_api_data.get("attributes", [])}
-        elif is_dinein:
-            # Load areas data for dine-in
-            areas_data = json.loads((folder / "areas.json").read_text())
-            petpooja_items_map = {item["itemid"]: item for item in menu_api_data.get("items", [])}
-            attributes_map = {attr["attributeid"]: attr["attribute"] for attr in menu_api_data.get("attributes", [])}
+        assert (folder / "meta.json").exists(), "meta.json missing"
+        meta = json.loads((folder / "meta.json").read_text())
 
-    with SessionLocal() as db:
-        # ---- restaurant
-        rest = db.query(Restaurant).filter_by(public_id=meta["public_id"]).first()
-        if not rest:
-            # Generate API key for new restaurant
-            api_key = generate_api_key()
-            
-            # Ensure uniqueness across all restaurants
-            while db.query(Restaurant).filter(Restaurant.api_key == api_key).first():
+        has_pos_config = bool(meta.get("pos_config") and meta["pos_config"].get("pos_type"))
+        pos_type = meta["pos_config"].get("pos_type") if has_pos_config else None
+        is_dinein = pos_type == "petpooja_dinein"
+
+        tbl_cfg = None
+        # tables.json not required for petpooja_dinein since tables come from areas.json
+        if not is_dinein:
+            assert (folder / "tables.json").exists(), "tables.json missing"
+            tbl_cfg = json.loads((folder / "tables.json").read_text())
+        assert (folder / "menu.csv").exists(), "menu.csv missing"
+        if has_pos_config:
+            # POS restaurants must supply additional raw menu data
+            assert (folder / "menu.json").exists(), "menu.json missing for POS onboarding"
+            if is_dinein:
+                # Dine-in requires areas.json for table management
+                assert (folder / "areas.json").exists(), "areas.json missing for petpooja_dinein"
+        assert (folder / "images").exists(), "images directory missing"
+
+        hours_fp = folder / "hours.json"
+        hours_cfg = json.loads(hours_fp.read_text()) if hours_fp.exists() else None
+
+        # Load menu assets
+        df_menu = pd.read_csv(folder / "menu.csv")
+        logger.info(f"{len(df_menu)} menu rows loaded")
+
+        # Validate and clean CSV format
+        df_menu = validate_and_clean_csv(df_menu)
+
+        # Always use images/ subfolder in the restaurant folder
+        image_directory = str(folder / "images")
+        logger.info(f"🖼️  Using images directory: {image_directory}")
+        df_menu = process_image_urls_and_upload_to_cloudflare(df_menu, image_directory, meta["slug"])
+
+        # --------------------------------------------------------------
+        # If POS integration is present, load menu.json and areas.json for downstream use
+        # --------------------------------------------------------------
+
+        menu_api_data = None
+        areas_data = None
+        petpooja_items_map = {}
+        attributes_map = {}
+        if has_pos_config:
+            menu_api_data = json.loads((folder / "menu.json").read_text())
+            if pos_type == "petpooja":
+                petpooja_items_map = {item["itemid"]: item for item in menu_api_data.get("items", [])}
+                attributes_map = {attr["attributeid"]: attr["attribute"] for attr in menu_api_data.get("attributes", [])}
+            elif is_dinein:
+                # Load areas data for dine-in
+                areas_data = json.loads((folder / "areas.json").read_text())
+                petpooja_items_map = {item["itemid"]: item for item in menu_api_data.get("items", [])}
+                attributes_map = {attr["attributeid"]: attr["attribute"] for attr in menu_api_data.get("attributes", [])}
+
+        with SessionLocal() as db:
+            # ---- restaurant
+            rest = db.query(Restaurant).filter_by(public_id=meta["public_id"]).first()
+            if not rest:
+                # Generate API key for new restaurant
                 api_key = generate_api_key()
-            
-            rest = Restaurant(
-                public_id   = meta["public_id"],
-                slug        = meta["slug"],
-                name        = meta["restaurant_name"],
-                tz          = meta["tz"],
-                require_pass= tbl_cfg["pass_required"] if tbl_cfg else False,  # Default to False for dine-in
-                api_key     = api_key
-            )
-            db.add(rest)
-            db.flush()
-            logger.success(f"Restaurant created id={rest.id}")
-            logger.success(f"🔑 API Key generated: {api_key}")
-            print(f"\n{'='*60}")
-            print(f"🔑 ADMIN API KEY FOR {meta['restaurant_name'].upper()}")
-            print(f"   Restaurant Slug: {meta['slug']}")
-            print(f"   API Key: {api_key}")
-            print(f"   Usage: Authorization: Bearer {api_key}")
-            print(f"{'='*60}\n")
-        else:
-            logger.info(f"Restaurant already exists id={rest.id}")
+                
+                # Ensure uniqueness across all restaurants
+                while db.query(Restaurant).filter(Restaurant.api_key == api_key).first():
+                    api_key = generate_api_key()
+                
+                rest = Restaurant(
+                    public_id   = meta["public_id"],
+                    slug        = meta["slug"],
+                    name        = meta["restaurant_name"],
+                    tz          = meta["tz"],
+                    require_pass= tbl_cfg["pass_required"] if tbl_cfg else False,  # Default to False for dine-in
+                    api_key     = api_key
+                )
+                db.add(rest)
+                db.flush()
+                logger.success(f"Restaurant created id={rest.id}")
+                logger.success(f"🔑 API Key generated: {api_key}")
+                print(f"\n{'='*60}")
+                print(f"🔑 ADMIN API KEY FOR {meta['restaurant_name'].upper()}")
+                print(f"   Restaurant Slug: {meta['slug']}")
+                print(f"   API Key: {api_key}")
+                print(f"   Usage: Authorization: Bearer {api_key}")
+                print(f"{'='*60}\n")
+            else:
+                logger.info(f"Restaurant already exists id={rest.id}")
 
-        # ---- hours
-        db.query(RestaurantHours).filter_by(restaurant_id=rest.id).delete()
-        if hours_cfg:
-            for h in hours_cfg:
+            # DON'T commit here - save transaction until everything succeeds
+            # Get the actual integer ID for use in function calls  
+            restaurant_id = rest.id
+
+            # ---- hours
+            db.query(RestaurantHours).filter_by(restaurant_id=restaurant_id).delete()
+            if hours_cfg:
+                for h in hours_cfg:
+                    db.add(RestaurantHours(
+                        public_id=new_id(),
+                        restaurant_id=restaurant_id,
+                        day=h["day"],
+                        opens_at=datetime.strptime(h["opens_at"], "%H:%M").time(),
+                        closes_at=datetime.strptime(h["closes_at"], "%H:%M").time()
+                    ))
+            else:  # default 24 h
                 db.add(RestaurantHours(
                     public_id=new_id(),
-                    restaurant_id=rest.id,
-                    day=h["day"],
-                    opens_at=datetime.strptime(h["opens_at"], "%H:%M").time(),
-                    closes_at=datetime.strptime(h["closes_at"], "%H:%M").time()
+                    restaurant_id=restaurant_id,
+                    day=0,
+                    opens_at=time(0, 0),
+                    closes_at=time(23, 59)
                 ))
-        else:  # default 24 h
-            db.add(RestaurantHours(
-                public_id=new_id(),
-                restaurant_id=rest.id,
-                day=0,
-                opens_at=time(0, 0),
-                closes_at=time(23, 59)
-            ))
 
-        # ---- tables (updated for dine-in)
-        existing_tables = db.query(Table).filter_by(restaurant_id=rest.id).count()
-        if existing_tables == 0:
-            if is_dinein and areas_data:
-                # Use areas.json for dine-in table creation
-                process_dinein_tables_from_areas(areas_data, rest.id, db)
-            elif tbl_cfg:
-                # Use traditional table creation for regular restaurants
-                for n in range(1, tbl_cfg["number_of_tables"] + 1):
-                    db.add(Table(
-                        public_id=new_id(),
-                        restaurant_id=rest.id,
-                        number=n,
-                        qr_token=create_qr_token(rest.id, n)
-                    ))
-                logger.success(f"Created {tbl_cfg['number_of_tables']} tables")
-        else:
-            logger.info(f"Tables already exist: {existing_tables} tables found")
+            # ---- tables (updated for dine-in)
+            existing_tables = db.query(Table).filter_by(restaurant_id=restaurant_id).count()
+            if existing_tables == 0:
+                if is_dinein and areas_data:
+                    # Use areas.json for dine-in table creation
+                    process_dinein_tables_from_areas(areas_data, restaurant_id, db)
+                elif tbl_cfg:
+                    # Use traditional table creation for regular restaurants
+                    for n in range(1, tbl_cfg["number_of_tables"] + 1):
+                        db.add(Table(
+                            public_id=new_id(),
+                            restaurant_id=restaurant_id,
+                            number=n,
+                            qr_token=create_qr_token(restaurant_id, n)
+                        ))
+                    logger.success(f"Created {tbl_cfg['number_of_tables']} tables")
+            else:
+                logger.info(f"Tables already exist: {existing_tables} tables found")
 
-        # ---- daily pass (only for non-dine-in restaurants)
-        if tbl_cfg and tbl_cfg["pass_required"]:
-            today = date.today()
-            db.merge(DailyPass(
-                restaurant_id=rest.id,
-                public_id=new_id(),
-                word_hash=hashlib.sha256((tbl_cfg["password"] or "").encode()).hexdigest(),
-                valid_date=today
-            ))
-            logger.success("Daily pass configured")
+            # ---- daily pass (only for non-dine-in restaurants)
+            if tbl_cfg and tbl_cfg["pass_required"]:
+                today = date.today()
+                db.merge(DailyPass(
+                    restaurant_id=restaurant_id,
+                    public_id=new_id(),
+                    word_hash=hashlib.sha256((tbl_cfg["password"] or "").encode()).hexdigest(),
+                    valid_date=today
+                ))
+                logger.success("Daily pass configured")
 
-        # ---- menu items
-        menu_items_processed = 0
-        # Generate unique public_ids for menu items if not present
-        for idx, row in df_menu.iterrows():
-            public_id_value = row.get('public_id')
-            has_public_id = pd.notna(public_id_value) and str(public_id_value).strip() != ''
-            if not has_public_id:
-                df_menu.at[idx, 'public_id'] = new_id()
+            # ---- menu items
+            menu_items_processed = 0
+            # Generate unique public_ids for menu items if not present
+            for idx, row in df_menu.iterrows():
+                public_id_value = row.get('public_id')
+                has_public_id = pd.notna(public_id_value) and str(public_id_value).strip() != ''
+                if not has_public_id:
+                    df_menu.at[idx, 'public_id'] = new_id()
 
-        # Generate embeddings for all menu items
-        logger.info("🧠 Generating embeddings for menu items...")
-        df_with_embeddings = generate_embeddings_for_menu_items(df_menu, image_directory)
-        
-        for idx, row in df_menu.iterrows():
-            try:
+            # Generate embeddings for all menu items
+            logger.info("🧠 Generating embeddings for menu items...")
+            df_with_embeddings = generate_embeddings_for_menu_items(df_menu, image_directory)
+            
+            for idx, row in df_menu.iterrows():
                 mi = db.query(MenuItem).filter_by(
-                    restaurant_id=rest.id,
+                    restaurant_id=restaurant_id,
                     name=str(row["name"])
                 ).first()
                 if not mi:
                     mi = MenuItem(
                         public_id=str(row.get("public_id")) or new_id(),
-                        restaurant_id=rest.id
+                        restaurant_id=restaurant_id
                     )
                     db.add(mi)
 
-                # Set core fields from CSV
+                # Set core fields from CSV - using proper value extraction
                 mi.name = str(row["name"])
-                mi.category_brief = str(row["category_brief"]) if pd.notna(row["category_brief"]) else ""
-                mi.group_category = str(row["group_category"]) if pd.notna(row["group_category"]) else ""
-                mi.description = str(row["description"]) if pd.notna(row["description"]) else ""
+                
+                category_brief_val = row["category_brief"]
+                mi.category_brief = str(category_brief_val) if pd.notna(category_brief_val) else ""
+                
+                group_category_val = row["group_category"]
+                mi.group_category = str(group_category_val) if pd.notna(group_category_val) else ""
+                
+                description_val = row["description"]
+                mi.description = str(description_val) if pd.notna(description_val) else ""
                 
                 # Handle price conversion properly
                 try:
@@ -491,9 +531,14 @@ def seed_folder(folder: Path):
                     mi.price = 0.0
                 
                 # Set image and cloudflare fields
-                mi.image_path = str(row["image_path"]) if pd.notna(row["image_path"]) and str(row["image_path"]).strip() else None
-                mi.cloudflare_image_id = str(row["cloudflare_image_id"]) if pd.notna(row["cloudflare_image_id"]) and str(row["cloudflare_image_id"]).strip() else None
-                mi.cloudflare_video_id = str(row["cloudflare_video_id"]) if pd.notna(row["cloudflare_video_id"]) and str(row["cloudflare_video_id"]).strip() else None
+                image_path_val = row["image_path"]
+                mi.image_path = str(image_path_val) if pd.notna(image_path_val) and str(image_path_val).strip() else None
+                
+                cf_image_id_val = row["cloudflare_image_id"]
+                mi.cloudflare_image_id = str(cf_image_id_val) if pd.notna(cf_image_id_val) and str(cf_image_id_val).strip() else None
+                
+                cf_video_id_val = row["cloudflare_video_id"]
+                mi.cloudflare_video_id = str(cf_video_id_val) if pd.notna(cf_video_id_val) and str(cf_video_id_val).strip() else None
                 
                 # Set boolean and other fields
                 veg_val = row.get("veg_flag")
@@ -509,7 +554,10 @@ def seed_folder(folder: Path):
                 mi.kind = str(kind_val) if pd.notna(kind_val) else "food"
                 
                 priority_val = row.get("priority")
-                mi.priority = int(priority_val) if pd.notna(priority_val) else 0
+                try:
+                    mi.priority = int(priority_val) if pd.notna(priority_val) and priority_val is not None else 0
+                except (ValueError, TypeError):
+                    mi.priority = 0
                 
                 promote_val = row.get("promote")
                 mi.promote = bool(promote_val) if pd.notna(promote_val) else False
@@ -525,8 +573,9 @@ def seed_folder(folder: Path):
                 
                 # Add POS-specific basic fields (external_id, flags) if applicable
                 if menu_api_data:
-                    if mi.external_id and mi.external_id in petpooja_items_map:
-                        p_item = petpooja_items_map[mi.external_id]
+                    external_id_str = str(mi.external_id) if mi.external_id else None
+                    if external_id_str and external_id_str in petpooja_items_map:
+                        p_item = petpooja_items_map[external_id_str]
                         mi.itemallowvariation = p_item.get("itemallowvariation", "0") == "1"
                         mi.itemallowaddon = p_item.get("itemallowaddon", "0") == "1"
                         mi.external_data = p_item
@@ -541,71 +590,99 @@ def seed_folder(folder: Path):
                 # Flush this individual item to catch any issues early
                 db.flush()
                 menu_items_processed += 1
-                
-            except Exception as e:
-                logger.error(f"❌ Failed to process menu item {row['name']}: {e}")
-                db.rollback()
-                continue
 
-        logger.success(f"✅ Processed {menu_items_processed} menu items in PostgreSQL")
-        
-        # ---- POS-specific post-processing ----------------------------------
-        if menu_api_data:
-            if is_dinein:
-                logger.info("🏢 Processing PetPooja dine-in data...")
-                # Create POS system for dine-in
-                pos_system = create_pos_system_for_dinein(
-                    rest.id, meta.get("pos_config"), menu_api_data, areas_data, db
-                )
-                
-                # Create dummy variations from item data
-                created_variations = create_dummy_variations_for_dinein_items(
-                    menu_api_data, pos_system.id, db
-                )
-                
-                # Process addon groups using utility function
-                addon_groups_synced, addon_items_synced = process_dinein_addon_groups(
-                    menu_api_data, pos_system.id, attributes_map, db
-                )
-                
-                logger.success(f"✅ Processed {addon_groups_synced} addon groups, {addon_items_synced} addon items for dine-in")
-                
-                # Update menu items with POS system reference
-                logger.info("🔗 Updating menu items with POS system reference...")
-                db.query(MenuItem).filter(
-                    MenuItem.restaurant_id == rest.id,
-                    MenuItem.external_id.isnot(None)
-                ).update({"pos_system_id": pos_system.id})
-                
-                # Create item relationships with dummy variations
-                create_dinein_item_relationships(df_menu, menu_api_data, rest.id, pos_system.id, created_variations, db)
-                
-            else:
-                # Regular PetPooja delivery processing
-                logger.info("🔗 Processing PetPooja data...")
-                petpooja_result = process_petpooja_data(menu_api_data, rest.id, meta.get("pos_config"), db)
-                if petpooja_result.get("success"):
+            logger.success(f"✅ Processed {menu_items_processed} menu items in PostgreSQL")
+            
+            # ---- POS-specific post-processing ----------------------------------
+            if menu_api_data:
+                if is_dinein:
+                    logger.info("🏢 Processing PetPooja dine-in data...")
+                    # Create POS system for dine-in
+                    pos_system = create_pos_system_for_dinein(
+                        restaurant_id, meta.get("pos_config"), menu_api_data, areas_data, db
+                    )
+                    
+                    # Get the actual pos_system_id
+                    pos_system_id = pos_system.id
+                    
+                    # Create dummy variations from item data
+                    created_variations = create_dummy_variations_for_dinein_items(
+                        menu_api_data, pos_system_id, db
+                    )
+                    
+                    # Process addon groups using utility function
+                    addon_groups_synced, addon_items_synced = process_dinein_addon_groups(
+                        menu_api_data, pos_system_id, attributes_map, db
+                    )
+                    
+                    logger.success(f"✅ Processed {addon_groups_synced} addon groups, {addon_items_synced} addon items for dine-in")
+                    
+                    # Update menu items with POS system reference
                     logger.info("🔗 Updating menu items with POS system reference...")
                     db.query(MenuItem).filter(
-                        MenuItem.restaurant_id == rest.id,
+                        MenuItem.restaurant_id == restaurant_id,
                         MenuItem.external_id.isnot(None)
-                    ).update({"pos_system_id": petpooja_result["pos_system_id"]})
-                    create_item_relationships(df_menu, menu_api_data, rest.id, petpooja_result["pos_system_id"], db)
+                    ).update({"pos_system_id": pos_system_id})
+                    
+                    # Create item relationships with dummy variations
+                    create_dinein_item_relationships(df_menu, menu_api_data, restaurant_id, pos_system_id, created_variations, db)
+                    
+                else:
+                    # Regular PetPooja delivery processing
+                    logger.info("🔗 Processing PetPooja data...")
+                    petpooja_result = process_petpooja_data(menu_api_data, restaurant_id, meta.get("pos_config"), db)
+                    if petpooja_result.get("success"):
+                        logger.info("🔗 Updating menu items with POS system reference...")
+                        db.query(MenuItem).filter(
+                            MenuItem.restaurant_id == restaurant_id,
+                            MenuItem.external_id.isnot(None)
+                        ).update({"pos_system_id": petpooja_result["pos_system_id"]})
+                        create_item_relationships(df_menu, menu_api_data, restaurant_id, petpooja_result["pos_system_id"], db)
 
-        # Commit PostgreSQL changes before proceeding to Qdrant
-        db.commit()
-        logger.success("PostgreSQL seed complete ✔︎")
+            # Now commit all database changes at once
+            db.commit()
+            logger.success("PostgreSQL seed complete ✔︎")
 
-    # ---- Push embeddings to Qdrant
-    logger.info("🔗 Pushing embeddings to Qdrant...")
-    qdrant_success = push_to_qdrant(meta["slug"], df_with_embeddings)
-    
-    if qdrant_success:
+        # ---- Push embeddings to Qdrant (outside database transaction)
+        logger.info("🔗 Pushing embeddings to Qdrant...")
+        created_qdrant_collection = meta["slug"]
+        qdrant_success = push_to_qdrant(meta["slug"], df_with_embeddings)
+        
+        if not qdrant_success:
+            raise Exception("Failed to push embeddings to Qdrant")
+
         logger.success("Qdrant seed complete ✔︎")
-    else:
-        logger.error("❌ Qdrant seed failed")
+        logger.success(f"🎉 On-boarding finished for {meta['restaurant_name']}")
 
-    logger.success(f"🎉 On-boarding finished for {meta['restaurant_name']}")
+    except Exception as e:
+        logger.error(f"❌ Onboarding failed: {e}")
+        
+        # Rollback database changes by rolling back the session
+        try:
+            with SessionLocal() as rollback_db:
+                if restaurant_id:
+                    logger.info(f"🔄 Rolling back restaurant data for ID: {restaurant_id}")
+                    # Delete restaurant and all related data (cascading)
+                    restaurant_to_delete = rollback_db.query(Restaurant).filter_by(id=restaurant_id).first()
+                    if restaurant_to_delete:
+                        rollback_db.delete(restaurant_to_delete)
+                        rollback_db.commit()
+                        logger.success("✅ Database rollback complete")
+        except Exception as rollback_error:
+            logger.error(f"❌ Database rollback failed: {rollback_error}")
+        
+        # Rollback Qdrant collection
+        try:
+            if created_qdrant_collection:
+                logger.info(f"🔄 Rolling back Qdrant collection: {created_qdrant_collection}_qdb")
+                collection_name = f"{created_qdrant_collection}_qdb"
+                qd.delete_collection(collection_name=collection_name)
+                logger.success("✅ Qdrant rollback complete")
+        except Exception as qdrant_rollback_error:
+            logger.error(f"❌ Qdrant rollback failed: {qdrant_rollback_error}")
+        
+        # Re-raise the original exception
+        raise e
 
 # ---------- cli ---------------------------------------------------------------
 
@@ -624,7 +701,3 @@ if __name__ == "__main__":
     except Exception as e:
         logger.error(f"❌ Onboarding failed: {e}")
         sys.exit(1)
-
-    # copy images to image_dir
-    shutil.copytree(folder / "images", image_dir / folder.name, dirs_exist_ok=True)
-    logger.success(f"✅ Copied images to {image_dir / folder.name}")

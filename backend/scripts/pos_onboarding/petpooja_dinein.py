@@ -33,9 +33,9 @@ def process_dinein_tables_from_areas(areas_data: dict, restaurant_id: int, db):
     tables_created = 0
     tables_updated = 0
     
+    counter = iter(range(1, 1000000))
     for table_data in tables_data:
         table_no_str = table_data.get("table_no", "")
-        table_id = table_data.get("id", "")
         
         # Try to find existing table by external_table_id
         existing_table = db.query(Table).filter_by(
@@ -51,10 +51,7 @@ def process_dinein_tables_from_areas(areas_data: dict, restaurant_id: int, db):
         else:
             # Create new table
             # Find next available table number
-            max_table_number = db.query(Table).filter_by(
-                restaurant_id=restaurant_id
-            ).count()
-            table_number = max_table_number + 1
+            table_number = next(counter)
             
             table = Table(
                 public_id=new_id(),
