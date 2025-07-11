@@ -24,3 +24,5 @@ psycopg2==2.9.10 ; platform_system == "Darwin"
 psycopg2-binary==2.9.10 ; platform_system == "Linux"
 websockets>=11.0.3
 pytz>=2023.3
+sqlalchemy
+alembic
