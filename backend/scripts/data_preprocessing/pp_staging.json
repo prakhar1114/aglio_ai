@@ -1,0 +1,13 @@
+{
+    "app-key": "hyi0wrjbgsv2aok684tfd7eunp1m5zqx",
+    "app-secret": "726394595fc9e77a54e35596a5c65d89c6f3172c",
+    "access-token": "15a57c6d28d116a2d6c48e41782d3b97fd79f38e",
+    "restID": "nu0wisf4",
+    "apis": {
+        "fetchmenu": "https://qle1yy2ydc.execute-api.ap-southeast-1.amazonaws.com/V1/mapped_restaurant_menus",
+        "saveorder": "https://qle1yy2ydc.execute-api.ap-southeast-1.amazonaws.com/V1/save_order",
+        "updateorder": "https://qle1yy2ydc.execute-api.ap-southeast-1.amazonaws.com/V1/update_order_status",
+        "fetchmenu_dinein": "https://qle1yy2ydc.execute-api.ap-southeast-1.amazonaws.com/V1/thirdparty_fetch_dinein_qr_menu",
+        "save_kot": "https://qle1yy2ydc.execute-api.ap-southeast-1.amazonaws.com/V1/captainorders/save_kot_qr_order/"
+    }
+}

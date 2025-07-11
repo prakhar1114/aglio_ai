@@ -21,7 +21,7 @@ from models.cart_models import (
 # Utilities
 from utils.jwt_utils import decode_ws_token
 from websocket.manager import connection_manager
-from services.pos.utils import get_pos_integration_by_name
+from services.pos.utils import get_any_pos_integration
 from utils.addon_helpers import resolve_addon_context, build_selected_addon_responses
 
 # Import new models
@@ -424,7 +424,7 @@ async def process_order_with_pos(restaurant_id: int, order: Order, session: Sess
     """Process order with POS integration"""
     try:
         # Check if a POS integration exists for this restaurant
-        pos_integration = get_pos_integration_by_name(restaurant_id, "petpooja", db)
+        pos_integration = get_any_pos_integration(restaurant_id, db)
         pos_used = pos_integration is not None
 
         if pos_used:

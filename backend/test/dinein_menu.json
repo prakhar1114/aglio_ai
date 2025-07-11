@@ -1,0 +1,230 @@
+{
+    "success": "1",
+    "message": "Menu items are successfully listed.",
+    "restaurants": [
+        {
+        "active": "1",
+        "details": {
+        "restaurantname": "FFFF",
+        "country": "India",
+        "images": [],
+        "address": "CORPORATE AVENUE BUILDING GROUND FLOOR PRAHLAD NAGAR - 321005",
+        "contact": "9999999999",
+        "latitude": "1",
+        "longitude": "1",
+        "cuisines": "",
+        "landmark": "",
+        "city": "Ahmedabad",
+        "state": "Gujarat"
+        }
+        }
+    ],
+    "categories": [
+    {
+      "categoryid": "500773",
+      "active": "1",
+      "categoryrank": "16",
+      "parent_category_id": "0",
+      "categoryname": "Pizzaandsides",
+      "categorytimings": "",
+      "category_image_url": "",
+      "restarant_ids": "19349",
+      "group_category_id": "98"
+    },
+    {
+      "categoryid": "500774",
+      "active": "1",
+      "categoryrank": "17",
+      "parent_category_id": "0",
+      "categoryname": "Cakes",
+      "categorytimings": "",
+      "category_image_url": "",
+      "restarant_ids": "19349",
+      "group_category_id": "99"
+    }
+    ],
+     "parentcategories": [ 
+    {
+        "name": "Colddrinks",
+        "id": "610854",
+        "online_display_name": "",
+        "rank": "1",
+        "image_url": "",
+        "status": "1"
+    }
+    ],
+    "group_categories": [
+    {
+      "id": "98",
+      "name": "Italian",
+      "status": "1",
+      "rank": "2"
+    },
+    {
+      "id": "99",
+      "name": "Bakery",
+      "status": "1",
+      "rank": "1"
+    }
+     ],
+    "items": [
+        {
+        "itemid": "59000970",
+        "itemallowvariation": "0",
+        "itemname": "Way Free Way Pancakes",
+        "itemrank": "1",
+        "item_categoryid": "395971",
+        "price": "149",
+        "active": "1",
+        "item_favorite": "0",
+        "itemallowaddon": "1",
+        "itemaddonbasedon": "0",
+        "instock": "2",
+        "attributes": "1",
+        "days": "-1",
+        "variation": [],
+        "addon": [
+        {
+        "addon_group_id": "70650",
+        "addon_item_selection": "M",
+        "addon_item_selection_min": "0",
+        "addon_item_selection_max": "3"
+        }
+        ],
+        "item_attributeid": "1",
+        "itemdescription": "",
+        "minimumpreparationtime": "",
+        "item_image_url": ""
+        },
+        {
+        "itemid": "6242592",
+        "itemallowvariation": "0",
+        "itemname": "8\" Cheese Shot Nacho Pizza",
+        "itemrank": "1",
+        "item_categoryid": "395961",
+        "price": "209",
+        "active": "1",
+        "item_favorite": "0",
+        "itemallowaddon": "0",
+        "itemaddonbasedon": "0",
+        "instock": "2",
+        "attributes": "1",
+        "days": "-1",
+        "variation": [],
+        "addon": [],
+        "item_attributeid": "1",
+        "itemdescription": "Cheese shots loaded with crisps cheese and sauces.",
+        "minimumpreparationtime": "",
+        "item_image_url": ""
+        },
+        {
+        "itemid": "5941846",
+        "itemallowvariation": "1",
+        "itemname": "Americana Corn Pizza",
+        "itemrank": "1",
+        "item_categoryid": "395960",
+        "price": "0",
+        "active": "1",
+        "item_favorite": "0",
+        "itemallowaddon": "1",
+        "itemaddonbasedon": "1",
+        "instock": "2",
+        "attributes": "1",
+        "days": "-1",
+        "variation": [
+            {
+                "id": "5942006",
+                "variationid": "67788",
+                "name": "Medium",
+                "price": "159",
+                "active": "1",
+                "addon": [
+                            {
+                            "addon_group_id": "70650",
+                            "addon_item_selection": "M",
+                            "addon_item_selection_min": "0",
+                            "addon_item_selection_max": "3"
+                            },
+                            {
+                            "addon_group_id": "70653",
+                            "addon_item_selection": "M",
+                            "addon_item_selection_min": "0",
+                            "addon_item_selection_max": "1"
+                            }
+                        ],
+                "variationallowaddon": "1"
+            },
+            {
+            "id": "5942007",
+            "variationid": "67789",
+            "name": "Large",
+            "price": "239",
+            "active": "1",
+            "addon": [
+                        {
+                        "addon_group_id": "70650",
+                        "addon_item_selection": "M",
+                        "addon_item_selection_min": "0",
+                        "addon_item_selection_max": "3"
+                        },
+                        {
+                        "addon_group_id": "70653",
+                        "addon_item_selection": "M",
+                        "addon_item_selection_min": "0",
+                        "addon_item_selection_max": "1"
+                        }
+                    ],
+            "variationallowaddon": "1"
+            }
+        ],
+        "addon": [],
+        "item_attributeid": "1",
+        "itemdescription": "",
+        "minimumpreparationtime": "",
+        "item_image_url": ""
+        }
+    ],
+    "addongroups": [
+    {
+        "addongroupid": "66",
+        "addongroup_restaurantid": "366",
+        "addongroup_name": "Pizza Addons",
+        "addongroup_rank": "2",
+        "active": "1",
+        "addongroupitems": [
+            {
+                "addonitemid": "11",
+                "addonitem_name": "Onion",
+                "addonitem_price": "20",
+                "active": "1"
+            },
+            {
+                "addonitemid": "12",
+                "addonitem_name": "Paneer",
+                "addonitem_price": "35",
+                "active": "1"
+            },
+            {
+                "addonitemid": "13",
+                "addonitem_name": "Tomato",
+                "addonitem_price": "30",
+                "active": "1"
+            },
+            {
+                "addonitemid": "14",
+                "addonitem_name": "Capsicum",
+                "addonitem_price": "35",
+                "active": "1"
+            },
+            {
+                "addonitemid": "15",
+                "addonitem_name": "Corn",
+                "addonitem_price": "33",
+                "active": "1"
+            }
+        ]
+    }
+    ],
+    "itemspecialnotes": [],
+    "serverdatetime": "2019-11-12 18:24:03"
+    }

@@ -3,13 +3,14 @@ from sqlalchemy.orm import Session
 
 from .interface import POSInterface
 from .petpooja import PetPoojaIntegration
+from .petpooja_dinein import PetPoojaDiningIntegration
 from models.schema import POSSystem
 
 
-# Registry of available POS integrations
-POS_INTEGRATIONS: Dict[str, Type[POSInterface]] = {
+# Registry mapping POS system names to their integration classes
+POS_INTEGRATIONS = {
     "petpooja": PetPoojaIntegration,
-    # Add more POS systems here in the future
+    "petpooja_dinein": PetPoojaDiningIntegration,
 }
 
 
@@ -68,6 +69,42 @@ def get_pos_integration_by_name(restaurant_id: int, pos_system_name: str, db: Se
         
     Returns:
         POSInterface: POS integration instance
+        
+    Raises:
+        ValueError: If POS integration not found
     """
-    pos_system = get_pos_system(restaurant_id, pos_system_name, db)
-    return get_pos_integration(pos_system) if pos_system else None
+    # Get POS system from database
+    pos_system = db.query(POSSystem).filter(
+        POSSystem.restaurant_id == restaurant_id,
+        POSSystem.name == pos_system_name,
+        POSSystem.is_active == True
+    ).first()
+    
+    if not pos_system:
+        return None
+        
+    # Get integration instance
+    return get_pos_integration(pos_system)
+
+
+def get_any_pos_integration(restaurant_id: int, db: Session) -> Optional[POSInterface]:
+    """Get any available POS integration for a restaurant
+    
+    Checks for both regular PetPooja and PetPooja dine-in integrations.
+    
+    Args:
+        restaurant_id (int): Restaurant ID
+        db (Session): Database session
+        
+    Returns:
+        POSInterface: First available POS integration instance, or None if none found
+    """
+    # Priority order: try dine-in first, then regular PetPooja
+    pos_systems_to_try = ["petpooja_dinein", "petpooja"]
+    
+    for pos_system_name in pos_systems_to_try:
+        integration = get_pos_integration_by_name(restaurant_id, pos_system_name, db)
+        if integration:
+            return integration
+    
+    return None
