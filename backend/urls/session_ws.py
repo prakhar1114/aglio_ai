@@ -362,7 +362,8 @@ async def handle_place_order(websocket, session_pid, member_pid, data):
                         "initiated_by": {
                             "member_pid": member.public_id,
                             "nickname": member.nickname
-                        }
+                        },
+                        "status": new_order.status
                     }
                 }
                 await connection_manager.broadcast_to_session(session_pid, success_message)

@@ -1,4 +1,6 @@
 import json
+import asyncio
+from time import time
 from typing import Dict, List, Optional
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from loguru import logger
@@ -20,7 +22,7 @@ router = APIRouter()
 
 
 class DashboardManager(ConnectionManager):
-    """Specialized connection manager for admin dashboards"""
+    """Specialized connection manager for admin dashboards with ping-pong keepalive"""
     
     def __init__(self):
         super().__init__()
@@ -29,6 +31,12 @@ class DashboardManager(ConnectionManager):
         self.connections: Dict[str, List[WebSocket]] = {}
         # websocket -> restaurant_slug mapping for cleanup
         self.websocket_sessions: Dict[WebSocket, str] = {}
+        
+        # Ping-pong state for admin connections
+        self.ping_tasks: Dict[WebSocket, asyncio.Task] = {}
+        self.last_pong: Dict[WebSocket, float] = {}
+        self.ping_interval = 50  # seconds
+        self.pong_timeout = 12   # seconds
     
     async def connect(self, websocket: WebSocket, restaurant_slug: str) -> bool:
         """
@@ -56,6 +64,11 @@ class DashboardManager(ConnectionManager):
         self.connections[restaurant_slug].append(websocket)
         self.websocket_sessions[websocket] = restaurant_slug
         
+        # Start ping task for this admin connection
+        ping_task = asyncio.create_task(self._ping_loop(websocket))
+        self.ping_tasks[websocket] = ping_task
+        self.last_pong[websocket] = time()
+        
         logger.info(f"Dashboard WebSocket connected for restaurant {restaurant_slug}. Total connections: {len(self.connections[restaurant_slug])}")
         return True
     
@@ -67,6 +80,15 @@ class DashboardManager(ConnectionManager):
             websocket: WebSocket connection to remove
         """
         restaurant_slug = self.websocket_sessions.get(websocket)
+        
+        # Cancel ping task
+        if websocket in self.ping_tasks:
+            self.ping_tasks[websocket].cancel()
+            del self.ping_tasks[websocket]
+            
+        if websocket in self.last_pong:
+            del self.last_pong[websocket]
+        
         if not restaurant_slug:
             return
             
@@ -85,6 +107,51 @@ class DashboardManager(ConnectionManager):
             
         logger.info(f"Dashboard WebSocket disconnected from restaurant {restaurant_slug}")
     
+    async def handle_pong(self, websocket: WebSocket):
+        """Update last pong timestamp for admin connection"""
+        self.last_pong[websocket] = time()
+        logger.debug("Received pong from admin dashboard")
+    
+    async def _ping_loop(self, websocket: WebSocket):
+        """Periodic ping sender with timeout checking for admin connections"""
+        try:
+            while True:
+                await asyncio.sleep(self.ping_interval)
+                
+                # Check if connection is still tracked
+                if websocket not in self.last_pong:
+                    break
+                    
+                # Check for pong timeout
+                time_since_pong = time() - self.last_pong[websocket]
+                if time_since_pong > (self.ping_interval + self.pong_timeout):
+                    logger.warning(f"Admin dashboard pong timeout, disconnecting")
+                    await self._force_disconnect(websocket)
+                    break
+                    
+                # Send ping
+                try:
+                    await websocket.send_text("ping")
+                    logger.debug("Sent ping to admin dashboard")
+                except Exception as e:
+                    logger.warning(f"Failed to send ping to admin dashboard: {e}")
+                    await self._force_disconnect(websocket)
+                    break
+                    
+        except asyncio.CancelledError:
+            logger.debug("Admin ping task cancelled")
+        except Exception as e:
+            logger.error(f"Admin ping loop error: {e}")
+    
+    async def _force_disconnect(self, websocket: WebSocket):
+        """Force disconnect a stale admin connection"""
+        try:
+            await websocket.close(code=4001, reason="Ping timeout")
+        except:
+            pass  # Connection might already be closed
+        finally:
+            self.disconnect(websocket)
+
     async def broadcast_table_update(self, restaurant_slug: str, table_data: dict):
         """
         Broadcast a table update to all dashboard connections for a restaurant
@@ -142,7 +209,7 @@ class DashboardAction(BaseModel):
 @router.websocket("/ws/dashboard")
 async def dashboard_websocket(websocket: WebSocket):
     """WebSocket endpoint for real-time dashboard updates"""
-    restaurant_slug: str = None
+    restaurant_slug: Optional[str] = None
     
     try:
         # 1. Extract auth token from query params (WebSocket doesn't support custom headers reliably)
@@ -177,9 +244,12 @@ async def dashboard_websocket(websocket: WebSocket):
             try:
                 data = await websocket.receive_text()
                 
-                # Handle ping/pong
+                # Handle ping/pong for admin keepalive
                 if data.strip() == "ping":
                     await websocket.send_text("pong")
+                    continue
+                elif data.strip() == "pong":
+                    await dashboard_manager.handle_pong(websocket)
                     continue
                 
                 # Parse JSON message

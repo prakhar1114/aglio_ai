@@ -40,7 +40,7 @@ new_rev = str(next_num).zfill(PREFIX_LENGTH)
 # 4. Generate a temp migration file (let Alembic fill the structure)
 before_files = set(os.listdir(VERSIONS_DIR))
 result = subprocess.run(
-    ["alembic", "revision", "-m", MESSAGE],
+    ["alembic", "revision", "--autogenerate", "-m", MESSAGE],
     stdout=subprocess.PIPE,
     stderr=subprocess.PIPE,
     universal_newlines=True

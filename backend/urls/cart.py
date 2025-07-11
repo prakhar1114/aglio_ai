@@ -233,7 +233,8 @@ async def get_cart_snapshot(
                     "initiated_by": {
                         "member_pid": order.initiated_by_member.public_id,
                         "nickname": order.initiated_by_member.nickname
-                    }
+                    },
+                    "status": order.status
                 }
                 orders.append(order_data)
             

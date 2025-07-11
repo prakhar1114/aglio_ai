@@ -139,11 +139,12 @@ export const useCartStore = create((set, get) => ({
       timestamp: new Date(orderData.timestamp || Date.now()),
       items: orderData.items || [],
       total: orderData.total || 0,
-      initiated_by: orderData.initiated_by
+      initiated_by: orderData.initiated_by,
+      status: orderData.status
     };
     
     set((state) => ({
-      orderProcessingStatus: 'confirmed',
+      orderProcessingStatus: orderData.status,
       pendingOrderId: orderData.id,
       orderTimeout: null,
       orders: [confirmedOrder, ...state.orders], // Add to beginning of orders list

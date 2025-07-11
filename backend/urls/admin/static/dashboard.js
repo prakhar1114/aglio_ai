@@ -12,6 +12,9 @@ class DashboardManager {
         this.maxReconnectAttempts = 5;
         this.reconnectInterval = 1000; // Start with 1 second
         
+        // Connection status tracking
+        this.connectionStatus = 'disconnected'; // 'connected', 'connecting', 'disconnected', 'failed'
+        
         this.init();
     }
     
@@ -31,13 +34,132 @@ class DashboardManager {
             return;
         }
         
+        this.setupConnectionStatusIndicator();
         this.connect();
         this.setupQRButton();
         this.setupEventListeners();
         // QR Code generator setup
     }
     
+    setupConnectionStatusIndicator() {
+        // Add connection status indicator to header
+        const header = document.querySelector('header h1');
+        if (header) {
+            const statusIndicator = document.createElement('span');
+            statusIndicator.id = 'connection-status';
+            statusIndicator.className = 'connection-status';
+            statusIndicator.innerHTML = '<span class="status-dot"></span>';
+            statusIndicator.title = 'Connection Status';
+            
+            // Add CSS styles
+            const style = document.createElement('style');
+            style.textContent = `
+                .connection-status {
+                    margin-left: 12px;
+                    display: inline-flex;
+                    align-items: center;
+                    cursor: help;
+                }
+                .status-dot {
+                    width: 12px;
+                    height: 12px;
+                    border-radius: 50%;
+                    display: inline-block;
+                    transition: all 0.3s ease;
+                }
+                .connection-status.connected .status-dot {
+                    background-color: #22c55e;
+                    box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
+                }
+                .connection-status.connecting .status-dot {
+                    background-color: #f59e0b;
+                    box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+                    animation: pulse 1.5s infinite;
+                }
+                .connection-status.disconnected .status-dot {
+                    background-color: #ef4444;
+                    box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+                }
+                .connection-status.failed .status-dot {
+                    background-color: #dc2626;
+                    box-shadow: 0 0 8px rgba(220, 38, 38, 0.8);
+                }
+                @keyframes pulse {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.5; }
+                }
+                .connection-modal {
+                    position: fixed;
+                    inset: 0;
+                    background: rgba(0, 0, 0, 0.7);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 1000;
+                }
+                .connection-modal-content {
+                    background: white;
+                    padding: 2rem;
+                    border-radius: 12px;
+                    max-width: 400px;
+                    width: 90%;
+                    text-align: center;
+                    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+                }
+                .connection-modal h3 {
+                    margin: 0 0 1rem 0;
+                    color: #dc2626;
+                }
+                .connection-modal p {
+                    margin: 0 0 1.5rem 0;
+                    color: #6b7280;
+                    line-height: 1.5;
+                }
+                .connection-modal button {
+                    background: #dc2626;
+                    color: white;
+                    border: none;
+                    padding: 0.75rem 1.5rem;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-weight: 600;
+                    transition: background 0.2s;
+                }
+                .connection-modal button:hover {
+                    background: #b91c1c;
+                }
+            `;
+            
+            if (!document.querySelector('#connection-status-styles')) {
+                style.id = 'connection-status-styles';
+                document.head.appendChild(style);
+            }
+            
+            header.appendChild(statusIndicator);
+            this.updateConnectionStatus('disconnected');
+        }
+    }
+    
+    updateConnectionStatus(status) {
+        this.connectionStatus = status;
+        const indicator = document.getElementById('connection-status');
+        if (indicator) {
+            indicator.className = `connection-status ${status}`;
+            
+            // Update tooltip based on status
+            const tooltips = {
+                connected: 'Connected to server',
+                connecting: 'Connecting...',
+                disconnected: 'Disconnected from server',
+                failed: 'Connection failed'
+            };
+            indicator.title = tooltips[status] || 'Unknown status';
+        }
+    }
+    
     connect() {
+        this.updateConnectionStatus('connecting');
+        
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/admin/ws/dashboard?token=${encodeURIComponent(this.apiKey)}`;
         
@@ -48,33 +170,58 @@ class DashboardManager {
                 console.log('✅ Dashboard WebSocket connected');
                 this.reconnectAttempts = 0;
                 this.reconnectInterval = 1000;
+                this.updateConnectionStatus('connected');
             };
             
             this.ws.onmessage = (event) => {
                 try {
-                    const message = JSON.parse(event.data);
+                    // Try parsing as JSON first, fallback to string for ping/pong
+                    let message;
+                    try {
+                        message = JSON.parse(event.data);
+                    } catch {
+                        // Handle as plain text (ping/pong)
+                        message = event.data;
+                    }
+                    
                     this.handleMessage(message);
                 } catch (error) {
-                    console.error('Error parsing WebSocket message:', error);
+                    console.error('Error handling WebSocket message:', error);
                 }
             };
             
             this.ws.onclose = (event) => {
                 console.log('🔌 Dashboard WebSocket disconnected:', event.code, event.reason);
+                this.updateConnectionStatus('disconnected');
                 this.handleDisconnect();
             };
             
             this.ws.onerror = (error) => {
                 console.error('❌ Dashboard WebSocket error:', error);
+                this.updateConnectionStatus('disconnected');
             };
             
         } catch (error) {
             console.error('Failed to create WebSocket connection:', error);
+            this.updateConnectionStatus('failed');
             this.handleDisconnect();
         }
     }
     
     handleMessage(message) {
+        // Handle ping/pong for admin keepalive
+        if (typeof message === 'string') {
+            if (message.trim() === 'ping') {
+                this.ws.send('pong');
+                console.log('📡 Responded to ping with pong');
+                return;
+            }
+            if (message.trim() === 'pong') {
+                console.log('📡 Received pong from server');
+                return;
+            }
+        }
+        
         switch (message.type) {
             case 'tables_snapshot':
                 this.tables = message.tables;
@@ -824,15 +971,19 @@ class DashboardManager {
     send(message) {
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             this.ws.send(JSON.stringify(message));
-    } else {
-            this.showToast('Connection lost. Reconnecting...', 'error');
-            this.connect();
+        } else {
+            this.showToast('Connection lost. Message will be sent when reconnected.', 'warning');
+            // Don't immediately reconnect here - let the existing retry mechanism handle it
+            if (this.connectionStatus === 'connected') {
+                this.updateConnectionStatus('disconnected');
+            }
         }
     }
     
     handleDisconnect() {
         if (this.reconnectAttempts < this.maxReconnectAttempts) {
             this.reconnectAttempts++;
+            this.updateConnectionStatus('connecting');
             this.showToast(`Reconnecting... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`, 'info');
             
             setTimeout(() => {
@@ -842,8 +993,35 @@ class DashboardManager {
             // Exponential backoff
             this.reconnectInterval = Math.min(this.reconnectInterval * 2, 30000);
         } else {
-            this.showToast('Connection failed. Please refresh the page.', 'error');
+            this.updateConnectionStatus('failed');
+            this.showConnectionFailureModal();
         }
+    }
+    
+    showConnectionFailureModal() {
+        // Remove existing modal if any
+        const existingModal = document.getElementById('connectionFailureModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        const modalHTML = `
+            <div id="connectionFailureModal" class="connection-modal">
+                <div class="connection-modal-content">
+                    <h3>🔌 Connection Lost</h3>
+                    <p>Unable to maintain connection to the dashboard server after multiple attempts.</p>
+                    <p>Please refresh the page to restore connectivity.</p>
+                    <button onclick="window.location.reload()">Refresh Page</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        
+        // Auto-refresh after 10 seconds if user doesn't click
+        setTimeout(() => {
+            window.location.reload();
+        }, 10000);
     }
     
     setupEventListeners() {
