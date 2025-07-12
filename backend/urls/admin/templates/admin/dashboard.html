@@ -3,41 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ restaurant_name }} - Admin Dashboard</title>
-    <script src="https://unpkg.com/htmx.org@1.9.10/dist/htmx.min.js"></script>
+    <title>Restaurant Dashboard</title>
     <link rel="stylesheet" href="/admin/static/dashboard.css">
 </head>
-<body {% if api_key %}data-api-key="{{ api_key }}"{% endif %}>
+<body data-api-key="{{ api_key }}" data-restaurant-slug="{{ restaurant_slug }}">
     <header>
-        <h1>{{ restaurant_name }}</h1>
-        <button id="logout" onclick="dashboard.logout()">Logout</button>
+        <h1>{{ restaurant_name }} Dashboard</h1>
+        <div class="header-actions">
+            <button id="logout">Logout</button>
+        </div>
     </header>
 
     <main>
         <div class="dashboard-container">
-            <!-- Main Grid Area -->
             <div class="main-content">
-                <div id="grid">
-                    <!-- Grid will be loaded via WebSocket -->
-                    <div class="loading">Connecting to dashboard...</div>
+                <div id="grid" class="grid-section">
+                    <div class="loading">Loading tables...</div>
                 </div>
             </div>
             
-            <!-- Waiter Requests Sidebar -->
             <div class="sidebar">
                 <div class="sidebar-header">
-                    <h3>🔔 Waiter Requests</h3>
+                    <h3>Requests & Orders</h3>
                     <span id="request-count" class="request-count">0</span>
                 </div>
                 <div id="waiter-requests-list" class="requests-list">
-                    <div class="no-requests">No pending requests</div>
+                    <div class="no-requests">Loading...</div>
                 </div>
             </div>
         </div>
     </main>
 
+    <!-- Toast notification -->
     <div id="toast" class="toast hidden"></div>
 
-    <script src="/admin/static/dashboard.js"></script>
+    <!-- Load JavaScript files in order -->
+    <script src="/admin/static/dashboard-core.js"></script>
+    <script src="/admin/static/dashboard-menu.js"></script>
+    <script src="/admin/static/dashboard-orders.js"></script>
+    <script src="/admin/static/dashboard-customization.js"></script>
+    <script src="/admin/static/dashboard-ui.js"></script>
 </body>
 </html> 

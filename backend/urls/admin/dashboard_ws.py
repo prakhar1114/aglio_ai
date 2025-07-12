@@ -593,12 +593,13 @@ async def handle_dashboard_action(websocket: WebSocket, action: DashboardAction,
             # Handle result
             if success:
                 # Broadcast table updates to all connected dashboards for this restaurant
-                for table_info in updated_tables:
-                    update_message = {
-                        "type": "table_update",
-                        "table": table_info.to_dict()
-                    }
-                    await dashboard_manager.broadcast_to_session(restaurant_slug, update_message)
+                if updated_tables:
+                    for table_info in updated_tables:
+                        update_message = {
+                            "type": "table_update",
+                            "table": table_info.to_dict()
+                        }
+                        await dashboard_manager.broadcast_to_session(restaurant_slug, update_message)
                 
                 logger.info(f"Successfully executed {action.action} for restaurant {restaurant_slug}")
             else:
@@ -756,7 +757,7 @@ async def reject_order_service(db, restaurant, order_id: str):
             "type": "order_cancelled",
             "order_id": order.public_id,
             "message": "Order has been cancelled by the restaurant",
-            "reason": "Restaurant rejected the order"
+            "reason": "Restaurant rejected the order. Contact staff for help."
         }
         await connection_manager.broadcast_to_session(session.public_id, cancellation_message)
         
@@ -778,7 +779,7 @@ async def reject_order_service(db, restaurant, order_id: str):
 
 async def edit_order_service(db, restaurant, order_id: str, updated_order: dict):
     """
-    Edit an order and then approve it
+    Edit an order completely - handle item deletions, quantity changes, and new items
     
     Returns:
         tuple: (success: bool, error_code: str)
@@ -800,10 +801,40 @@ async def edit_order_service(db, restaurant, order_id: str, updated_order: dict)
         session = db.query(Session).filter(Session.id == order.session_id).first()
         member = db.query(Member).filter(Member.id == order.initiated_by_member_id).first()
         
+        # Validate and process the updated order items
+        new_items = updated_order.get("items", [])
+        if not new_items:
+            return False, "no_items_in_order"
+        
+        # Create change summary for logging
+        original_items_count = len(order.payload)
+        new_items_count = len(new_items)
+        
         # Update order payload with admin changes
-        order.payload = updated_order.get("items", order.payload)
-        order.total_amount = updated_order.get("total", order.total_amount)
-        order.cart_hash = f"hash_{len(order.payload)}_{order.total_amount}"  # Update hash
+        order.payload = new_items
+        order.total_amount = updated_order.get("total", 0)
+        order.cart_hash = f"hash_{len(order.payload)}_{order.total_amount}_{datetime.utcnow().timestamp()}"
+        
+        # Add edit tracking to POS response field (as a simple way to store edit history)
+        edit_record = {
+            "edited_by": "AdminStaff",
+            "edited_at": datetime.utcnow().isoformat(),
+            "changes": {
+                "original_items_count": original_items_count,
+                "new_items_count": new_items_count,
+                "original_total": order.total_amount,
+                "new_total": updated_order.get("total", 0)
+            }
+        }
+        
+        # Store edit history in pos_response field if it exists
+        if order.pos_response:
+            if isinstance(order.pos_response, list):
+                order.pos_response.append({"edit_history": edit_record})
+            else:
+                order.pos_response = [order.pos_response, {"edit_history": edit_record}]
+        else:
+            order.pos_response = [{"edit_history": edit_record}]
         
         # Process order with POS integration
         from urls.session_ws import process_order_with_pos
@@ -818,13 +849,24 @@ async def edit_order_service(db, restaurant, order_id: str, updated_order: dict)
             order.pos_order_id = pos_order_id or order_id
             order.pos_response = [pos_response]
             
-            # Mark cart items as ordered
+            # Update related cart items
             from models.schema import CartItem
             cart_items = db.query(CartItem).filter(CartItem.order_id == order.id).all()
+            
+            # Mark existing cart items as ordered
             for item in cart_items:
                 item.state = "ordered"
             
+            # Note: For comprehensive cart item management, we would need to:
+            # 1. Remove cart items that were deleted from the order
+            # 2. Update quantities for modified items
+            # 3. Create new cart items for newly added items
+            # This is complex as cart items have their own structure and relationships
+            
             db.commit()
+            
+            # Create detailed change summary for customer notification
+            changes_summary = f"Order modified by restaurant staff - {new_items_count} items (was {original_items_count})"
             
             # Broadcast updated order to customers
             from websocket.manager import connection_manager
@@ -842,9 +884,11 @@ async def edit_order_service(db, restaurant, order_id: str, updated_order: dict)
                         "member_pid": member.public_id,
                         "nickname": member.nickname
                     },
-                    "status": order.status
+                    "status": order.status,
+                    "edited_by": "AdminStaff",
+                    "edited_at": datetime.utcnow().isoformat()
                 },
-                "changes_summary": "Order modified by restaurant"
+                "changes_summary": changes_summary
             }
             await connection_manager.broadcast_to_session(session.public_id, update_message)
             
@@ -856,7 +900,9 @@ async def edit_order_service(db, restaurant, order_id: str, updated_order: dict)
             }
             await dashboard_manager.broadcast_to_session(restaurant.slug, removal_message)
             
+            logger.info(f"Order {order_id} successfully edited and approved by AdminStaff - {changes_summary}")
             return True, None
+            
         else:
             # POS integration failed
             order.status = "failed"
@@ -869,7 +915,7 @@ async def edit_order_service(db, restaurant, order_id: str, updated_order: dict)
             failure_message = {
                 "type": "order_failed",
                 "order_id": order.public_id,
-                "message": "Order processing failed. Please try again.",
+                "message": "Order processing failed after editing. Please try again.",
                 "error": "POS integration failed"
             }
             await connection_manager.broadcast_to_session(session.public_id, failure_message)

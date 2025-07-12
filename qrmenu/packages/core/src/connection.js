@@ -163,6 +163,18 @@ function handleWebSocketMessage(data) {
     case 'order_updated':
       console.log('Order updated by admin:', data);
       cartStore.handleOrderUpdate(data.updated_order, data.changes_summary);
+      
+      // Show toast notification to customer
+      sessionStore.showModal({
+        type: 'info',
+        title: 'Order Updated',
+        message: 'Your order has been updated by the restaurant.',
+        actions: [{
+          label: 'OK',
+          action: () => sessionStore.hideModal(),
+          variant: 'primary'
+        }]
+      });
 
       break;
       
