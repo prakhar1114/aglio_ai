@@ -15,7 +15,7 @@ from services.table_service import (
     get_all_tables, close_table_service, disable_table_service,
     enable_table_service, restore_table_service, move_table_service
 )
-from models.schema import WaiterRequest, Table, Member
+from models.schema import WaiterRequest, Table, Member, Order, Session, Restaurant
 
 
 router = APIRouter()
@@ -204,6 +204,7 @@ class DashboardAction(BaseModel):
     to_table_id: Optional[int] = None    # For move action
     request_id: Optional[str] = None     # For resolve_waiter_request action
     order_id: Optional[str] = None       # For acknowledge_order action
+    updated_order: Optional[dict] = None  # For edit_order action
 
 
 @router.websocket("/ws/dashboard")
@@ -238,6 +239,9 @@ async def dashboard_websocket(websocket: WebSocket):
         
         # 5. Send pending waiter requests
         await send_pending_waiter_requests(websocket, restaurant_slug)
+        
+        # 6. Send pending orders
+        await send_pending_orders(websocket, restaurant_slug)
         
         # 6. Message handling loop
         while True:
@@ -351,6 +355,57 @@ async def send_pending_waiter_requests(websocket: WebSocket, restaurant_slug: st
         logger.error(f"Error sending pending waiter requests: {e}")
         await dashboard_manager.send_error(
             websocket, "requests_error", "Failed to load pending requests"
+        )
+
+
+async def send_pending_orders(websocket: WebSocket, restaurant_slug: str):
+    """Send all pending orders (status='placed') to the connected admin"""
+    try:
+        with SessionLocal() as db:
+            restaurant = get_restaurant_by_slug(db, restaurant_slug)
+            
+            # Get all orders with status="placed" for this restaurant
+            orders = db.query(Order, Session, Table, Member).join(
+                Session, Order.session_id == Session.id
+            ).join(
+                Table, Session.table_id == Table.id
+            ).join(
+                Member, Order.initiated_by_member_id == Member.id
+            ).filter(
+                Session.restaurant_id == restaurant.id,
+                Order.status == "placed"
+            ).order_by(Order.created_at.asc()).all()  # Oldest first
+            
+            order_list = []
+            for order, session, table, member in orders:
+                order_list.append({
+                    "id": order.public_id,
+                    "order_number": order.public_id.split("_")[1],  # Extract number from SLUG_123
+                    "table_id": table.id,
+                    "table_number": table.number,
+                    "timestamp": order.created_at.isoformat() + "Z",
+                    "customer_name": member.nickname,
+                    "items": order.payload,
+                    "total": order.total_amount,
+                    "special_instructions": "",  # Can be enhanced later
+                    "initiated_by": {
+                        "member_pid": member.public_id,
+                        "nickname": member.nickname
+                    }
+                })
+            
+            orders_message = {
+                "type": "pending_orders",
+                "orders": order_list
+            }
+            
+            await websocket.send_text(json.dumps(orders_message))
+            logger.info(f"Sent pending orders to {restaurant_slug}: {len(order_list)} orders")
+    
+    except Exception as e:
+        logger.error(f"Error sending pending orders: {e}")
+        await dashboard_manager.send_error(
+            websocket, "orders_error", "Failed to load pending orders"
         )
 
 
@@ -475,6 +530,62 @@ async def handle_dashboard_action(websocket: WebSocket, action: DashboardAction,
                 logger.info(f"Successfully acknowledged order {action.order_id} for restaurant {restaurant_slug}")
                 return  # No table updates needed, just broadcast
             
+            elif action.action == "approve_order":
+                if not action.order_id:
+                    await dashboard_manager.send_error(websocket, "missing_order_id", "Order ID required")
+                    return
+                
+                success, error_code = await approve_order_service(db, restaurant, action.order_id)
+                if success:
+                    logger.info(f"Successfully approved order {action.order_id} for restaurant {restaurant_slug}")
+                    return  # No table updates needed, just broadcast
+                else:
+                    await dashboard_manager.send_error(websocket, error_code or "approve_failed", f"Failed to approve order {action.order_id}")
+                    return
+            
+            elif action.action == "reject_order":
+                if not action.order_id:
+                    await dashboard_manager.send_error(websocket, "missing_order_id", "Order ID required")
+                    return
+                
+                success, error_code = await reject_order_service(db, restaurant, action.order_id)
+                if success:
+                    logger.info(f"Successfully rejected order {action.order_id} for restaurant {restaurant_slug}")
+                    return  # No table updates needed, just broadcast
+                else:
+                    await dashboard_manager.send_error(websocket, error_code or "reject_failed", f"Failed to reject order {action.order_id}")
+                    return
+            
+            elif action.action == "edit_order":
+                if not action.order_id:
+                    await dashboard_manager.send_error(websocket, "missing_order_id", "Order ID required")
+                    return
+                
+                if not action.updated_order:
+                    await dashboard_manager.send_error(websocket, "missing_updated_order", "Updated order data required")
+                    return
+                
+                success, error_code = await edit_order_service(db, restaurant, action.order_id, action.updated_order)
+                if success:
+                    logger.info(f"Successfully edited and approved order {action.order_id} for restaurant {restaurant_slug}")
+                    return  # No table updates needed, just broadcast
+                else:
+                    await dashboard_manager.send_error(websocket, error_code or "edit_failed", f"Failed to edit order {action.order_id}")
+                    return
+            
+            elif action.action == "retry_pos":
+                if not action.order_id:
+                    await dashboard_manager.send_error(websocket, "missing_order_id", "Order ID required")
+                    return
+                
+                success, error_code = await retry_pos_service(db, restaurant, action.order_id)
+                if success:
+                    logger.info(f"Successfully retried POS for order {action.order_id} for restaurant {restaurant_slug}")
+                    return  # No table updates needed, just broadcast
+                else:
+                    await dashboard_manager.send_error(websocket, error_code or "retry_failed", f"Failed to retry POS for order {action.order_id}")
+                    return
+            
             else:
                 await dashboard_manager.send_error(websocket, "unknown_action", f"Unknown action: {action.action}")
                 return
@@ -500,3 +611,367 @@ async def handle_dashboard_action(websocket: WebSocket, action: DashboardAction,
 
 
 # decode_admin_jwt_token is now imported from auth_utils 
+
+
+async def approve_order_service(db, restaurant, order_id: str):
+    """
+    Approve an order - send to POS and notify customers
+    
+    Returns:
+        tuple: (success: bool, error_code: str)
+    """
+    try:
+        # Find the order
+        order = db.query(Order).join(
+            Session, Order.session_id == Session.id
+        ).filter(
+            Order.public_id == order_id,
+            Session.restaurant_id == restaurant.id,
+            Order.status == "placed"
+        ).first()
+        
+        if not order:
+            return False, "order_not_found"
+        
+        # Get order details for notifications
+        session = db.query(Session).filter(Session.id == order.session_id).first()
+        member = db.query(Member).filter(Member.id == order.initiated_by_member_id).first()
+        
+        # Process order with POS integration
+        from urls.session_ws import process_order_with_pos
+        success, pos_order_id, pos_response, pos_used = await process_order_with_pos(
+            restaurant.id, order, session, member, db
+        )
+        
+        if success:
+            # Update order status
+            order.status = "confirmed"
+            order.confirmed_at = datetime.utcnow()
+            order.pos_order_id = pos_order_id or order_id
+            order.pos_response = [pos_response]
+            
+            # Mark cart items as ordered
+            from models.schema import CartItem
+            cart_items = db.query(CartItem).filter(CartItem.order_id == order.id).all()
+            for item in cart_items:
+                item.state = "ordered"
+            
+            db.commit()
+            
+            # Broadcast to customers
+            from websocket.manager import connection_manager
+            success_message = {
+                "type": "order_confirmed",
+                "order_id": order.public_id,
+                "message": "Order confirmed by restaurant!",
+                "order": {
+                    "id": order.public_id,
+                    "orderNumber": order.public_id.split("_")[1],
+                    "timestamp": order.created_at.isoformat(),
+                    "items": order.payload,
+                    "total": order.total_amount,
+                    "initiated_by": {
+                        "member_pid": member.public_id,
+                        "nickname": member.nickname
+                    },
+                    "status": order.status
+                }
+            }
+            await connection_manager.broadcast_to_session(session.public_id, success_message)
+            
+            # Remove from admin dashboard
+            removal_message = {
+                "type": "order_removed",
+                "order_id": order.public_id,
+                "reason": "approved"
+            }
+            await dashboard_manager.broadcast_to_session(restaurant.slug, removal_message)
+            
+            return True, None
+        else:
+            # POS integration failed
+            order.status = "failed"
+            order.failed_at = datetime.utcnow()
+            order.pos_response = pos_response
+            db.commit()
+            
+            # Notify customers of failure
+            from websocket.manager import connection_manager
+            failure_message = {
+                "type": "order_failed",
+                "order_id": order.public_id,
+                "message": "Order processing failed. Please try again.",
+                "error": "POS integration failed"
+            }
+            await connection_manager.broadcast_to_session(session.public_id, failure_message)
+            
+            return False, "pos_integration_failed"
+        
+    except Exception as e:
+        logger.error(f"Error approving order {order_id}: {e}")
+        db.rollback()
+        return False, "internal_error"
+
+
+async def reject_order_service(db, restaurant, order_id: str):
+    """
+    Reject an order - cancel and notify customers
+    
+    Returns:
+        tuple: (success: bool, error_code: str)
+    """
+    try:
+        # Find the order
+        order = db.query(Order).join(
+            Session, Order.session_id == Session.id
+        ).filter(
+            Order.public_id == order_id,
+            Session.restaurant_id == restaurant.id,
+            Order.status == "placed"
+        ).first()
+        
+        if not order:
+            return False, "order_not_found"
+        
+        # Get order details for notifications
+        session = db.query(Session).filter(Session.id == order.session_id).first()
+        member = db.query(Member).filter(Member.id == order.initiated_by_member_id).first()
+        
+        # Update order status
+        order.status = "cancelled"
+        order.failed_at = datetime.utcnow()
+        
+        # Unlock cart items - revert to pending state
+        from models.schema import CartItem
+        cart_items = db.query(CartItem).filter(CartItem.order_id == order.id).all()
+        for item in cart_items:
+            item.state = "pending"
+            item.order_id = None
+        
+        db.commit()
+        
+        # Broadcast to customers
+        from websocket.manager import connection_manager
+        cancellation_message = {
+            "type": "order_cancelled",
+            "order_id": order.public_id,
+            "message": "Order has been cancelled by the restaurant",
+            "reason": "Restaurant rejected the order"
+        }
+        await connection_manager.broadcast_to_session(session.public_id, cancellation_message)
+        
+        # Remove from admin dashboard
+        removal_message = {
+            "type": "order_removed",
+            "order_id": order.public_id,
+            "reason": "rejected"
+        }
+        await dashboard_manager.broadcast_to_session(restaurant.slug, removal_message)
+        
+        return True, None
+        
+    except Exception as e:
+        logger.error(f"Error rejecting order {order_id}: {e}")
+        db.rollback()
+        return False, "internal_error"
+
+
+async def edit_order_service(db, restaurant, order_id: str, updated_order: dict):
+    """
+    Edit an order and then approve it
+    
+    Returns:
+        tuple: (success: bool, error_code: str)
+    """
+    try:
+        # Find the order
+        order = db.query(Order).join(
+            Session, Order.session_id == Session.id
+        ).filter(
+            Order.public_id == order_id,
+            Session.restaurant_id == restaurant.id,
+            Order.status == "placed"
+        ).first()
+        
+        if not order:
+            return False, "order_not_found"
+        
+        # Get order details for notifications
+        session = db.query(Session).filter(Session.id == order.session_id).first()
+        member = db.query(Member).filter(Member.id == order.initiated_by_member_id).first()
+        
+        # Update order payload with admin changes
+        order.payload = updated_order.get("items", order.payload)
+        order.total_amount = updated_order.get("total", order.total_amount)
+        order.cart_hash = f"hash_{len(order.payload)}_{order.total_amount}"  # Update hash
+        
+        # Process order with POS integration
+        from urls.session_ws import process_order_with_pos
+        success, pos_order_id, pos_response, pos_used = await process_order_with_pos(
+            restaurant.id, order, session, member, db
+        )
+        
+        if success:
+            # Update order status
+            order.status = "confirmed"
+            order.confirmed_at = datetime.utcnow()
+            order.pos_order_id = pos_order_id or order_id
+            order.pos_response = [pos_response]
+            
+            # Mark cart items as ordered
+            from models.schema import CartItem
+            cart_items = db.query(CartItem).filter(CartItem.order_id == order.id).all()
+            for item in cart_items:
+                item.state = "ordered"
+            
+            db.commit()
+            
+            # Broadcast updated order to customers
+            from websocket.manager import connection_manager
+            update_message = {
+                "type": "order_updated",
+                "order_id": order.public_id,
+                "message": "Restaurant has updated your order",
+                "updated_order": {
+                    "id": order.public_id,
+                    "orderNumber": order.public_id.split("_")[1],
+                    "timestamp": order.created_at.isoformat(),
+                    "items": order.payload,
+                    "total": order.total_amount,
+                    "initiated_by": {
+                        "member_pid": member.public_id,
+                        "nickname": member.nickname
+                    },
+                    "status": order.status
+                },
+                "changes_summary": "Order modified by restaurant"
+            }
+            await connection_manager.broadcast_to_session(session.public_id, update_message)
+            
+            # Remove from admin dashboard
+            removal_message = {
+                "type": "order_removed",
+                "order_id": order.public_id,
+                "reason": "edited_and_approved"
+            }
+            await dashboard_manager.broadcast_to_session(restaurant.slug, removal_message)
+            
+            return True, None
+        else:
+            # POS integration failed
+            order.status = "failed"
+            order.failed_at = datetime.utcnow()
+            order.pos_response = pos_response
+            db.commit()
+            
+            # Notify customers of failure
+            from websocket.manager import connection_manager
+            failure_message = {
+                "type": "order_failed",
+                "order_id": order.public_id,
+                "message": "Order processing failed. Please try again.",
+                "error": "POS integration failed"
+            }
+            await connection_manager.broadcast_to_session(session.public_id, failure_message)
+            
+            return False, "pos_integration_failed"
+        
+    except Exception as e:
+        logger.error(f"Error editing order {order_id}: {e}")
+        db.rollback()
+        return False, "internal_error"
+
+
+async def retry_pos_service(db, restaurant, order_id: str):
+    """
+    Retry POS integration for a failed order
+    
+    Returns:
+        tuple: (success: bool, error_code: str)
+    """
+    try:
+        # Find the order
+        order = db.query(Order).join(
+            Session, Order.session_id == Session.id
+        ).filter(
+            Order.public_id == order_id,
+            Session.restaurant_id == restaurant.id,
+            Order.status == "failed"
+        ).first()
+        
+        if not order:
+            return False, "order_not_found"
+        
+        # Get order details for notifications
+        session = db.query(Session).filter(Session.id == order.session_id).first()
+        member = db.query(Member).filter(Member.id == order.initiated_by_member_id).first()
+        
+        # Retry POS integration
+        from urls.session_ws import process_order_with_pos
+        success, pos_order_id, pos_response, pos_used = await process_order_with_pos(
+            restaurant.id, order, session, member, db
+        )
+        
+        if success:
+            # Update order status
+            order.status = "confirmed"
+            order.confirmed_at = datetime.utcnow()
+            order.pos_order_id = pos_order_id or order_id
+            order.pos_response = [pos_response]
+            
+            # Mark cart items as ordered
+            from models.schema import CartItem
+            cart_items = db.query(CartItem).filter(CartItem.order_id == order.id).all()
+            for item in cart_items:
+                item.state = "ordered"
+            
+            db.commit()
+            
+            # Broadcast to customers
+            from websocket.manager import connection_manager
+            success_message = {
+                "type": "order_confirmed",
+                "order_id": order.public_id.split("_")[1],
+                "message": "Order confirmed by restaurant!",
+                "order": {
+                    "id": order.public_id.split("_")[1],
+                    "orderNumber": order.public_id.split("_")[1],
+                    "timestamp": order.created_at.isoformat(),
+                    "items": order.payload,
+                    "total": order.total_amount,
+                    "initiated_by": {
+                        "member_pid": member.public_id,
+                        "nickname": member.nickname
+                    },
+                    "status": order.status
+                }
+            }
+            await connection_manager.broadcast_to_session(session.public_id, success_message)
+            
+            # Notify admin dashboard of success
+            retry_success_message = {
+                "type": "pos_retry_success",
+                "order_id": order.public_id
+            }
+            await dashboard_manager.broadcast_to_session(restaurant.slug, retry_success_message)
+            
+            return True, None
+        else:
+            # POS integration still failed
+            order.pos_response = pos_response
+            db.commit()
+            
+            # Notify admin dashboard of continued failure
+            retry_failure_message = {
+                "type": "pos_retry_failed",
+                "order_id": order.public_id,
+                "error": str(pos_response)
+            }
+            await dashboard_manager.broadcast_to_session(restaurant.slug, retry_failure_message)
+            
+            return False, "pos_integration_failed"
+        
+    except Exception as e:
+        logger.error(f"Error retrying POS for order {order_id}: {e}")
+        db.rollback()
+        return False, "internal_error"

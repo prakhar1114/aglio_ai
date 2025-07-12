@@ -264,6 +264,26 @@ class DashboardManager {
                 this.handleOrderAcknowledged(message.order_id);
                 break;
                 
+            case 'pending_orders': // multiple orders
+                this.handlePendingOrders(message.orders);
+                break;
+                
+            case 'pending_order': // single order
+                this.handlePendingOrder(message.order);
+                break;
+                
+            case 'order_removed':
+                this.handleOrderRemoved(message.order_id, message.reason);
+                break;
+                
+            case 'pos_retry_success':
+                this.handlePOSRetrySuccess(message.order_id);
+                break;
+                
+            case 'pos_retry_failed':
+                this.handlePOSRetryFailed(message.order_id, message.error);
+                break;
+                
             case 'error':
                 this.showToast(message.detail, 'error');
                 if (message.code === 'invalid_token') {
@@ -350,6 +370,91 @@ class DashboardManager {
             // Show success feedback
             this.showToast('Order acknowledged successfully', 'success');
         }
+    }
+    
+    handlePendingOrders(orders) {
+        // Add all pending orders to the requests array
+        orders.forEach(order => {
+            const pendingOrderNotification = {
+                id: `pending_order_${order.id}`,
+                type: 'pending_order',
+                table_id: order.table_id,
+                table_number: order.table_number,
+                order_id: order.id,
+                order_number: order.order_number,
+                created_at: order.timestamp,
+                customer_name: order.customer_name,
+                items: order.items,
+                total: order.total,
+                special_instructions: order.special_instructions || ''
+            };
+            
+            // Check if already exists to avoid duplicates
+            const exists = this.waiterRequests.find(req => req.id === pendingOrderNotification.id);
+            if (!exists) {
+                this.waiterRequests.push(pendingOrderNotification);
+            }
+        });
+        
+        // Update sidebar
+        this.renderWaiterRequestsSidebar();
+    }
+    
+    handlePendingOrder(order) {
+        // Add new pending order to the array
+        const pendingOrderNotification = {
+            id: `pending_order_${order.id}`,
+            type: 'pending_order',
+            table_id: order.table_id,
+            table_number: order.table_number,
+            order_id: order.id,
+            order_number: order.order_number,
+            created_at: order.timestamp,
+            customer_name: order.customer_name,
+            items: order.items,
+            total: order.total,
+            special_instructions: order.special_instructions || ''
+        };
+        
+        this.waiterRequests.push(pendingOrderNotification);
+        
+        // Play alert sound
+        this.playNotificationSound();
+        
+        // Update sidebar
+        this.renderWaiterRequestsSidebar();
+        
+        // Show toast notification
+        this.showToast(`New Order #${order.order_number} from Table ${order.table_number} needs approval`, 'info');
+    }
+    
+    handleOrderRemoved(orderId, reason) {
+        // Remove the order from the array
+        const index = this.waiterRequests.findIndex(req => 
+            (req.type === 'pending_order' || req.type === 'order') && req.order_id === orderId
+        );
+        if (index !== -1) {
+            this.waiterRequests.splice(index, 1);
+            
+            // Update sidebar
+            this.renderWaiterRequestsSidebar();
+            
+            // Show success feedback
+            const reasonText = reason === 'approved' ? 'approved' : 
+                             reason === 'rejected' ? 'rejected' :
+                             reason === 'edited_and_approved' ? 'edited and approved' : 'processed';
+            this.showToast(`Order successfully ${reasonText}`, 'success');
+        }
+    }
+    
+    handlePOSRetrySuccess(orderId) {
+        // Show success feedback
+        this.showToast(`POS retry successful for Order #${orderId}`, 'success');
+    }
+    
+    handlePOSRetryFailed(orderId, error) {
+        // Show error feedback
+        this.showToast(`POS retry failed for Order #${orderId}: ${error}`, 'error');
     }
     
     playNotificationSound() {
@@ -441,7 +546,77 @@ class DashboardManager {
         
         // Render requests (newest first in display, but backend sends oldest first)
         const requestsHTML = this.waiterRequests.map(request => {
-            if (request.type === 'order') {
+            if (request.type === 'pending_order') {
+                // Handle pending orders with approve/reject/edit actions
+                const icon = '🍽️';
+                const typeClass = 'pending-order';
+                const typeName = 'Pending Order';
+                const timeAgo = this.calculateTimeAgo(request.created_at);
+                
+                // Build clean items list HTML
+                const orderItemsHTML = request.items.map(item => {
+                    const variationText = item.selected_variation ? ` (${item.selected_variation.variation_name})` : '';
+                    const addonsArr = (item.selected_variation_addons && item.selected_variation_addons.length > 0) ? item.selected_variation_addons : (item.selected_addons || []);
+                    const addonsText = addonsArr.length > 0 ? `+ ${addonsArr.map(addon => addon.name).join(', ')}` : '';
+                    
+                    return `
+                        <div class="order-item">
+                            <div class="item-details">
+                                <span class="item-name">${item.name}${variationText}</span>
+                                ${addonsText ? `<span class="item-addons">${addonsText}</span>` : ''}
+                            </div>
+                            <span class="item-quantity">×${item.qty}</span>
+                        </div>
+                    `;
+                }).join('');
+                
+                // Special instructions
+                const instructionsHTML = request.special_instructions ? `
+                    <div class="order-notes">
+                        <span class="notes-label">Note:</span>
+                        <span class="notes-text">${request.special_instructions}</span>
+                    </div>
+                ` : '';
+                
+                return `
+                    <div class="order-card">
+                        <div class="order-header">
+                            <div class="table-info">
+                                <span class="table-number">Table ${request.table_number}</span>
+                                <span class="customer-name">${request.customer_name}</span>
+                            </div>
+                            <div class="order-meta">
+                                <span class="order-total">₹${request.total.toFixed(2)}</span>
+                                <span class="order-time">${timeAgo}</span>
+                                <span class="order-id">#${request.order_number}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="order-items">
+                            ${orderItemsHTML}
+                        </div>
+                        
+                        ${instructionsHTML}
+                        
+                        <div class="order-footer">
+                            <div class="order-actions">
+                                <button class="action-btn approve" onclick="dashboard.approveOrder('${request.order_id}')" title="Approve Order">
+                                    <span class="action-icon">✓</span>
+                                    <span class="action-label">Approve</span>
+                                </button>
+                                <button class="action-btn edit" onclick="dashboard.editOrder('${request.order_id}')" title="Edit Order">
+                                    <span class="action-icon">✏️</span>
+                                    <span class="action-label">Edit</span>
+                                </button>
+                                <button class="action-btn reject" onclick="dashboard.rejectOrder('${request.order_id}')" title="Reject Order">
+                                    <span class="action-icon">✗</span>
+                                    <span class="action-label">Reject</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (request.type === 'order') {
                 // Handle order notifications
                 const icon = '🍽️';
                 const typeClass = 'new-order';
@@ -881,6 +1056,32 @@ class DashboardManager {
         this.showToast('Acknowledging order...', 'info');
     }
     
+    approveOrder(orderId) {
+        this.sendAction('approve_order', { order_id: orderId });
+        this.showToast('Sending order to kitchen...', 'info');
+    }
+    
+    rejectOrder(orderId) {
+        this.sendAction('reject_order', { order_id: orderId, reason: '' });
+        this.showToast('Rejecting order...', 'info');
+    }
+    
+    editOrder(orderId) {
+        // For now, just approve the order since editing is not implemented yet
+        this.approveOrder(orderId);
+        
+        // TODO: Implement order editing interface
+        // This would involve:
+        // 1. Opening a modal with the order details
+        // 2. Allowing admin to add/remove items, change quantities
+        // 3. Sending updated_order data with edit_order action
+    }
+    
+    retryPOS(orderId) {
+        this.sendAction('retry_pos', { order_id: orderId });
+        this.showToast('Retrying POS integration...', 'info');
+    }
+    
     pickTarget(event) {
         // Close any open dropdowns
         document.querySelectorAll('.dropdown.active').forEach(dropdown => {
@@ -1047,7 +1248,7 @@ class DashboardManager {
         // Auto-hide after 3 seconds
         setTimeout(() => {
             toast.classList.add('hidden');
-        }, 3000);
+        }, 2000);
     }
     
     logout() {

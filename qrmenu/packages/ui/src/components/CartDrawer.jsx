@@ -7,7 +7,6 @@ import { OrderConfirmationSheet } from './OrderConfirmationSheet.jsx';
 export function CartDrawer({ isOpen, onClose }) {
   const { items, getTotalAmount, getItemsByMember, canEditItem, hasCustomizationsAvailable, cartLocked, orderProcessingStatus, lockedByMember, isCartEditable, pendingOrderId, unlockCart } = useCartStore();
   const { memberPid, isHost, sessionValidated, members } = useSessionStore();
-  const showModal = useSessionStore((state) => state.showModal);
   
   // Track which items have customizations available
   const [itemsWithCustomizations, setItemsWithCustomizations] = useState(new Set());
@@ -44,77 +43,14 @@ export function CartDrawer({ isOpen, onClose }) {
     checkCustomizations();
   }, [isOpen, items, isEmpty]);
   
-  // Function to play success sound
-  const playSuccessSound = () => {
-    try {
-      // Create a simple success sound using Web Audio API
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-      
-      // Success sound: quick rising tone
-      oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-      oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.1);
-      oscillator.type = 'sine';
-      
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-      
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.3);
-    } catch (error) {
-      console.warn('Could not play success sound:', error);
-    }
-  };
-  
-  // Handle order processing status changes (moved from MenuScreen)
+  // Handle order processing status changes - close cart when order is successful and cart is empty
   useEffect(() => {
-    if (orderProcessingStatus === 'confirmed' && pendingOrderId) {
-      // Get the latest order from cart store (it should have been added by handleOrderSuccess)
-      const orders = useCartStore.getState().getOrders();
-      const confirmedOrder = orders.find(order => order.id === pendingOrderId);
-      
-      if (confirmedOrder) {
-        // Play success sound
-        playSuccessSound();
-        
-        // Show success modal
-        showModal({
-          type: 'success',
-          title: 'Order Placed!',
-          message: 'Your order has been successfully placed. You can continue ordering more items or track your orders.',
-          actions: [
-            {
-              label: 'Continue Ordering',
-              variant: 'success',
-            }
-          ]
-        });
-        
-        // // Set the order for confirmation sheet
-        // setLastPlacedOrder(confirmedOrder);
-        // setIsOrderConfirmationOpen(true);
-        onClose();
-        // Reset order processing status after showing confirmation
-      }
-    } else if (orderProcessingStatus === 'failed') {
-      // Show error modal for failed orders
-      showModal({
-        type: 'error',
-        title: 'Order Failed',
-        message: 'There was an issue processing your order. Please try again.',
-        actions: [
-          {
-            label: 'Retry',
-            variant: 'danger',
-          }
-        ]
-      });
+    if (orderProcessingStatus === 'placed') {
+      // Close cart when order is successfully placed and cart is empty
+      onClose();
     }
-  }, [orderProcessingStatus, pendingOrderId, unlockCart, showModal]);
+  }, [orderProcessingStatus]);
+
   
   const subtotal = getTotalAmount();
   const tax = 0; // Set to zero as requested
@@ -624,36 +560,36 @@ export function CartDrawer({ isOpen, onClose }) {
               onClick={() => handleCheckout()}
                 disabled={orderProcessingStatus === 'processing'}
                 className={`w-full py-3 rounded-lg font-medium transition-all duration-200 ${
-                  orderProcessingStatus === 'processing'
+                  orderProcessingStatus === 'processing' || orderProcessingStatus === 'placed'
                     ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
-                    : orderProcessingStatus === 'failed'
+                    : orderProcessingStatus === 'failed' || orderProcessingStatus === 'cancelled'
                     ? 'bg-orange-500 text-white hover:bg-orange-600'
                     : 'bg-red-500 text-white hover:bg-red-600'
                 }`}
               style={{
-                  backgroundColor: orderProcessingStatus === 'processing' 
+                  backgroundColor: orderProcessingStatus === 'processing' || orderProcessingStatus === 'placed'
                     ? '#9CA3AF' 
-                    : orderProcessingStatus === 'failed'
+                    : orderProcessingStatus === 'failed' || orderProcessingStatus === 'cancelled'
                     ? '#F97316'
                     : '#C72C48',
                 fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                 fontSize: '16px',
                 fontWeight: '600',
                 borderRadius: '12px',
-                  boxShadow: orderProcessingStatus === 'processing' 
+                  boxShadow: orderProcessingStatus === 'processing' || orderProcessingStatus === 'placed'
                     ? 'none' 
                     : '0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06)',
                 transition: 'all 0.2s ease-in-out',
                 transform: 'translateY(0)'
               }}
               onMouseEnter={(e) => {
-                  if (orderProcessingStatus !== 'processing') {
+                  if (orderProcessingStatus !== 'processing' && orderProcessingStatus !== 'placed') {
                 e.target.style.transform = 'translateY(-1px)';
                 e.target.style.boxShadow = '0 6px 8px rgba(0, 0, 0, 0.15)';
                   }
               }}
               onMouseLeave={(e) => {
-                  if (orderProcessingStatus !== 'processing') {
+                  if (orderProcessingStatus !== 'processing' && orderProcessingStatus !== 'placed') {
                 e.target.style.transform = 'translateY(0)';
                 e.target.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06)';
                   }
@@ -661,7 +597,7 @@ export function CartDrawer({ isOpen, onClose }) {
             >
                 {orderProcessingStatus === 'processing' 
                   ? 'Pending Confirmation...' 
-                  : orderProcessingStatus === 'failed'
+                  : orderProcessingStatus === 'failed' || orderProcessingStatus === 'cancelled'
                   ? 'Retry Order'
                   : 'Place Order'}
             </button>
