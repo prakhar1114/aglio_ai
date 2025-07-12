@@ -190,6 +190,7 @@ function handleWebSocketMessage(data) {
       
     case 'table_closed':
       console.log('Table closed by admin:', data.message);
+      sessionStore.clearSession();
       window.location.href = '/menu';
       // // Show modal first
       // sessionStore.showModal({
