@@ -85,7 +85,10 @@ DashboardManager.prototype.renderPendingOrderCard = function(request) {
     const orderItemsHTML = request.items.map(item => {
         const variationText = item.selected_variation ? ` (${item.selected_variation.variation_name})` : '';
         const addonsArr = (item.selected_variation_addons && item.selected_variation_addons.length > 0) ? item.selected_variation_addons : (item.selected_addons || []);
-        const addonsText = addonsArr.length > 0 ? `+ ${addonsArr.map(addon => addon.name).join(', ')}` : '';
+        const addonsText = addonsArr.length > 0 ? `+ ${addonsArr.map(addon => {
+            const quantity = addon.quantity > 1 ? ` x${addon.quantity}` : '';
+            return `${addon.name}${quantity}`;
+        }).join(', ')}` : '';
         
         return `
             <div class="order-item">
