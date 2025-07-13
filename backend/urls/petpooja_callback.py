@@ -267,6 +267,90 @@ async def petpooja_callback(
         logger.error(f"Unexpected error in callback processing: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+@router.post("/{restaurant_slug}/item_switch", summary="Switch menu items or addons on/off (PetPooja)")
+async def item_switch(
+    restaurant_slug: str,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    Switch menu items or addons on/off (is_active) based on PetPooja callback.
+    Request body:
+    {
+        "restID": "xxxx",
+        "type": "item" | "addon",
+        "inStock": true/false,
+        "itemID": ["7778660", ...],
+        ...
+    }
+    """
+    try:
+        payload = await request.json()
+    except Exception as e:
+        logger.error(f"Invalid JSON payload for item_switch: {e}")
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
+
+    logger.info(f"Received item_switch for restaurant {restaurant_slug}: {payload}")
+
+    # Validate required fields
+    required_fields = ["restID", "type", "inStock", "itemID"]
+    for field in required_fields:
+        if field not in payload:
+            raise HTTPException(status_code=400, detail=f"Missing required field: {field}")
+
+    switch_type = payload["type"]
+    in_stock = bool(payload["inStock"])
+    item_ids = payload["itemID"]
+    if not isinstance(item_ids, list):
+        raise HTTPException(status_code=400, detail="itemID must be a list")
+
+    # Find restaurant
+    restaurant = find_restaurant_by_slug(restaurant_slug, db)
+
+    updated_ids = []
+    not_found_ids = []
+
+    if switch_type == "item":
+        from models.schema import MenuItem
+        for ext_id in item_ids:
+            item = db.query(MenuItem).filter(
+                MenuItem.external_id == str(ext_id),
+                MenuItem.restaurant_id == restaurant.id
+            ).first()
+            if item:
+                setattr(item, "is_active", in_stock)
+                updated_ids.append(ext_id)
+                logger.info(f"Set MenuItem {ext_id} is_active={in_stock}")
+            else:
+                not_found_ids.append(ext_id)
+                logger.warning(f"MenuItem not found for external_id={ext_id} in restaurant {restaurant.id}")
+    elif switch_type == "addon":
+        from models.schema import AddonGroupItem
+        for ext_id in item_ids:
+            addon = db.query(AddonGroupItem).filter(
+                AddonGroupItem.external_addon_id == str(ext_id)
+            ).first()
+            if addon:
+                setattr(addon, "is_active", in_stock)
+                updated_ids.append(ext_id)
+                logger.info(f"Set AddonGroupItem {ext_id} is_active={in_stock}")
+            else:
+                not_found_ids.append(ext_id)
+                logger.warning(f"AddonGroupItem not found for external_addon_id={ext_id}")
+    else:
+        raise HTTPException(status_code=400, detail="type must be 'item' or 'addon'")
+
+    db.commit()
+
+    return JSONResponse(
+        status_code=200,
+        content={
+            "success": True,
+            "status": "success",
+            "message": "Stock status updated successfully" 
+        }
+    )
+
 # Health check endpoint for callback service
 @router.get("/health", summary="Callback Service Health Check")
 async def callback_health():
