@@ -222,7 +222,7 @@ def create_dinein_item_relationships(df_menu, menu_api_data: dict, restaurant_id
     relationships_created = 0
     
     for idx, row in df_menu.iterrows():
-        external_id = str(row.get("external_id", "")).strip()
+        external_id = str(row.get("id", "")).strip()
         if not external_id or external_id not in petpooja_items:
             continue
             
