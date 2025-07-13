@@ -1,0 +1,5 @@
+id,name,display_name,group_name,is_active
+size_small,Small,Small,Size,true
+size_large,Large,Large,Size,true
+spice_mild,Mild,Mild,Spice Level,true
+spice_hot,Hot,Hot,Spice Level,true 

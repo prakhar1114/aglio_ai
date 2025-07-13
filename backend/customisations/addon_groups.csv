@@ -1,0 +1,3 @@
+id,name,display_name,priority,is_active
+extra_toppings,Extra Toppings,Extra Toppings,1,true
+sides,Sides,Sides,2,true 

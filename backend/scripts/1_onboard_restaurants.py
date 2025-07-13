@@ -59,11 +59,11 @@ def validate_and_clean_csv(df_menu: pd.DataFrame) -> pd.DataFrame:
         'name', 'category_brief', 'group_category', 'description', 
         'price', 'image_path', 'veg_flag', 'is_bestseller', 
         'is_recommended', 'kind', 'priority', 'promote', 'public_id',
-        'cloudflare_image_id', 'cloudflare_video_id', 'external_id'
+        'cloudflare_image_id', 'cloudflare_video_id', 'id'
     ]
     
     # Check for required columns, ALWAYS ADD THESE, DO NOT REMOVE ANY
-    required_columns = ['name', 'category_brief', 'group_category', 'description', 'price', 'image_path', 'cloudflare_image_id', 'cloudflare_video_id', 'external_id', 'veg_flag', 'is_bestseller', 'is_recommended', 'promote', 'priority', 'kind']
+    required_columns = ['name', 'category_brief', 'group_category', 'description', 'price', 'image_path', 'cloudflare_image_id', 'cloudflare_video_id', 'id', 'veg_flag', 'is_bestseller', 'is_recommended', 'promote', 'priority', 'kind']
     missing_columns = [col for col in required_columns if col not in df_menu.columns]
     if missing_columns:
         raise ValueError(f"Missing required columns in CSV: {missing_columns}")
@@ -326,6 +326,242 @@ def push_to_qdrant(restaurant_slug: str, df_with_embeddings: pd.DataFrame) -> bo
         logger.error(f"❌ Error uploading to Qdrant: {e}")
         return False
 
+# ---------- helpers -----------------------------------------------------------
+
+def safe_read_csv(csv_path: Path):
+    """Return DataFrame if file exists, else None."""
+    if csv_path.exists():
+        return pd.read_csv(csv_path)
+    return None
+
+# -----------------------------------------------------------------------------
+# No-POS onboarding helper
+# -----------------------------------------------------------------------------
+
+def onboard_no_pos(folder: Path, db, restaurant_id: int, df_menu: pd.DataFrame, rest, logger):
+    """Process customisation CSVs for pos_type==no_pos."""
+
+    custom_dir = folder / "customisations"
+
+    # 1. Ensure POSSystem row exists
+    pos_system = db.query(POSSystem).filter_by(restaurant_id=restaurant_id, name="no_pos").first()
+    if not pos_system:
+        pos_system = POSSystem(
+            restaurant_id=restaurant_id,
+            name="no_pos",
+            config={"type": "manual"},
+            is_active=True,
+        )
+        db.add(pos_system)
+        db.flush()
+
+    # 2. Load CSVs (skip silently if directory / file missing)
+    variations_df = safe_read_csv(custom_dir / "variations.csv")
+    addon_groups_df = safe_read_csv(custom_dir / "addon_groups.csv")
+    addon_items_df = safe_read_csv(custom_dir / "addon_items.csv")
+    item_variations_df = safe_read_csv(custom_dir / "item_variations.csv")
+    item_addons_df = safe_read_csv(custom_dir / "item_addons.csv")
+    item_variation_addons_df = safe_read_csv(custom_dir / "item_variation_addons.csv")
+
+    # Build lookup for menu items via external_id (id column of menu.csv)
+    menu_items = db.query(MenuItem).filter(MenuItem.restaurant_id == restaurant_id).all()
+    menu_item_map = {mi.external_id: mi for mi in menu_items}
+
+    # 3. Insert Variations
+    variation_map = {}
+    if variations_df is not None:
+        for _, row in variations_df.iterrows():
+            if pd.isna(row.get("id")):
+                raise ValueError("variations.csv missing 'id' value in one of the rows")
+
+            var_ext_id = str(row["id"]).strip()
+            # Skip if already exists (idempotent)
+            existing = db.query(Variation).filter_by(external_variation_id=var_ext_id, pos_system_id=pos_system.id).first()
+            if existing:
+                variation_map[var_ext_id] = existing
+                continue
+
+            variation = Variation(
+                name=str(row["name"]),
+                display_name=str(row["display_name"]),
+                group_name=str(row["group_name"]),
+                is_active=str(row["is_active"]).lower() in ["1", "true", "yes"],
+                external_variation_id=var_ext_id,
+                external_data=row.to_dict(),
+                pos_system_id=pos_system.id,
+            )
+            db.add(variation)
+            db.flush()
+            variation_map[var_ext_id] = variation
+
+    # 4. Insert Addon Groups
+    addon_group_map = {}
+    if addon_groups_df is not None:
+        for _, row in addon_groups_df.iterrows():
+            if pd.isna(row.get("id")):
+                raise ValueError("addon_groups.csv missing 'id' value in one of the rows")
+            ag_ext_id = str(row["id"]).strip()
+            existing = db.query(AddonGroup).filter_by(external_group_id=ag_ext_id, pos_system_id=pos_system.id).first()
+            if existing:
+                addon_group_map[ag_ext_id] = existing
+                continue
+
+            addon_group = AddonGroup(
+                name=str(row["name"]),
+                display_name=str(row["display_name"]),
+                priority=int(row.get("priority", 0)),
+                is_active=str(row.get("is_active", "true")).lower() in ["1", "true", "yes"],
+                external_group_id=ag_ext_id,
+                external_data=row.to_dict(),
+                pos_system_id=pos_system.id,
+            )
+            db.add(addon_group)
+            db.flush()
+            addon_group_map[ag_ext_id] = addon_group
+
+    # 5. Insert Addon Items
+    if addon_items_df is not None:
+        for _, row in addon_items_df.iterrows():
+            grp_id = str(row["addon_group_id"]).strip()
+            if grp_id not in addon_group_map:
+                raise ValueError(f"addon_items.csv references unknown addon_group_id '{grp_id}'")
+
+            if pd.isna(row.get("id")):
+                raise ValueError("addon_items.csv missing 'id' value in one of the rows")
+            ai_ext_id = str(row["id"]).strip()
+
+            existing = db.query(AddonGroupItem).filter_by(
+                external_addon_id=ai_ext_id, addon_group_id=addon_group_map[grp_id].id
+            ).first()
+            if existing:
+                continue
+
+            tags_raw = str(row.get("tags", "")).strip()
+            tags = [t.strip() for t in tags_raw.split(",") if t.strip()] if tags_raw else []
+
+            addon_item = AddonGroupItem(
+                addon_group_id=addon_group_map[grp_id].id,
+                name=str(row["name"]),
+                display_name=str(row["display_name"]),
+                price=float(row["price"]),
+                is_active=str(row.get("is_active", "true")).lower() in ["1", "true", "yes"],
+                priority=int(row.get("priority", 0)),
+                tags=tags,
+                external_addon_id=ai_ext_id,
+                external_data=row.to_dict(),
+            )
+            db.add(addon_item)
+
+    # 6. Insert Item Variations
+    item_variation_map = {}
+    if item_variations_df is not None:
+        for _, row in item_variations_df.iterrows():
+            # Mandatory columns check
+            required_cols = ["id", "menu_item_id", "variation_id", "price"]
+            for col in required_cols:
+                if pd.isna(row.get(col)):
+                    raise ValueError(f"item_variations.csv missing '{col}' in one of the rows")
+
+            menu_item_key = str(row["menu_item_id"]).strip()
+            variation_key = str(row["variation_id"]).strip()
+            item_var_ext_id = str(row["id"]).strip()
+
+            if menu_item_key not in menu_item_map:
+                raise ValueError(f"item_variations.csv references unknown menu_item_id '{menu_item_key}'")
+            if variation_key not in variation_map:
+                raise ValueError(f"item_variations.csv references unknown variation_id '{variation_key}'")
+
+            menu_item = menu_item_map[menu_item_key]
+            variation = variation_map[variation_key]
+
+            item_variation = ItemVariation(
+                menu_item_id=menu_item.id,
+                variation_id=variation.id,
+                price=float(row["price"]),
+                is_active=str(row.get("is_active", "true")).lower() in ["1", "true", "yes"],
+                priority=int(row.get("priority", 0)),
+                external_id=item_var_ext_id,
+                external_data=row.to_dict(),
+            )
+            db.add(item_variation)
+            db.flush()
+            item_variation_map[item_var_ext_id] = item_variation
+
+    # 7. Insert Item Addons
+    if item_addons_df is not None:
+        for _, row in item_addons_df.iterrows():
+            required_cols = ["menu_item_id", "addon_group_id", "min_selection", "max_selection"]
+            for col in required_cols:
+                if pd.isna(row.get(col)):
+                    raise ValueError(f"item_addons.csv missing '{col}' in one of the rows")
+
+            menu_item_key = str(row["menu_item_id"]).strip()
+            addon_group_key = str(row["addon_group_id"]).strip()
+
+            if menu_item_key not in menu_item_map:
+                raise ValueError(f"item_addons.csv references unknown menu_item_id '{menu_item_key}'")
+            if addon_group_key not in addon_group_map:
+                raise ValueError(f"item_addons.csv references unknown addon_group_id '{addon_group_key}'")
+
+            menu_item = menu_item_map[menu_item_key]
+            addon_group = addon_group_map[addon_group_key]
+
+            item_addon = ItemAddon(
+                menu_item_id=menu_item.id,
+                addon_group_id=addon_group.id,
+                min_selection=int(row["min_selection"]),
+                max_selection=int(row["max_selection"]),
+                is_active=str(row.get("is_active", "true")).lower() in ["1", "true", "yes"],
+                priority=int(row.get("priority", 0)),
+            )
+            db.add(item_addon)
+
+    # 8. Insert ItemVariation Addons
+    if item_variation_addons_df is not None:
+        for _, row in item_variation_addons_df.iterrows():
+            required_cols = ["item_variation_id", "addon_group_id", "min_selection", "max_selection"]
+            for col in required_cols:
+                if pd.isna(row.get(col)):
+                    raise ValueError(f"item_variation_addons.csv missing '{col}' in one of the rows")
+
+            item_var_key = str(row["item_variation_id"]).strip()
+            addon_group_key = str(row["addon_group_id"]).strip()
+
+            if item_var_key not in item_variation_map:
+                raise ValueError(f"item_variation_addons.csv references unknown item_variation_id '{item_var_key}'")
+            if addon_group_key not in addon_group_map:
+                raise ValueError(f"item_variation_addons.csv references unknown addon_group_id '{addon_group_key}'")
+
+            item_variation = item_variation_map[item_var_key]
+            addon_group = addon_group_map[addon_group_key]
+
+            item_var_addon = ItemVariationAddon(
+                item_variation_id=item_variation.id,
+                addon_group_id=addon_group.id,
+                min_selection=int(row["min_selection"]),
+                max_selection=int(row["max_selection"]),
+                is_active=str(row.get("is_active", "true")).lower() in ["1", "true", "yes"],
+                priority=int(row.get("priority", 0)),
+            )
+            db.add(item_var_addon)
+
+    # 9. Update Menu Item flags
+    # items with variations
+    db.query(MenuItem).filter(
+        MenuItem.restaurant_id == restaurant_id,
+        MenuItem.item_variations.any()
+    ).update({"itemallowvariation": True}, synchronize_session=False)
+
+    # items with addons
+    db.query(MenuItem).filter(
+        MenuItem.restaurant_id == restaurant_id,
+        MenuItem.item_addons.any()
+    ).update({"itemallowaddon": True}, synchronize_session=False)
+
+    logger.success("✅ no_pos customisations processed")
+
+# -----------------------------------------------------------------------------
+
 # ---------- core loader -------------------------------------------------------
 
 def seed_folder(folder: Path):
@@ -345,21 +581,33 @@ def seed_folder(folder: Path):
 
         has_pos_config = bool(meta.get("pos_config") and meta["pos_config"].get("pos_type"))
         pos_type = meta["pos_config"].get("pos_type") if has_pos_config else None
-        is_dinein = pos_type == "petpooja_dinein"
 
-        tbl_cfg = None
+
+        is_ppdinein = pos_type == "petpooja_dinein"
+        is_no_pos = pos_type == "no_pos"
+        is_ppdelivery = pos_type == "petpooja"
+
         # tables.json not required for petpooja_dinein since tables come from areas.json
-        if not is_dinein:
+        if is_ppdinein:
+            assert (folder / "menu.csv").exists(), "menu.csv missing"
+            assert (folder / "areas.json").exists(), "areas.json missing"
+            assert (folder / "menu.json").exists(), "menu.json missing"
+            assert (folder / "images").exists(), "images directory missing"
+            tbl_cfg = None
+
+        elif is_no_pos:
+            assert (folder / "menu.csv").exists(), "menu.csv missing"
+            assert (folder / "customisations").exists(), "customisations directory missing"
+            assert (folder / "images").exists(), "images directory missing"
             assert (folder / "tables.json").exists(), "tables.json missing"
             tbl_cfg = json.loads((folder / "tables.json").read_text())
-        assert (folder / "menu.csv").exists(), "menu.csv missing"
-        if has_pos_config:
-            # POS restaurants must supply additional raw menu data
-            assert (folder / "menu.json").exists(), "menu.json missing for POS onboarding"
-            if is_dinein:
-                # Dine-in requires areas.json for table management
-                assert (folder / "areas.json").exists(), "areas.json missing for petpooja_dinein"
-        assert (folder / "images").exists(), "images directory missing"
+
+        elif is_ppdelivery:
+            assert (folder / "menu.csv").exists(), "menu.csv missing"
+            assert (folder / "menu.json").exists(), "menu.json missing"
+            assert (folder / "images").exists(), "images directory missing"
+            assert (folder / "tables.json").exists(), "tables.json missing"
+            tbl_cfg = json.loads((folder / "tables.json").read_text())
 
         hours_fp = folder / "hours.json"
         hours_cfg = json.loads(hours_fp.read_text()) if hours_fp.exists() else None
@@ -380,21 +628,29 @@ def seed_folder(folder: Path):
         # If POS integration is present, load menu.json and areas.json for downstream use
         # --------------------------------------------------------------
 
-        menu_api_data = None
-        areas_data = None
-        petpooja_items_map = {}
-        attributes_map = {}
-        if has_pos_config:
-            menu_api_data = json.loads((folder / "menu.json").read_text())
-            if pos_type == "petpooja":
-                petpooja_items_map = {item["itemid"]: item for item in menu_api_data.get("items", [])}
-                attributes_map = {attr["attributeid"]: attr["attribute"] for attr in menu_api_data.get("attributes", [])}
-            elif is_dinein:
-                # Load areas data for dine-in
-                areas_data = json.loads((folder / "areas.json").read_text())
-                petpooja_items_map = {item["itemid"]: item for item in menu_api_data.get("items", [])}
-                attributes_map = {attr["attributeid"]: attr["attribute"] for attr in menu_api_data.get("attributes", [])}
+        menu_api_data: dict | None = None
+        areas_data: dict | None = None
+        petpooja_items_map: dict = {}
+        attributes_map: dict = {}
 
+        # Only PetPooja variants require raw menu.json (delivery or dine-in)
+        if is_ppdelivery or is_ppdinein:
+            menu_api_path = folder / "menu.json"
+            if not menu_api_path.exists():
+                raise FileNotFoundError("menu.json missing but required for PetPooja onboarding")
+
+            menu_api_data = json.loads(menu_api_path.read_text())
+            # Common maps for both PP flows
+            petpooja_items_map = {item["itemid"]: item for item in menu_api_data.get("items", [])}
+            attributes_map = {attr["attributeid"]: attr["attribute"] for attr in menu_api_data.get("attributes", [])}
+
+            if is_ppdinein:
+                # Dine-in additionally needs areas.json
+                areas_path = folder / "areas.json"
+                if not areas_path.exists():
+                    raise FileNotFoundError("areas.json missing for petpooja_dinein onboarding")
+                areas_data = json.loads(areas_path.read_text())
+         
         with SessionLocal() as db:
             # ---- restaurant
             rest = db.query(Restaurant).filter_by(public_id=meta["public_id"]).first()
@@ -454,7 +710,7 @@ def seed_folder(folder: Path):
             # ---- tables (updated for dine-in)
             existing_tables = db.query(Table).filter_by(restaurant_id=restaurant_id).count()
             if existing_tables == 0:
-                if is_dinein and areas_data:
+                if is_ppdinein and areas_data:
                     # Use areas.json for dine-in table creation
                     process_dinein_tables_from_areas(areas_data, restaurant_id, db)
                 elif tbl_cfg:
@@ -563,7 +819,7 @@ def seed_folder(folder: Path):
                 mi.promote = bool(promote_val) if pd.notna(promote_val) else False
                 
                 # Set new schema fields with defaults for simple restaurants
-                external_id_val = row.get("external_id")
+                external_id_val = row.get("id")
                 mi.external_id = str(external_id_val) if pd.notna(external_id_val) and str(external_id_val).strip() else None
                 mi.external_data = None  # No external data for simple restaurants
                 mi.itemallowvariation = False  # Simple restaurants don't have variations
@@ -594,50 +850,54 @@ def seed_folder(folder: Path):
             logger.success(f"✅ Processed {menu_items_processed} menu items in PostgreSQL")
             
             # ---- POS-specific post-processing ----------------------------------
-            if menu_api_data:
-                if is_dinein:
-                    logger.info("🏢 Processing PetPooja dine-in data...")
-                    # Create POS system for dine-in
-                    pos_system = create_pos_system_for_dinein(
-                        restaurant_id, meta.get("pos_config"), menu_api_data, areas_data, db
-                    )
-                    
-                    # Get the actual pos_system_id
-                    pos_system_id = pos_system.id
-                    
-                    # Create dummy variations from item data
-                    created_variations = create_dummy_variations_for_dinein_items(
-                        menu_api_data, pos_system_id, db
-                    )
-                    
-                    # Process addon groups using utility function
-                    addon_groups_synced, addon_items_synced = process_dinein_addon_groups(
-                        menu_api_data, pos_system_id, attributes_map, db
-                    )
-                    
-                    logger.success(f"✅ Processed {addon_groups_synced} addon groups, {addon_items_synced} addon items for dine-in")
-                    
-                    # Update menu items with POS system reference
+
+            if is_ppdinein:
+                logger.info("🏢 Processing PetPooja dine-in data...")
+                # Create POS system for dine-in
+                pos_system = create_pos_system_for_dinein(
+                    restaurant_id, meta.get("pos_config"), menu_api_data, areas_data, db
+                )
+                
+                # Get the actual pos_system_id
+                pos_system_id = pos_system.id
+                
+                # Create dummy variations from item data
+                created_variations = create_dummy_variations_for_dinein_items(
+                    menu_api_data, pos_system_id, db
+                )
+                
+                # Process addon groups using utility function
+                addon_groups_synced, addon_items_synced = process_dinein_addon_groups(
+                    menu_api_data, pos_system_id, attributes_map, db
+                )
+                
+                logger.success(f"✅ Processed {addon_groups_synced} addon groups, {addon_items_synced} addon items for dine-in")
+                
+                # Update menu items with POS system reference
+                logger.info("🔗 Updating menu items with POS system reference...")
+                db.query(MenuItem).filter(
+                    MenuItem.restaurant_id == restaurant_id,
+                    MenuItem.external_id.isnot(None)
+                ).update({"pos_system_id": pos_system_id})
+                
+                # Create item relationships with dummy variations
+                create_dinein_item_relationships(df_menu, menu_api_data, restaurant_id, pos_system_id, created_variations, db)
+                
+            elif is_no_pos:
+                logger.info("🔗 Processing NoPOS data…")
+                onboard_no_pos(folder, db, restaurant_id, df_menu, rest, logger)
+
+            elif is_ppdelivery:
+                # Regular PetPooja delivery processing
+                logger.info("🔗 Processing PetPooja data...")
+                petpooja_result = process_petpooja_data(menu_api_data, restaurant_id, meta.get("pos_config"), db)
+                if petpooja_result.get("success"):
                     logger.info("🔗 Updating menu items with POS system reference...")
                     db.query(MenuItem).filter(
                         MenuItem.restaurant_id == restaurant_id,
                         MenuItem.external_id.isnot(None)
-                    ).update({"pos_system_id": pos_system_id})
-                    
-                    # Create item relationships with dummy variations
-                    create_dinein_item_relationships(df_menu, menu_api_data, restaurant_id, pos_system_id, created_variations, db)
-                    
-                else:
-                    # Regular PetPooja delivery processing
-                    logger.info("🔗 Processing PetPooja data...")
-                    petpooja_result = process_petpooja_data(menu_api_data, restaurant_id, meta.get("pos_config"), db)
-                    if petpooja_result.get("success"):
-                        logger.info("🔗 Updating menu items with POS system reference...")
-                        db.query(MenuItem).filter(
-                            MenuItem.restaurant_id == restaurant_id,
-                            MenuItem.external_id.isnot(None)
-                        ).update({"pos_system_id": petpooja_result["pos_system_id"]})
-                        create_item_relationships(df_menu, menu_api_data, restaurant_id, petpooja_result["pos_system_id"], db)
+                    ).update({"pos_system_id": petpooja_result["pos_system_id"]})
+                    create_item_relationships(df_menu, menu_api_data, restaurant_id, petpooja_result["pos_system_id"], db)
 
             # Now commit all database changes at once
             db.commit()

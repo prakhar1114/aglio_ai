@@ -1,0 +1,5 @@
+id,menu_item_id,variation_id,price,is_active,priority
+pm_small,pizza_margherita_001,size_small,180,true,1
+pm_large,pizza_margherita_001,size_large,250,true,2
+pa_mild,pasta_arrabiata_001,spice_mild,140,true,1
+pa_hot,pasta_arrabiata_001,spice_hot,150,true,2 

@@ -1,0 +1,4 @@
+id,menu_item_id,addon_group_id,min_selection,max_selection,is_active,priority
+pm_addon,pizza_margherita_001,extra_toppings,0,3,true,1
+pa_addon,pasta_arrabiata_001,extra_toppings,0,3,true,1
+pm_sides,pizza_margherita_001,sides,0,2,true,2 
