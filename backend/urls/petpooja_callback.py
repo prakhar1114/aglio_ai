@@ -25,6 +25,8 @@ PETPOOJA_STATUS_MAPPING = {
     "2": "confirmed",      # Accepted  
     "3": "confirmed",      # Accepted
     "5": "food_ready",     # Food Ready
+    "10": "delivered",     # Delivered
+    "4": "dispatch",       # Dispatch
     # Skip 4 (dispatch), 10 (delivered) - not relevant for dine-in
 }
 
@@ -92,7 +94,7 @@ def validate_callback_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
         "is_modified": payload.get("is_modified", "No")
     }
 
-def update_order_status(order: Order, new_status: str, callback_data: Dict[str, Any], db: Session) -> str:
+async def update_order_status(order: Order, new_status: str, callback_data: Dict[str, Any], db: Session) -> str:
     """
     Update order status and related timestamps.
     
@@ -109,16 +111,18 @@ def update_order_status(order: Order, new_status: str, callback_data: Dict[str, 
     current_time = datetime.utcnow()
     
     # Update status
-    setattr(order, 'status', new_status)
+    # setattr(order, 'status', new_status)
     
     # Update timestamps based on status change
     if new_status == "confirmed" and str(old_status) != "confirmed":
         setattr(order, 'confirmed_at', current_time)
         logger.info(f"Order {order.public_id} confirmed at {current_time}")
+        setattr(order, 'status', new_status)
     
     elif new_status in ["failed", "cancelled"] and str(old_status) not in ["failed", "cancelled"]:
         setattr(order, 'failed_at', current_time)
         logger.info(f"Order {order.public_id} failed/cancelled at {current_time}")
+        setattr(order, 'status', new_status)
     
     # Store full callback data in pos_response for debugging
     existing_response = getattr(order, 'pos_response', None)
@@ -134,8 +138,39 @@ def update_order_status(order: Order, new_status: str, callback_data: Dict[str, 
     setattr(order, 'pos_response', existing_response)
     
     db.flush()
+
+    # ----------------------------------------------------------
+    # 🔊  Broadcast status change to all guests in the session
+    # ----------------------------------------------------------
+    try:
+        from websocket.manager import connection_manager  # Local import to avoid circular deps
+        from models.schema import Session as DineSession
+
+        sess = db.query(DineSession).filter(DineSession.id == order.session_id).first()
+        if sess:
+            success_message = {
+                "type": "order_confirmed",
+                "order_id": order.public_id,
+                "order": {
+                    "id": order.public_id,
+                    "orderNumber": order.public_id.split("_")[1],
+                    "timestamp": order.created_at.isoformat(),
+                    "items": order.payload,
+                    "total": order.total_amount,
+                    "status": new_status
+                }
+            }
+            # Fire-and-forget; failures are logged but don't block POS callback
+            logger.info(f"Broadcasting order status update to session {sess.public_id}")
+            await connection_manager.broadcast_to_session(sess.public_id, success_message)  # type: ignore
+        else:
+            logger.warning(f"Session not found for order {order.public_id}")
+
+    except Exception as e:
+        logger.warning(f"Broadcast module unavailable: {e}")
     
     logger.info(f"Order {order.public_id} status updated: {old_status} → {new_status}")
+    
     return new_status
 
 @router.post("/{restaurant_slug}/", summary="PetPooja Order Status Callback")
@@ -203,7 +238,7 @@ async def petpooja_callback(
             )
         
         # Update order status
-        updated_status = update_order_status(order, internal_status, validated_data, db)
+        updated_status = await update_order_status(order, internal_status, validated_data, db)
         
         # Commit transaction
         db.commit()
