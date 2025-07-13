@@ -319,6 +319,9 @@ async def handle_place_order(websocket, session_pid, member_pid, data):
             new_order.total_amount = total_amount
             new_order.cart_hash = f"hash_{len(cart_items)}_{total_amount}"  # Simple hash
             
+            # Update order status to "placed" for admin approval
+            new_order.status = "placed"
+            
             db.commit()
             
             # Broadcast cart locked to all session members
@@ -331,85 +334,57 @@ async def handle_place_order(websocket, session_pid, member_pid, data):
             }
             await connection_manager.broadcast_to_session(session_pid, lock_message)
             
-            # Determine POS usage and process the order accordingly
-            success, pos_order_id, pos_response, pos_used = await process_order_with_pos(
-                session.restaurant_id, new_order, session, member, db
-            )
+            # Send order placed notification to customers
+            placed_message = {
+                "type": "order_placed",
+                "order_id": new_order.public_id,
+                "message": "Order placed successfully! Awaiting restaurant confirmation.",
+                "order": {
+                    "id": new_order.public_id,
+                    "orderNumber": order_sequence_num,
+                    "timestamp": new_order.created_at.isoformat(),
+                    "items": order_payload,
+                    "total": total_amount,
+                    "initiated_by": {
+                        "member_pid": member.public_id,
+                        "nickname": member.nickname
+                    },
+                    "status": new_order.status
+                }
+            }
+            await connection_manager.broadcast_to_session(session_pid, placed_message)
             
-            # Update order record with POS response
-            if success:
-                new_order.pos_order_id = pos_order_id or order_id
-                new_order.pos_response = [pos_response]
-                new_order.status = "confirmed"
-                new_order.confirmed_at = datetime.utcnow()
-                
-                # Mark all cart items as ordered (keep them for order history)
-                for item in cart_items:
-                    item.state = "ordered"
-                
-                db.commit()
-                
-                # Broadcast success to all session members
-                success_message = {
-                    "type": "order_confirmed",
-                    "order_id": order_id,
+            # Always send order to admin dashboard for approval
+            try:
+                from urls.admin.dashboard_ws import dashboard_manager
+                restaurant = db.query(Restaurant).filter(Restaurant.id == session.restaurant_id).first()
+
+                admin_notification = {
+                    "type": "pending_order",
                     "order": {
-                        "id": order_id,
-                        "orderNumber": order_sequence_num,
-                        "timestamp": new_order.created_at.isoformat(),
+                        "id": new_order.public_id,
+                        "order_number": order_sequence_num,
+                        "table_id": session.table.id,
+                        "table_number": session.table.number,
+                        "timestamp": new_order.created_at.isoformat() + "Z",
+                        "customer_name": member.nickname,
                         "items": order_payload,
                         "total": total_amount,
+                        "special_instructions": data.get("special_instructions", ""),
                         "initiated_by": {
                             "member_pid": member.public_id,
                             "nickname": member.nickname
                         }
                     }
                 }
-                await connection_manager.broadcast_to_session(session_pid, success_message)
 
-                # If NO POS integration was used, notify the admin dashboard
-                if not pos_used:
-                    try:
-                        from urls.admin.dashboard_ws import dashboard_manager
-                        restaurant = db.query(Restaurant).filter(Restaurant.id == session.restaurant_id).first()
+                await dashboard_manager.broadcast_to_session(restaurant.slug, admin_notification)
+                logger.info(f"Sent pending order to admin dashboard for restaurant {restaurant.slug}")
 
-                        admin_notification = {
-                            "type": "order_notification",
-                            "order": {
-                                "id": order_id,
-                                "order_number": order_sequence_num,
-                                "table_id": session.table.id,
-                                "table_number": session.table.number,
-                                "timestamp": new_order.created_at.isoformat() + "Z",
-                                "items": order_payload
-                            }
-                        }
-
-                        await dashboard_manager.broadcast_to_session(restaurant.slug, admin_notification)
-                        logger.info(f"Sent order notification to admin dashboard for restaurant {restaurant.slug}")
-
-                    except Exception as e:
-                        logger.error(f"Failed to send order notification to admin dashboard: {e}")
-            else:
-                # Mark order as failed
-                new_order.status = "failed" 
-                new_order.failed_at = datetime.utcnow()
-                new_order.pos_response = pos_response  # Store error details
-                
-                # UNLOCK cart items - revert to pending state
-                for item in cart_items:
-                    item.state = "pending"
-                    item.order_id = None  # Remove order association
-                
-                db.commit()
-                
-                # Broadcast failure to all session members
-                failure_message = {
-                    "type": "order_failed",
-                    "order_id": order_id,
-                    "error": "Order processing failed"
-                }
-                await connection_manager.broadcast_to_session(session_pid, failure_message)
+            except Exception as e:
+                logger.error(f"Failed to send pending order to admin dashboard: {e}")
+                # Don't fail the order placement if admin notification fails
+                # Order is still placed and can be picked up by admin dashboard later
                             
         except Exception as e:
             db.rollback()

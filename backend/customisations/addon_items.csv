@@ -1,0 +1,5 @@
+addon_group_id,id,name,display_name,price,is_active,priority,tags
+extra_toppings,cheese,Cheese,Extra Cheese,40.0,true,1,"veg"
+extra_toppings,olives,Olives,Olives,30.0,true,2,"veg"
+sides,fries,Fries,French Fries,60.0,true,1,"veg"
+sides,salad,Salad,Garden Salad,70.0,true,2,"veg" 

@@ -140,15 +140,47 @@ function handleWebSocketMessage(data) {
       });
       break;
       
+    case 'order_placed':
+      console.log('Order placed:', data);
+
+      // Unlock cart immediately when order is placed (awaiting restaurant approval)
+      // This allows customers to continue ordering while waiting for approval
+      cartStore.unlockCart();
+      
+      // Add the placed order to orders list so customer can see it immediately      
+      cartStore.handleOrderSuccess(data.order);
+
+      break;
+      
     case 'order_confirmed':
       console.log('Order confirmed:', data);
-      if (data.order) {
-        cartStore.handleOrderSuccess(data.order);
-      } else {
-        // Fallback if only id is sent
-        cartStore.handleOrderSuccess({ id: data.order_id });
-      }
+
+      cartStore.handleOrderUpdate(data.order);
+
       // Don't add to orders here - let the backend send order details separately
+      break;
+      
+    case 'order_updated':
+      console.log('Order updated by admin:', data);
+      cartStore.handleOrderUpdate(data.updated_order, data.changes_summary);
+      
+      // Show toast notification to customer
+      sessionStore.showModal({
+        type: 'info',
+        title: 'Order Updated',
+        message: 'Your order has been updated by the restaurant.',
+        actions: [{
+          label: 'OK',
+          action: () => sessionStore.hideModal(),
+          variant: 'primary'
+        }]
+      });
+
+      break;
+      
+    case 'order_cancelled':
+      console.log('Order cancelled:', data);
+      cartStore.handleOrderCancellation(data.order_id, data.reason);
       break;
       
     case 'order_failed':
@@ -158,6 +190,7 @@ function handleWebSocketMessage(data) {
       
     case 'table_closed':
       console.log('Table closed by admin:', data.message);
+      sessionStore.clearSession();
       window.location.href = '/menu';
       // // Show modal first
       // sessionStore.showModal({

@@ -1,0 +1,3 @@
+id,item_variation_id,addon_group_id,min_selection,max_selection,is_active,priority
+pm_large_addon,pm_large,extra_toppings,0,5,true,1
+pa_hot_addon,pa_hot,extra_toppings,0,4,true,1 

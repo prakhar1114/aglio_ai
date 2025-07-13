@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { useSessionStore } from './session.js';
-import { generateShortId } from '../utils/general.js';
+import { generateShortId, playSuccessSound } from '../utils/general.js';
 import { getActiveAddonGroups } from '../utils/variationAddons.js';
 
 // Helper to normalise addon arrays coming from backend so UI can rely on a single key
@@ -127,7 +127,7 @@ export const useCartStore = create((set, get) => ({
       clearTimeout(state.orderTimeout);
     }
     
-    // Add the confirmed order to orders list
+    // Prepare the confirmed order data
     const confirmedOrder = {
       id: orderData.id,
       orderNumber: orderData.orderNumber || orderData.order_id || (() => {
@@ -139,19 +139,53 @@ export const useCartStore = create((set, get) => ({
       timestamp: new Date(orderData.timestamp || Date.now()),
       items: orderData.items || [],
       total: orderData.total || 0,
-      initiated_by: orderData.initiated_by
+      initiated_by: orderData.initiated_by,
+      status: orderData.status
     };
     
+    // Check if order already exists and update it, otherwise add it
+    const existingOrderIndex = state.orders.findIndex(order => order.id === orderData.id);
+    let updatedOrders;
+    
+    if (existingOrderIndex !== -1) {
+      // Update existing order
+      updatedOrders = [...state.orders];
+      updatedOrders[existingOrderIndex] = confirmedOrder;
+    } else {
+      // Add new order to the beginning of orders list
+      updatedOrders = [confirmedOrder, ...state.orders];
+    }
+    
+    // Temporarily set status to 'placed' so CartDrawer can detect it and close
     set((state) => ({
-      orderProcessingStatus: 'confirmed',
-      pendingOrderId: orderData.id,
-      orderTimeout: null,
-      orders: [confirmedOrder, ...state.orders], // Add to beginning of orders list
+      orders: updatedOrders,
       items: [], // Clear the cart completely
-      // Unlock cart immediately after success
-      cartLocked: false,
-      lockedByMember: null
+      orderProcessingStatus: 'placed', // Temporarily set to 'placed'
     }));
+
+    // Play success sound
+    playSuccessSound();
+
+    // Show success modal
+    const sessionStore = useSessionStore?.getState();
+    if (sessionStore?.showModal) {
+      sessionStore.showModal({
+        type: 'success',
+        title: 'Order Placed!',
+        message: 'Your order has been successfully Placed. Track your orders in My Table.',
+        actions: [
+          {
+            label: 'Continue Ordering',
+            variant: 'success',
+          }
+        ]
+      });
+    }
+
+    // Reset processing status after a brief delay to allow CartDrawer to detect it
+    setTimeout(() => {
+      set({ orderProcessingStatus: 'idle' });
+    }, 500);
   },
   
   handleOrderFailure: (error) => {
@@ -160,15 +194,129 @@ export const useCartStore = create((set, get) => ({
       clearTimeout(state.orderTimeout);
     }
     
+    // Update the pending order status if it exists in orders
+    let updatedOrders = state.orders;
+    if (state.pendingOrderId) {
+      const existingOrderIndex = state.orders.findIndex(order => order.id === state.pendingOrderId);
+      if (existingOrderIndex !== -1) {
+        updatedOrders = [...state.orders];
+        updatedOrders[existingOrderIndex] = {
+          ...updatedOrders[existingOrderIndex],
+          status: 'failed',
+          error: error
+        };
+      }
+    }
+    
     set({
       orderProcessingStatus: 'failed',
       orderTimeout: null,
+      orders: updatedOrders,
       // Unlock cart on failure so user can retry
       cartLocked: false,
       lockedByMember: null
     });
     
     console.error('Order failed:', error);
+
+    // Show error modal
+    const sessionStore = useSessionStore?.getState();
+    if (sessionStore?.showModal) {
+      sessionStore.showModal({
+        type: 'error',
+        title: 'Order Failed',
+        message: 'There was an issue processing your order. Please try again.',
+        actions: [
+          {
+            label: 'Retry',
+            variant: 'danger',
+          }
+        ]
+      });
+    }
+  },
+  
+  handleOrderUpdate: (updatedOrder, changesSummary) => {
+    const state = get();
+    if (state.orderTimeout) {
+      clearTimeout(state.orderTimeout);
+    }
+    
+    // Prepare the confirmed order data
+    const confirmedOrder = {
+      id: updatedOrder.id,
+      orderNumber: updatedOrder.orderNumber || updatedOrder.order_id,
+      timestamp: new Date(updatedOrder.timestamp || Date.now()),
+      items: updatedOrder.items || [],
+      total: updatedOrder.total || 0,
+      initiated_by: updatedOrder.initiated_by,
+      status: updatedOrder.status,
+      changes_summary: changesSummary
+    };
+    
+    // Check if order already exists and update it, otherwise add it
+    const existingOrderIndex = state.orders.findIndex(order => order.id === updatedOrder.id);
+    let updatedOrders;
+    
+    if (existingOrderIndex !== -1) {
+      // Update existing order
+      updatedOrders = [...state.orders];
+      updatedOrders[existingOrderIndex] = {
+        ...updatedOrders[existingOrderIndex],
+        ...confirmedOrder
+      };
+    } else {
+      // Add new order to the beginning of orders list
+      updatedOrders = [confirmedOrder, ...state.orders];
+    }
+    
+    set((state) => ({
+      orders: updatedOrders
+    }));
+    
+    console.log('Order updated and confirmed:', updatedOrder);
+  },
+  
+  handleOrderCancellation: (orderId, reason) => {
+    const state = get();
+    if (state.orderTimeout) {
+      clearTimeout(state.orderTimeout);
+    }
+    
+    // Update the order status if it exists in orders
+    const existingOrderIndex = state.orders.findIndex(order => order.id === orderId);
+    let updatedOrders = state.orders;
+    
+    if (existingOrderIndex !== -1) {
+      updatedOrders = [...state.orders];
+      updatedOrders[existingOrderIndex] = {
+        ...updatedOrders[existingOrderIndex],
+        status: 'cancelled',
+        cancellation_reason: reason
+      };
+    }
+    
+    set({
+      orders: updatedOrders
+    });
+    
+    console.log('Order cancelled:', orderId, reason);
+
+    // Show cancellation modal
+    const sessionStore = useSessionStore?.getState();
+    if (sessionStore?.showModal) {
+      sessionStore.showModal({
+        type: 'warning',
+        title: 'Order Cancelled',
+        message: reason || 'Your order has been cancelled by the restaurant.',
+        actions: [
+          {
+            label: 'OK',
+            variant: 'secondary',
+          }
+        ]
+      });
+    }
   },
   
   // Check if cart operations are allowed

@@ -217,7 +217,7 @@ async def get_cart_snapshot(
             # Get confirmed orders for this session
             orders_query = db.query(Order).filter(
                 Order.session_id == session.id,
-                Order.status == "confirmed"  # Only confirmed orders
+                # Order.status == "confirmed"  # Only confirmed orders
             ).order_by(Order.created_at.desc()).all()
             
             orders = []
@@ -227,13 +227,14 @@ async def get_cart_snapshot(
                     "id": order.public_id,
                     # Extract the numeric sequence from the order public_id (format: ORD-<restaurant_id>-<sequence>)
                     "orderNumber": int(order.public_id.split("_")[1]),
-                    "timestamp": order.created_at.isoformat(),
+                    "timestamp": order.created_at.isoformat() + "Z",
                     "items": order.payload,  # This contains the order items data
                     "total": order.total_amount,
                     "initiated_by": {
                         "member_pid": order.initiated_by_member.public_id,
                         "nickname": order.initiated_by_member.nickname
-                    }
+                    },
+                    "status": order.status
                 }
                 orders.append(order_data)
             

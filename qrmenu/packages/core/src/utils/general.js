@@ -33,3 +33,31 @@ export function isVideoUrl(url) {
   const videoExtensions = ['.mp4', '.webm', '.ogg', '.mov', '.avi'];
   return videoExtensions.some(ext => url.toLowerCase().includes(ext));
 }
+
+/**
+ * Play a success sound using Web Audio API
+ */
+export function playSuccessSound() {
+  try {
+    // Create a simple success sound using Web Audio API
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    // Success sound: quick rising tone
+    oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+    oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.1);
+    oscillator.type = 'sine';
+    
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.3);
+  } catch (error) {
+    console.warn('Could not play success sound:', error);
+  }
+}

@@ -248,7 +248,7 @@ class Order(Base):
     payload = Column(JSON, nullable=False)  # Enhanced cart items data with variations/addons
     cart_hash = Column(String, nullable=False)
     total_amount = Column(Float, nullable=False)  # Total in Indian Rs
-    status = Column(Enum("processing", "confirmed", "food_ready", "failed", "cancelled", name="order_status"), default="processing", nullable=False)
+    status = Column(Enum("processing", "placed", "confirmed", "food_ready", "failed", "cancelled", name="order_status"), default="processing", nullable=False)
     
     # POS Integration
     pos_system_id = Column(Integer, ForeignKey("pos_systems.id"), nullable=True)
@@ -508,12 +508,12 @@ class ItemVariationAddon(Base):
     )
 
 
-# ---------------------------------------------------------------------------
-# Database initialization
-# ---------------------------------------------------------------------------
-def init_db():
-    """Initialize the database tables."""
-    Base.metadata.create_all(bind=engine)
+# # ---------------------------------------------------------------------------
+# # Database initialization
+# # ---------------------------------------------------------------------------
+# def init_db():
+#     """Initialize the database tables."""
+#     Base.metadata.create_all(bind=engine)
 
 
 def get_db():

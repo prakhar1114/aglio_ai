@@ -7,6 +7,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
+from loguru import logger
 
 from models.schema import SessionLocal, Restaurant, Table, Session as TableSession, Member, CartItem, MenuItem, Order, WaiterRequest
 from .auth_utils import auth, get_restaurant_api_keys, validate_api_key, create_admin_jwt_token, decode_admin_jwt_token
@@ -117,7 +118,8 @@ def login_submit(request: Request, api_key: str = Form(...)):
             {
                 "request": request, 
                 "restaurant_name": restaurant.name,
-                "api_key": jwt_token  # Pass JWT token instead of raw API key
+                "api_key": jwt_token,  # Pass JWT token instead of raw API key
+                "restaurant_slug": restaurant_slug  # Pass restaurant slug for API calls
             }
         )
     finally:
@@ -871,6 +873,7 @@ def resolve_waiter_request(
 
 # This endpoint returns a QR code URL for a specific table. The URL format is:
 # FRONTEND_URL + "/" + "t=<public_id>&token=<qr_token>"
+
 
 @router.get("/api/table/{table_id}/qr")
 async def get_table_qr(

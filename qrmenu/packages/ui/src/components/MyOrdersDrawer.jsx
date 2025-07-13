@@ -408,15 +408,47 @@ export function MyOrdersDrawer({ isOpen, onClose }) {
                   {/* Order Header */}
                   <div className="flex justify-between items-center mb-3">
                     <div>
-                      <h3 className="font-semibold text-gray-900"
-                          style={{
-                            fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                            fontSize: '16px',
-                            fontWeight: '700',
-                            color: '#1C1C1E'
-                          }}>
-                        Order #{order.orderNumber}
-                      </h3>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-semibold text-gray-900"
+                            style={{
+                              fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                              fontSize: '16px',
+                              fontWeight: '700',
+                              color: '#1C1C1E'
+                            }}>
+                          Order #{order.orderNumber}
+                        </h3>
+                        {/* Status Indicator */}
+                        {order.status && (
+                          <span 
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                              order.status === 'placed' ? 'bg-gray-100 text-gray-700' :
+                              order.status === 'confirmed' ? 'bg-green-100 text-green-700' :
+                              order.status === 'failed' ? 'bg-red-100 text-red-700' :
+                              order.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                              'bg-green-100 text-green-700'
+                            }`}
+                            style={{
+                              fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                              fontSize: '10px',
+                              fontWeight: '600',
+                              borderRadius: '12px',
+                              letterSpacing: '0.025em'
+                            }}
+                          >
+                            <div 
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                order.status === 'placed' ? 'bg-gray-500' :
+                                order.status === 'confirmed' ? 'bg-green-500' :
+                                order.status === 'failed' ? 'bg-red-500' :
+                                order.status === 'cancelled' ? 'bg-red-500' :
+                                'bg-green-500'
+                              }`}
+                            />
+                            {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-sm text-gray-500"
                          style={{
                            fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
