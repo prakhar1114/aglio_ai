@@ -286,7 +286,7 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
                 style={{
                   position: 'relative', // Regular section header, not sticky
                   zIndex: 100, // Higher than ItemCard buttons (z-index: 10)
-                  height: '1px', // Minimal height to avoid zero-sized element error
+                  height: '10px', // Minimal height to avoid zero-sized element error
                   margin: '0',
                   padding: '0',
                   overflow: 'visible', // Allow button to overflow outside the 1px container
@@ -380,7 +380,7 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
                       columnGap: `4px`, // theme spacing.xs - minimal gap for Apple-like breathing
                       width: '100%',
                       padding: `0px 4px`, // Minimal padding - just enough to prevent edge collision
-                      margin: '0',
+                      margin: '0 0 4px 0',
                       lineHeight: '1',
                       backgroundColor: getBackgroundForCategory(groupIndex), // Subtle alternating backgrounds
                       borderRadius: '8px', // theme radius.md for gentle container feel
@@ -394,10 +394,10 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
                         style={{
                           borderRadius: '0px',
                           overflow: 'hidden',
-                          // breakInside: 'avoid', // Prevents items from breaking across columns
+                          breakInside: 'avoid', // Prevents items from breaking across columns
                           margin: '0 0 4px 0', // theme spacing.xs bottom margin for subtle item separation
                           padding: '0',
-                          display: 'inline-block',
+                          display: 'block',
                           width: '100%',
                           verticalAlign: 'top', // Align to top to prevent text baseline spacing
                         }}
@@ -430,8 +430,11 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
                       padding: '0px 4px', // Same as masonry container
                       backgroundColor: getBackgroundForCategory(groupIndex),
                       borderRadius: '8px',
-                      border: groupIndex % 3 === 1 ? '1px solid rgba(226, 55, 68, 0.08)' : 'none',
+                      // border: groupIndex % 3 === 1 ? '1px solid rgba(226, 55, 68, 0.08)' : 'none',
                       margin: '0 0 4px 0', // Same margin as masonry items
+                      // Create explicit stacking context for full-width items to isolate video z-index
+                      position: 'relative',
+                      zIndex: 0, // Lower than category header (zIndex: 100)
                     }}
                   >
                     <FeedItemSwitcher 

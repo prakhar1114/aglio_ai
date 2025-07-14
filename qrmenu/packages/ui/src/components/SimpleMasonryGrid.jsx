@@ -66,12 +66,59 @@ export function SimpleMasonryGrid({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  if (!items || items.length === 0) {
+  // Process items: sort and apply column span logic
+  const processedItems = React.useMemo(() => {
+    if (!items || items.length === 0) return [];
+    
+    // Sort: media items first, no-media items last
+    const sortedItems = [...items].sort((a, b) => {
+      const aHasMedia = a.image_url !== null;
+      const bHasMedia = b.image_url !== null;
+      
+      if (aHasMedia && !bHasMedia) return -1; // a comes first
+      if (!aHasMedia && bHasMedia) return 1;  // b comes first
+      return 0; // maintain relative order
+    });
+
+    // Apply column span logic for 2-column grid
+    const mediaItems = sortedItems.filter(item => item.image_url !== null);
+    const noMediaItems = sortedItems.filter(item => item.image_url === null);
+    const mediaCount = mediaItems.length;
+    
+    // Reset any existing columnSpan
+    sortedItems.forEach(item => {
+      delete item.columnSpan;
+    });
+
+    if (mediaCount > 0) {
+      if (mediaCount % 2 === 0) {
+        // Even number of media items: all media normal span, all no-media full width
+        noMediaItems.forEach(item => {
+          item.columnSpan = 'all';
+        });
+      } else {
+        // Odd number of media items: last media item + all no-media get full width
+        if (mediaItems.length > 0) {
+          mediaItems[mediaItems.length - 1].columnSpan = 'all';
+        }
+        noMediaItems.forEach(item => {
+          item.columnSpan = 'all';
+        });
+      }
+    } else {
+      // No media items: all items get full width
+      sortedItems.forEach(item => {
+        item.columnSpan = 'all';
+      });
+    }
+
+    return sortedItems;
+  }, [items]);
+
+  if (!processedItems || processedItems.length === 0) {
     console.log('SimpleMasonryGrid: No items to render, returning null');
     return null;
   }
-
-  // console.log('SimpleMasonryGrid: Rendering grid with', items.length, 'items and', columnCount, 'columns');
 
   return (
     <div 
@@ -89,39 +136,69 @@ export function SimpleMasonryGrid({
         </h2>
       )}
       
-      <div
-        className="masonry-container"
-        style={{
-          // Use CSS columns for true masonry layout like Pinterest (same as MasonryFeed)
-          columnCount: columnCount,
-          columnGap: '4px', // theme spacing.xs - minimal gap for Apple-like breathing
-          width: '100%',
-          padding: '2px 4px', // Minimal padding - just enough to prevent edge collision
-          margin: '0',
-          lineHeight: '1',
-          backgroundColor: '#D8D8DD', // theme colors.background (same as MasonryFeed)
-          borderRadius: '8px', // theme radius.md for gentle container feel
-          marginBottom: '4px', // theme spacing.xs for category separation
-        }}
-      >
-        {items.map((item) => (
+      <div style={{ width: '100%', backgroundColor: '#D8D8DD', padding: '4px 0px 4px 0px' }}>
+        {/* Regular masonry grid for normal-span items */}
+        {processedItems.filter(item => item.columnSpan !== 'all').length > 0 && (
+          <div
+            className="masonry-container"
+            style={{
+              // Use CSS columns for true masonry layout like Pinterest
+              columnCount: columnCount,
+              // columnFill: 'auto', // Fill columns sequentially instead of balancing
+              columnGap: '4px', // theme spacing.xs - minimal gap for Apple-like breathing
+              width: '100%',
+              padding: '0px 4px', // Minimal padding - just enough to prevent edge collision
+              margin: '0 0 4px 0',
+              lineHeight: '1',
+              backgroundColor: '#D8D8DD', // theme colors.background
+              borderRadius: '8px', // theme radius.md for gentle container feel
+            }}
+          >
+            {processedItems.filter(item => item.columnSpan !== 'all').map((item) => (
+              <div
+                key={item.id}
+                className="feed-item"
+                style={{
+                  borderRadius: '0px',
+                  overflow: 'hidden',
+                  breakInside: 'avoid', // Prevents items from breaking across columns
+                  margin: '0 0 4px 0', // theme spacing.xs bottom margin for subtle item separation
+                  padding: '0',
+                  display: 'block',
+                  width: '100%',
+                  verticalAlign: 'top', // Align to top to prevent text baseline spacing
+                }}
+              >
+                <FeedItemSwitcher 
+                  item={item} 
+                  containerWidth={cardWidth}
+                  onItemClick={() => {
+                    console.log('SimpleMasonryGrid item clicked:', item.name);
+                    onItemClick?.(item);
+                  }}
+                  context_namespace={`simple-masonry-grid`}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Full-width items outside the masonry grid */}
+        {processedItems.filter(item => item.columnSpan === 'all').map((item) => (
           <div
             key={item.id}
-            className="feed-item"
+            className="full-width-item"
             style={{
-              borderRadius: '0px',
-              overflow: 'hidden',
-              breakInside: 'avoid', // Prevents items from breaking across columns
-              margin: '0 0 4px 0', // theme spacing.xs bottom margin for subtle item separation
-              padding: '0',
-              display: 'inline-block',
               width: '100%',
-              verticalAlign: 'top', // Align to top to prevent text baseline spacing
+              padding: '0px 4px', // Same as masonry container
+              backgroundColor: '#D8D8DD',
+              borderRadius: '8px',
+              margin: '0 0 4px 0', // Same margin as masonry items
             }}
           >
             <FeedItemSwitcher 
               item={item} 
-              containerWidth={cardWidth}
+              containerWidth={Math.min((window.innerWidth || 400) - 16, 800)} // Full width minus padding, max 800px
               onItemClick={() => {
                 console.log('SimpleMasonryGrid item clicked:', item.name);
                 onItemClick?.(item);
