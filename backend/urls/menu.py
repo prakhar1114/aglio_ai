@@ -315,7 +315,7 @@ def _build_menu_item_response(item: MenuItemModel, restaurant_slug: str, overrid
                         price=item_variation.price,
                         group_name=group_name,
                         tags=[],
-                        addon_groups=var_addon_groups,
+                        addon_groups=var_addon_groups if item_variation.variationallowaddon else [],
                     )
                 )
         

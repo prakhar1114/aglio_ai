@@ -455,6 +455,7 @@ class ItemVariation(Base):
     price = Column(Float, nullable=False)  # Item-specific price for this variation
     is_active = Column(Boolean, default=True)
     priority = Column(Integer, default=0)
+    variationallowaddon = Column(Boolean, default=False)  # Can this variation have addons
     
     # POS Integration
     external_id = Column(String, nullable=True)  # PetPooja variation.id (used for orders)

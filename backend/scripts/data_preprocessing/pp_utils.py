@@ -71,7 +71,7 @@ def extract_menu_items_from_json(menu_json_path: Path) -> list:
         
         # Create menu item record
         menu_item = {
-            "external_id": item_data["itemid"],
+            "id": item_data["itemid"],
             "name": item_data["itemname"],
             "category_brief": category_name,
             "group_category": group_category,
@@ -84,7 +84,7 @@ def extract_menu_items_from_json(menu_json_path: Path) -> list:
             "kind": "food",
             "priority": int(item_data.get("itemrank", 0)),
             "promote": False,  # To be set manually
-            "public_id": new_id(),
+            "public_id": "",
             "cloudflare_image_id": "",  # To be filled after image upload
             "cloudflare_video_id": ""   # To be filled if applicable
         }
@@ -99,7 +99,7 @@ def generate_csv_file(menu_items: list, output_path: Path):
     
     # Define CSV column order
     fieldnames = [
-        "external_id",
+        "id",
         "name", 
         "category_brief",
         "group_category",
