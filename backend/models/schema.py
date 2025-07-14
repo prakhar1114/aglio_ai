@@ -47,6 +47,7 @@ class Restaurant(Base):
     tz = Column(String, nullable=False, default="UTC")
     require_pass = Column(Boolean, default=False)
     api_key = Column(String(12), unique=True, nullable=True)
+    is_open = Column(Boolean, default=True)  # Store open/closed status
 
     hours = relationship("RestaurantHours", back_populates="restaurant")
     tables = relationship("Table", back_populates="restaurant")

@@ -753,7 +753,7 @@ def seed_folder(folder: Path):
             for idx, row in df_menu.iterrows():
                 mi = db.query(MenuItem).filter_by(
                     restaurant_id=restaurant_id,
-                    name=str(row["name"])
+                    external_id=str(row["id"])
                 ).first()
                 if not mi:
                     mi = MenuItem(

@@ -351,6 +351,62 @@ async def item_switch(
         }
     )
 
+@router.post("/{restaurant_slug}/get_store_status", summary="Get store open/closed status (PetPooja)")
+async def get_store_status(
+    restaurant_slug: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Returns the current open/closed status of the restaurant as per PetPooja format.
+    """
+    restaurant = find_restaurant_by_slug(restaurant_slug, db)
+    store_status = "1" if getattr(restaurant, "is_open", True) else "0"
+    logger.info(f"store_status: {store_status}")
+    return {
+        "http_code": 200,
+        "status": "success",
+        "store_status": store_status,
+        "message": "Store Delivery Status fetched successfully"
+    }
+
+@router.post("/{restaurant_slug}/store_status", summary="Set store open/closed status (PetPooja)")
+async def set_store_status(
+    restaurant_slug: str,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    Updates the open/closed status of the restaurant as per PetPooja format.
+    """
+    try:
+        payload = await request.json()
+    except Exception as e:
+        logger.error(f"Invalid JSON payload for store_status: {e}")
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
+
+    logger.info(f"Received store_status update for restaurant {restaurant_slug}: {payload}")
+
+    required_fields = ["restID", "store_status"]
+    for field in required_fields:
+        if field not in payload:
+            raise HTTPException(status_code=400, detail=f"Missing required field: {field}")
+
+    store_status = str(payload["store_status"])
+    is_open = store_status == "1" or store_status == 1
+    turn_on_time = payload.get("turn_on_time")
+    reason = payload.get("reason")
+    logger.info(f"turn_on_time: {turn_on_time}, reason: {reason}")
+
+    restaurant = find_restaurant_by_slug(restaurant_slug, db)
+    setattr(restaurant, "is_open", is_open)
+    db.commit()
+
+    return {
+        "http_code": 200,
+        "status": "success",
+        "message": f"Store Status updated successfully for store {payload['restID']}"
+    }
+
 # Health check endpoint for callback service
 @router.get("/health", summary="Callback Service Health Check")
 async def callback_health():
