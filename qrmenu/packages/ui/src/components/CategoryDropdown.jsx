@@ -97,13 +97,33 @@ export function CategoryDropdownButton({setIsDropdownOpen, currentVisibleCategor
       pointerEvents: 'auto',
     }}
   >
+    <style>
+      {`
+        @keyframes subtle-background-pulse {
+          0%, 100% {
+            background: rgba(255, 255, 255, 0.9);
+          }
+          50% {
+            background: rgba(255, 255, 255, 0.5);
+          }
+        }
+        
+        .category-dropdown-button {
+          animation: subtle-background-pulse 4s ease-in-out infinite;
+        }
+        
+        .category-dropdown-button:hover {
+          animation-play-state: paused;
+        }
+      `}
+    </style>
     <button
+      className="category-dropdown-button"
       onClick={(e) => {
         e.stopPropagation();
         setIsDropdownOpen((prev) => !prev);
       }}
       style={{
-        background: 'rgba(255, 255, 255, 0.9)', // Subtle transparency as requested
         backdropFilter: 'blur(8px)', // Light blur for premium feel
         WebkitBackdropFilter: 'blur(8px)',
         padding: '6px 10px', // Reduced footprint: smaller padding
@@ -120,11 +140,9 @@ export function CategoryDropdownButton({setIsDropdownOpen, currentVisibleCategor
         lineHeight: '1.4',
       }}
       onMouseEnter={(e) => {
-        e.target.style.background = 'rgba(255, 255, 255, 0.98)';
         e.target.style.transform = 'translateY(-0.5px)';
       }}
       onMouseLeave={(e) => {
-        e.target.style.background = 'rgba(255, 255, 255, 0.92)';
         e.target.style.transform = 'translateY(0)';
       }}
     >
