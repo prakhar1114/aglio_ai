@@ -905,6 +905,42 @@ def process_menu_relationships(payload: Dict[str, Any], restaurant_id: int, pos_
                                 )
                                 db.add(item_var_addon)
                                 relationship_counts["item_variation_addons"] += 1
+                else:
+                    # Update existing ItemVariation
+                    existing.price = float(variation_data["price"])
+                    existing.is_active = variation_data["active"] == "1"
+                    existing.priority = int(variation_data.get("variationrank", 0))
+                    existing.variationallowaddon = variation_data.get("variationallowaddon", 0) == 1
+                    existing.external_id = variation_data["id"]
+                    existing.external_data = variation_data
+                    item_variation = existing
+                    
+                    # Process ItemVariationAddons for existing ItemVariation
+                    for var_addon_data in variation_data.get("addon", []):
+                        addon_group = addon_groups_map.get(var_addon_data["addon_group_id"])
+                        if addon_group:
+                            existing_var_addon = db.query(ItemVariationAddon).filter_by(
+                                item_variation_id=item_variation.id,
+                                addon_group_id=addon_group.id
+                            ).first()
+                            
+                            if not existing_var_addon:
+                                item_var_addon = ItemVariationAddon(
+                                    item_variation_id=item_variation.id,
+                                    addon_group_id=addon_group.id,
+                                    min_selection=int(var_addon_data.get("addon_item_selection_min", 0)),
+                                    max_selection=int(var_addon_data.get("addon_item_selection_max", 1)),
+                                    is_active=True,
+                                    priority=0
+                                )
+                                db.add(item_var_addon)
+                                relationship_counts["item_variation_addons"] += 1
+                            else:
+                                # Update existing ItemVariationAddon
+                                existing_var_addon.min_selection = int(var_addon_data.get("addon_item_selection_min", 0))
+                                existing_var_addon.max_selection = int(var_addon_data.get("addon_item_selection_max", 1))
+                                existing_var_addon.is_active = True
+                                existing_var_addon.priority = 0
         
         # Process ItemAddons  
         for addon_data in item_data.get("addon", []):
@@ -926,6 +962,12 @@ def process_menu_relationships(payload: Dict[str, Any], restaurant_id: int, pos_
                     )
                     db.add(item_addon)
                     relationship_counts["item_addons"] += 1
+                else:
+                    # Update existing ItemAddon
+                    existing.min_selection = int(addon_data.get("addon_item_selection_min", 0))
+                    existing.max_selection = int(addon_data.get("addon_item_selection_max", 1))
+                    existing.is_active = True
+                    existing.priority = 0
     
     db.flush()
     logger.info(f"Created relationships: {relationship_counts}")
