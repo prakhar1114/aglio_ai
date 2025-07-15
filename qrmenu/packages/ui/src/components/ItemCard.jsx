@@ -279,69 +279,75 @@ export function ItemCard({ item, containerWidth, onItemClick, preload=false, aut
     >
       {hasMedia ? (
         // Card with optimized image or video
-        <div style={imageContainerStyle}>
-          <OptimizedMedia
-            imageUrl={item.image_url}
-            cloudflareImageId={item.cloudflare_image_id}
-            cloudflareVideoId={item.cloudflare_video_id}
-            alt={item.name}
-            containerWidth={cardWidth}
-            containerHeight={cardWidth} // Square aspect ratio
-            className="w-full h-full"
-            preload={preload}
-            autoplay={autoplay}
-            muted={muted}
-            reuseStream={true}
-            contextId={`${context_namespace}-${item.id}`}
-          />
-          <div style={buttonOverlayStyle}>
-            {qty === 0 ? (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleAdd();
-                }}
-                style={addButtonStyle}
-              >
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M12 5v14m-7-7h14"
-                    stroke="currentColor"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
-            ) : (
-              <div style={quantityPillStyle}>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRemove();
-                  }}
-                  style={quantityButtonStyle}
-                >
-                  −
-                </button>
-                <span style={quantityStyle}>{qty}</span>
+        <div>
+          <div style={imageContainerStyle}>
+            <OptimizedMedia
+              imageUrl={item.image_url}
+              cloudflareImageId={item.cloudflare_image_id}
+              cloudflareVideoId={item.cloudflare_video_id}
+              alt={item.name}
+              containerWidth={cardWidth}
+              containerHeight={cardWidth} // Square aspect ratio
+              className="w-full h-full"
+              preload={preload}
+              autoplay={autoplay}
+              muted={muted}
+              reuseStream={true}
+              contextId={`${context_namespace}-${item.id}`}
+            />
+            <div style={buttonOverlayStyle}>
+              {qty === 0 ? (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     handleAdd();
                   }}
-                  style={quantityButtonStyle}
+                  style={addButtonStyle}
                 >
-                  +
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M12 5v14m-7-7h14"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
                 </button>
-              </div>
-            )}
+              ) : (
+                <div style={quantityPillStyle}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemove();
+                    }}
+                    style={quantityButtonStyle}
+                  >
+                    −
+                  </button>
+                  <span style={quantityStyle}>{qty}</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAdd();
+                    }}
+                    style={quantityButtonStyle}
+                  >
+                    +
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+          <div style={contentStyle}>
+            <h3 style={titleStyle}>{item.name}</h3>
+            <p style={priceStyle}>₹{item.base_price}</p>
           </div>
         </div>
       ) : (
@@ -400,12 +406,7 @@ export function ItemCard({ item, containerWidth, onItemClick, preload=false, aut
           </div>
         </div>
       )}
-      {hasMedia && (
-        <div style={contentStyle}>
-          <h3 style={titleStyle}>{item.name}</h3>
-          <p style={priceStyle}>₹{item.base_price}</p>
-        </div>
-      )}
+
     </div>
   );
 } 

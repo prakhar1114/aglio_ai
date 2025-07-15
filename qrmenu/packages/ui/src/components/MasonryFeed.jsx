@@ -5,6 +5,7 @@ import { FeedItemSwitcher } from './FeedItemSwitcher.jsx';
 import { CategoryDropdown, CategoryDropdownButton } from './CategoryDropdown.jsx';
 
 export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
+  const isMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   // Refs for virtuoso
   const virtuosoRef = useRef(null);
 
@@ -397,7 +398,7 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
                           breakInside: 'avoid', // Prevents items from breaking across columns
                           margin: '0 0 4px 0', // theme spacing.xs bottom margin for subtle item separation
                           padding: '0',
-                          display: 'block',
+                          display: isMobile ? 'inline-block' : 'block',
                           width: '100%',
                           verticalAlign: 'top', // Align to top to prevent text baseline spacing
                         }}
