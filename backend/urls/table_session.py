@@ -51,7 +51,7 @@ def is_restaurant_open(restaurant: Restaurant, current_time: datetime) -> bool:
         ).first()
         
         if not hours:
-            return False
+            return True
             
         current_time_only = current_time.time()
         return hours.opens_at <= current_time_only <= hours.closes_at
@@ -89,20 +89,24 @@ async def create_table_session(
                 )
             
             # 3. Check if restaurant is open
-            current_time = get_current_time(restaurant.tz)
+            current_time = get_current_time(str(restaurant.tz))
             if not is_restaurant_open(restaurant, current_time):
                 raise HTTPException(
                     status_code=423,
                     detail={"success": False, "code": "restaurant_closed", "detail": "Restaurant is closed"}
                 )
-            
+            # Check if restaurant is_open (store status)
+            if hasattr(restaurant, "is_open") and restaurant.is_open is not None and restaurant.is_open is False:
+                raise HTTPException(
+                    status_code=423,
+                    detail={"success": False, "code": "restaurant_closed", "detail": "Restaurant is currently closed"}
+                )
             # 4. Check if table is disabled
             if table.status == 'disabled':
                 raise HTTPException(
                     status_code=423,
                     detail={"success": False, "code": "table_disabled", "detail": "Table is disabled"}
                 )
-            
             # 5. Session UPSERT - find or create active session
             session = db.query(Session).filter(
                 Session.table_id == table.id,

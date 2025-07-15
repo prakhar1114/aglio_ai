@@ -255,6 +255,7 @@ def create_dinein_item_relationships(df_menu, menu_api_data: dict, restaurant_id
                             price=float(var_data["price"]),
                             is_active=var_data["active"] == "1",
                             priority=int(var_data.get("variationrank", 0)),
+                            variationallowaddon=var_data.get("variationallowaddon", 0) == 1,
                             external_id=var_data["id"],  # Use var_data["id"] for orders
                             external_data=var_data
                         )

@@ -250,7 +250,7 @@ async def handle_place_order(websocket, session_pid, member_pid, data):
             order_sequence_num = order_count + 1
 
             # Format: ORD-{restaurant_id}-{sequence}
-            order_id = f"{order_sequence_num}"
+            order_id = f"00{order_sequence_num}"
             
             # Create Order record in database
             restaurant = db.query(Restaurant).filter(Restaurant.id == session.restaurant_id).first()

@@ -47,6 +47,7 @@ class Restaurant(Base):
     tz = Column(String, nullable=False, default="UTC")
     require_pass = Column(Boolean, default=False)
     api_key = Column(String(12), unique=True, nullable=True)
+    is_open = Column(Boolean, default=True)  # Store open/closed status
 
     hours = relationship("RestaurantHours", back_populates="restaurant")
     tables = relationship("Table", back_populates="restaurant")
@@ -454,6 +455,7 @@ class ItemVariation(Base):
     price = Column(Float, nullable=False)  # Item-specific price for this variation
     is_active = Column(Boolean, default=True)
     priority = Column(Integer, default=0)
+    variationallowaddon = Column(Boolean, default=False)  # Can this variation have addons
     
     # POS Integration
     external_id = Column(String, nullable=True)  # PetPooja variation.id (used for orders)

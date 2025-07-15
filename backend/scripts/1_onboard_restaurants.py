@@ -454,6 +454,15 @@ def onboard_no_pos(folder: Path, db, restaurant_id: int, df_menu: pd.DataFrame, 
 
     # 6. Insert Item Variations
     item_variation_map = {}
+    # First, check which item variations have addons (for variationallowaddon flag)
+    item_variations_with_addons = set()
+    if item_variation_addons_df is not None:
+        item_variations_with_addons = set(
+            str(row["item_variation_id"]).strip() 
+            for _, row in item_variation_addons_df.iterrows() 
+            if not pd.isna(row.get("item_variation_id"))
+        )
+    
     if item_variations_df is not None:
         for _, row in item_variations_df.iterrows():
             # Mandatory columns check
@@ -474,12 +483,16 @@ def onboard_no_pos(folder: Path, db, restaurant_id: int, df_menu: pd.DataFrame, 
             menu_item = menu_item_map[menu_item_key]
             variation = variation_map[variation_key]
 
+            # Check if this item variation has addons
+            has_addons = item_var_ext_id in item_variations_with_addons
+
             item_variation = ItemVariation(
                 menu_item_id=menu_item.id,
                 variation_id=variation.id,
                 price=float(row["price"]),
                 is_active=str(row.get("is_active", "true")).lower().strip() in ["1", "true", "yes"],
                 priority=int(row.get("priority", 0)),
+                variationallowaddon=has_addons,
                 external_id=item_var_ext_id,
                 external_data=row.to_dict(),
             )
@@ -753,7 +766,7 @@ def seed_folder(folder: Path):
             for idx, row in df_menu.iterrows():
                 mi = db.query(MenuItem).filter_by(
                     restaurant_id=restaurant_id,
-                    name=str(row["name"])
+                    external_id=str(row["id"])
                 ).first()
                 if not mi:
                     mi = MenuItem(
