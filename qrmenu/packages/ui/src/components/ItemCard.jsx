@@ -186,89 +186,80 @@ export function ItemCard({ item, containerWidth, onItemClick, preload=false, aut
     overflow: 'hidden'
   };
 
-  // Style for cards without images
+  // Style for inline cards without images
   const noImageCardStyle = {
-    position: 'relative',
-    width: '100%',
-    height: '96px', // Increased height for better proportions
-    background: 'linear-gradient(135deg, rgba(250, 251, 252, 0.8) 0%, rgba(247, 249, 252, 0.6) 100%)', // theme colors with subtle transparency
-    backdropFilter: 'blur(12px)', // Enhanced blur for no-image cards
-    WebkitBackdropFilter: 'blur(12px)',
-    border: '1px solid rgba(229, 231, 235, 0.3)', // theme colors.border.light with transparency
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: '12px', // theme spacing.md
-    textAlign: 'center'
-  };
-
-  const noImageContentStyle = {
+    borderRadius: '12px', // Same as media cards
+    overflow: 'hidden',
+    backgroundColor: '#FFFFFF', // Same as media cards
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: '8px', // theme spacing.sm
     width: '100%',
-    paddingRight: '0px'
+    height: '56px', // Fixed single-row height
+    padding: '8px 12px', // Same padding as media card content
+    margin: 0,
+    transition: 'all 0.2s ease-in-out',
+    gap: '8px'
   };
 
   const noImageTitleStyle = {
-    fontSize: '14px', // theme typography.sizes.sm
-    fontWeight: '600', // theme typography.weights.semibold
-    color: '#1C1C1E', // theme colors.text.primary
-    lineHeight: '1.4', // theme typography.lineHeights.normal
-    fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", // theme typography.fontFamily
-    wordBreak: 'break-word',
-    margin: '0',
+    fontSize: '14px', // Same as media cards
+    fontWeight: '600', // Same as media cards
+    color: '#1C1C1E', // Same as media cards
+    lineHeight: '1.4',
+    fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    margin: 0,
+    padding: 0,
+    flex: 1, // Take available space
     overflow: 'hidden',
-    display: '-webkit-box',
-    WebkitLineClamp: 2,
-    WebkitBoxOrient: 'vertical'
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap' // Single line only
+  };
+
+  const noImageRightSectionStyle = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    flexShrink: 0 // Don't shrink, maintain fixed width
   };
 
   const noImagePriceStyle = {
-    fontSize: '12px', // theme typography.sizes.xs
-    color: '#C72C48', // theme colors.primary (Zomato Red)
-    fontWeight: '700', // theme typography.weights.bold
+    fontSize: '12px', // Same as media cards
+    color: '#C72C48', // Same as media cards
+    whiteSpace: 'nowrap',
+    fontWeight: '700',
     fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    margin: '0'
+    margin: 0,
+    padding: 0
   };
 
   const noImageButtonStyle = {
-    padding: '6px', // Reduced footprint - square aspect ratio
-    fontSize: '12px', // theme typography.sizes.xs
-    color: '#FFFFFF', // theme colors.text.inverse
-    borderRadius: '6px', // Slightly smaller radius to match smaller size
+    padding: '6px',
+    fontSize: '12px',
+    color: '#FFFFFF',
+    borderRadius: '6px',
     border: 'none',
-    background: '#C72C48', // theme colors.primary (Zomato Red)
+    background: '#C72C48',
     cursor: 'pointer',
-    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.15)', // Subtle shadow for smaller element
-    fontWeight: '600', // theme typography.weights.semibold
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.15)',
+    fontWeight: '600',
     fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     transition: 'all 0.2s ease-in-out',
-    width: '28px', // Explicit size for perfect square
-    height: '28px', // Maintains minimum touch target
+    width: '28px',
+    height: '28px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center'
   };
 
-  const noImageButtonOverlayStyle = {
-    position: 'absolute',
-    bottom: '6px', // Closer to corner, Apple-style
-    right: '6px', // Closer to corner, Apple-style
-    zIndex: 10
-  };
-
   const noImageQuantityPillStyle = {
     display: 'flex',
     alignItems: 'center',
-    background: '#FFFFFF', // theme colors.surface
-    borderRadius: '16px', // theme radius.xl
-    border: '1px solid #E5E7EB', // theme colors.border.light
-    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06)', // theme shadows.lg
-    overflow: 'hidden',
-    fontSize: '12px' // theme typography.sizes.xs
+    background: '#FFFFFF',
+    borderRadius: '16px',
+    border: '1px solid #E5E7EB',
+    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06)',
+    overflow: 'hidden'
   };
 
   // Use passed containerWidth or fallback
@@ -288,79 +279,82 @@ export function ItemCard({ item, containerWidth, onItemClick, preload=false, aut
     >
       {hasMedia ? (
         // Card with optimized image or video
-        <div style={imageContainerStyle}>
-          <OptimizedMedia
-            imageUrl={item.image_url}
-            cloudflareImageId={item.cloudflare_image_id}
-            cloudflareVideoId={item.cloudflare_video_id}
-            alt={item.name}
-            containerWidth={cardWidth}
-            containerHeight={cardWidth} // Square aspect ratio
-            className="w-full h-full"
-            preload={preload}
-            autoplay={autoplay}
-            muted={muted}
-            reuseStream={true}
-            contextId={`${context_namespace}-${item.id}`}
-          />
-          <div style={buttonOverlayStyle}>
-            {qty === 0 ? (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleAdd();
-                }}
-                style={addButtonStyle}
-              >
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M12 5v14m-7-7h14"
-                    stroke="currentColor"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
-            ) : (
-              <div style={quantityPillStyle}>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRemove();
-                  }}
-                  style={quantityButtonStyle}
-                >
-                  −
-                </button>
-                <span style={quantityStyle}>{qty}</span>
+        <div>
+          <div style={imageContainerStyle}>
+            <OptimizedMedia
+              imageUrl={item.image_url}
+              cloudflareImageId={item.cloudflare_image_id}
+              cloudflareVideoId={item.cloudflare_video_id}
+              alt={item.name}
+              containerWidth={cardWidth}
+              containerHeight={cardWidth} // Square aspect ratio
+              className="w-full h-full"
+              preload={preload}
+              autoplay={autoplay}
+              muted={muted}
+              reuseStream={true}
+              contextId={`${context_namespace}-${item.id}`}
+            />
+            <div style={buttonOverlayStyle}>
+              {qty === 0 ? (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     handleAdd();
                   }}
-                  style={quantityButtonStyle}
+                  style={addButtonStyle}
                 >
-                  +
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M12 5v14m-7-7h14"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
                 </button>
-              </div>
-            )}
+              ) : (
+                <div style={quantityPillStyle}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemove();
+                    }}
+                    style={quantityButtonStyle}
+                  >
+                    −
+                  </button>
+                  <span style={quantityStyle}>{qty}</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAdd();
+                    }}
+                    style={quantityButtonStyle}
+                  >
+                    +
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+          <div style={contentStyle}>
+            <h3 style={titleStyle}>{item.name}</h3>
+            <p style={priceStyle}>₹{item.base_price}</p>
           </div>
         </div>
       ) : (
-        // Card without image
+        // Inline card without image
         <div style={noImageCardStyle}>
-          <div style={noImageContentStyle}>
-            <h3 style={noImageTitleStyle}>{item.name}</h3>
-            <p style={noImagePriceStyle}>₹{item.base_price}</p>
-          </div>
-          <div style={noImageButtonOverlayStyle}>
+          <h3 style={noImageTitleStyle}>{item.name}</h3>
+          <div style={noImageRightSectionStyle}>
             {qty === 0 ? (
               <button
                 onClick={(e) => {
@@ -408,15 +402,11 @@ export function ItemCard({ item, containerWidth, onItemClick, preload=false, aut
                 </button>
               </div>
             )}
+            <p style={noImagePriceStyle}>₹{item.base_price}</p>
           </div>
         </div>
       )}
-      {hasMedia && (
-        <div style={contentStyle}>
-          <h3 style={titleStyle}>{item.name}</h3>
-          <p style={priceStyle}>₹{item.base_price}</p>
-        </div>
-      )}
+
     </div>
   );
 } 

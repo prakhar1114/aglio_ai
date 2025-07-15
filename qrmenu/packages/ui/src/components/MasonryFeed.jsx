@@ -5,6 +5,7 @@ import { FeedItemSwitcher } from './FeedItemSwitcher.jsx';
 import { CategoryDropdown, CategoryDropdownButton } from './CategoryDropdown.jsx';
 
 export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
+  const isMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   // Refs for virtuoso
   const virtuosoRef = useRef(null);
 
@@ -53,6 +54,53 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
         categoryIndexMap[category] = categories.length - 1;
       }
       grouped[category].push(item);
+    });
+
+    // Sort items within each category and apply column span logic
+    Object.keys(grouped).forEach(category => {
+      const items = grouped[category];
+      
+      // Sort: media items first, no-media items last
+      items.sort((a, b) => {
+        const aHasMedia = a.image_url !== null;
+        const bHasMedia = b.image_url !== null;
+        
+        if (aHasMedia && !bHasMedia) return -1; // a comes first
+        if (!aHasMedia && bHasMedia) return 1;  // b comes first
+        return 0; // maintain relative order
+      });
+
+      // Apply column span logic for 2-column grid
+      const mediaItems = items.filter(item => item.image_url !== null);
+      const noMediaItems = items.filter(item => item.image_url === null);
+      const mediaCount = mediaItems.length;
+      
+      // Reset any existing columnSpan
+      items.forEach(item => {
+        delete item.columnSpan;
+      });
+
+      if (mediaCount > 0) {
+        if (mediaCount % 2 === 0) {
+          // Even number of media items: all media normal span, all no-media full width
+          noMediaItems.forEach(item => {
+            item.columnSpan = 'all';
+          });
+        } else {
+          // Odd number of media items: last media item + all no-media get full width
+          if (mediaItems.length > 0) {
+            mediaItems[mediaItems.length - 1].columnSpan = 'all';
+          }
+          noMediaItems.forEach(item => {
+            item.columnSpan = 'all';
+          });
+        }
+      } else {
+        // No media items in category: all items get full width
+        items.forEach(item => {
+          item.columnSpan = 'all';
+        });
+      }
     });
 
     // Convert to arrays for GroupedVirtuoso - render each group as a complete masonry grid
@@ -239,7 +287,7 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
                 style={{
                   position: 'relative', // Regular section header, not sticky
                   zIndex: 100, // Higher than ItemCard buttons (z-index: 10)
-                  height: '1px', // Minimal height to avoid zero-sized element error
+                  height: '10px', // Minimal height to avoid zero-sized element error
                   margin: '0',
                   padding: '0',
                   overflow: 'visible', // Allow button to overflow outside the 1px container
@@ -321,60 +369,89 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
             };
             
             return (
-              <div
-                className="masonry-container"
-                data-category={category}
-                style={{
-                  // Use CSS columns for true masonry layout like Pinterest
-                  columnCount: columnCount,
-                  columnGap: `4px`, // theme spacing.xs - minimal gap for Apple-like breathing
-                  width: '100%',
-                  padding: `2px 4px`, // Minimal padding - just enough to prevent edge collision
-                  margin: '0',
-                  lineHeight: '1',
-                  backgroundColor: getBackgroundForCategory(groupIndex), // Subtle alternating backgrounds
-                  borderRadius: '8px', // theme radius.md for gentle container feel
-                  marginBottom: '4px', // theme spacing.xs for category separation
-                  border: groupIndex % 3 === 1 ? '1px solid rgba(226, 55, 68, 0.08)' : 'none', // Subtle Zomato red accent for alternate sections
-                }}
-              >
-                {groupItems.map((item, itemIndex) => {
-                  // Determine if this item should be featured (span all columns)
-                  // You can customize this logic based on your needs:
-                  const isFeatured = false; // Every 5th item, or add your own logic
-                  
-                  return (
-                    <div
-                      key={item.id}
-                      className="feed-item"
-                      data-category={category}
-                      style={{
-                        borderRadius: '0px',
-                        overflow: 'hidden',
-                        breakInside: 'avoid', // Prevents items from breaking across columns
-                        margin: '0 0 4px 0', // theme spacing.xs bottom margin for subtle item separation
-                        padding: '0',
-                        display: 'inline-block',
-                        width: '100%',
-                        verticalAlign: 'top', // Align to top to prevent text baseline spacing
-                        columnSpan: isFeatured ? 'all' : 'none', // Span all columns for featured items
-                      }}
-                    >
-                      <FeedItemSwitcher 
-                        item={item} 
-                        containerWidth={cardWidth}
-                        onItemClick={() => {
-                          const allCurrentItems = data ? data.items : [];
-                          onItemClick?.(item, allCurrentItems);
+              <div style={{ width: '100%' }}>
+                {/* Regular masonry grid for normal-span items */}
+                {groupItems.filter(item => item.columnSpan !== 'all').length > 0 && (
+                  <div
+                    className="masonry-container"
+                    data-category={category}
+                    style={{
+                      // Use CSS columns for true masonry layout like Pinterest
+                      columnCount: columnCount,
+                      columnGap: `4px`, // theme spacing.xs - minimal gap for Apple-like breathing
+                      width: '100%',
+                      padding: `0px 4px`, // Minimal padding - just enough to prevent edge collision
+                      margin: '0 0 4px 0',
+                      lineHeight: '1',
+                      backgroundColor: getBackgroundForCategory(groupIndex), // Subtle alternating backgrounds
+                      borderRadius: '8px', // theme radius.md for gentle container feel
+                    }}
+                  >
+                    {groupItems.filter(item => item.columnSpan !== 'all').map((item, itemIndex) => (
+                      <div
+                        key={item.id}
+                        className="feed-item"
+                        data-category={category}
+                        style={{
+                          borderRadius: '0px',
+                          overflow: 'hidden',
+                          breakInside: 'avoid', // Prevents items from breaking across columns
+                          margin: '0 0 4px 0', // theme spacing.xs bottom margin for subtle item separation
+                          padding: '0',
+                          display: isMobile ? 'inline-block' : 'block',
+                          width: '100%',
+                          verticalAlign: 'top', // Align to top to prevent text baseline spacing
                         }}
-                        preload={true}
-                        autoplay={true}
-                        muted={true}
-                        context_namespace={`masonry-feed`}
-                      />
-                    </div>
-                  );
-                })}
+                      >
+                        <FeedItemSwitcher 
+                          item={item} 
+                          containerWidth={cardWidth}
+                          onItemClick={() => {
+                            const allCurrentItems = data ? data.items : [];
+                            onItemClick?.(item, allCurrentItems);
+                          }}
+                          preload={true}
+                          autoplay={true}
+                          muted={true}
+                          context_namespace={`masonry-feed`}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Full-width items outside the masonry grid */}
+                {groupItems.filter(item => item.columnSpan === 'all').map((item, itemIndex) => (
+                  <div
+                    key={item.id}
+                    className="full-width-item"
+                    data-category={category}
+                    style={{
+                      width: '100%',
+                      padding: '0px 4px', // Same as masonry container
+                      backgroundColor: getBackgroundForCategory(groupIndex),
+                      borderRadius: '8px',
+                      // border: groupIndex % 3 === 1 ? '1px solid rgba(226, 55, 68, 0.08)' : 'none',
+                      margin: '0 0 4px 0', // Same margin as masonry items
+                      // Create explicit stacking context for full-width items to isolate video z-index
+                      position: 'relative',
+                      zIndex: 0, // Lower than category header (zIndex: 100)
+                    }}
+                  >
+                    <FeedItemSwitcher 
+                      item={item} 
+                      containerWidth={Math.min((window.innerWidth || 400) - 16, 800)} // Full width minus padding, max 800px
+                      onItemClick={() => {
+                        const allCurrentItems = data ? data.items : [];
+                        onItemClick?.(item, allCurrentItems);
+                      }}
+                      preload={true}
+                      autoplay={true}
+                      muted={true}
+                      context_namespace={`masonry-feed`}
+                    />
+                  </div>
+                ))}
               </div>
             );
           }}
