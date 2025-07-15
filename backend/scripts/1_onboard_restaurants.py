@@ -78,6 +78,18 @@ def validate_and_clean_csv(df_menu: pd.DataFrame) -> pd.DataFrame:
             if col == 'public_id':
                 df_cleaned[col] = None  # Will be auto-generated
     
+    # Validate that all rows have non-null IDs
+    id_series = df_cleaned['id'].tolist()
+    null_id_indices = [i for i, val in enumerate(id_series) if pd.isnull(val)]
+    if null_id_indices:
+        raise ValueError(f"Missing ID values in rows (0-based index): {null_id_indices}")
+    
+    # Validate that all IDs are unique
+    non_null_ids = [str(x) for x in id_series if not pd.isnull(x)]
+    duplicate_ids = [x for x in set(non_null_ids) if non_null_ids.count(x) > 1]
+    if duplicate_ids:
+        raise ValueError(f"Duplicate IDs found: {duplicate_ids}")
+    
     logger.info(f"📋 CSV validated and cleaned: {len(df_cleaned)} rows, {len(available_columns)} columns")
     return df_cleaned
 
@@ -636,6 +648,7 @@ def seed_folder(folder: Path):
         image_directory = str(folder / "images")
         logger.info(f"🖼️  Using images directory: {image_directory}")
         df_menu = process_image_urls_and_upload_to_cloudflare(df_menu, image_directory, meta["slug"])
+        df_menu.to_csv(folder / "menu.csv", index=False) # to add cloudflare ids
 
         # --------------------------------------------------------------
         # If POS integration is present, load menu.json and areas.json for downstream use

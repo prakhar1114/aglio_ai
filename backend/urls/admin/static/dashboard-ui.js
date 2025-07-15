@@ -349,17 +349,27 @@ DashboardManager.prototype.retryPOS = function(orderId) {
 DashboardManager.prototype.toggleDropdown = function(event) {
     event.stopPropagation();
     const dropdown = event.target.closest('.dropdown');
+    const tile = event.target.closest('.tile');
     const isActive = dropdown.classList.contains('active');
     
-    // Close all other dropdowns
+    // Close all other dropdowns and remove dropdown-active class from all tiles
     document.querySelectorAll('.dropdown.active').forEach(d => {
         if (d !== dropdown) {
             d.classList.remove('active');
+            const parentTile = d.closest('.tile');
+            if (parentTile) {
+                parentTile.classList.remove('dropdown-active');
+            }
         }
     });
     
     // Toggle current dropdown
     dropdown.classList.toggle('active', !isActive);
+    
+    // Toggle dropdown-active class on the tile for z-index control
+    if (tile) {
+        tile.classList.toggle('dropdown-active', !isActive);
+    }
 };
 
 DashboardManager.prototype.pickTarget = function(event) {
@@ -460,8 +470,77 @@ DashboardManager.prototype.showSessionModal = function(sessionData) {
     if (existingModal) {
         existingModal.remove();
     }
+
+    // Helper functions for rendering lists
+    function renderMembers(members) {
+        if (!members || members.length === 0) {
+            return '<div class="empty-state">No members found</div>';
+        }
+        return `
+            <div class="members-grid">
+                ${members.map(m => `
+                    <div class="member-card">
+                        <div class="member-name">${m.name || m.nickname || 'Unknown'}</div>
+                        <div class="member-status ${m.active ? 'active' : 'inactive'}">
+                            ${m.active ? '● Active' : '○ Inactive'}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
     
-    // Create modal HTML (simplified version)
+    function renderCartItems(cartItems) {
+        if (!cartItems || cartItems.length === 0) {
+            return '<div class="empty-state">No items in cart</div>';
+        }
+        return `
+            <div class="items-list">
+                ${cartItems.map(item => `
+                    <div class="item-row">
+                        <div class="item-details">
+                            <div class="item-name">${item.menu_item_name || item.name}</div>
+                            ${item.note ? `<div class="item-note">${item.note}</div>` : ''}
+                        </div>
+                        <div class="item-quantity">×${item.qty}</div>
+                        <div class="item-price">₹${item.final_price}</div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+    
+    function renderOrders(orders) {
+        if (!orders || orders.length === 0) {
+            return '<div class="empty-state">No orders placed</div>';
+        }
+        return `
+            <div class="orders-list">
+                ${orders.map(order => `
+                    <div class="order-card">
+                        <div class="order-header">
+                            <div class="order-id">Order #${order.order_id}</div>
+                            <div class="order-status status-${order.status}">${order.status}</div>
+                            <div class="order-total">₹${order.total_amount}</div>
+                        </div>
+                        ${order.items && order.items.length > 0 ? `
+                            <div class="order-items">
+                                ${order.items.map(item => `
+                                    <div class="order-item-row">
+                                        <span class="item-name">${item.name}</span>
+                                        <span class="item-qty">×${item.qty}</span>
+                                        <span class="item-price">₹${item.final_price || item.unit_price}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    // Create modal HTML with all details
     const modalHTML = `
         <div id="sessionModal" class="session-modal">
             <div class="session-modal-content">
@@ -470,25 +549,48 @@ DashboardManager.prototype.showSessionModal = function(sessionData) {
                     <button class="close-modal" onclick="dashboard.closeSessionModal()">&times;</button>
                 </div>
                 <div class="session-modal-body">
+                    <div class="session-info-section">
+                        <h3>Table Status</h3>
+                        <p><strong>Status:</strong> ${sessionData.table_status}</p>
+                    </div>
                     ${sessionData.session ? `
-                        <div class="session-info">
+                        <div class="session-info-section">
+                            <h3>Session</h3>
                             <p><strong>Session ID:</strong> ${sessionData.session.session_pid}</p>
-                            <p><strong>Created:</strong> ${new Date(sessionData.session.created_at).toLocaleString()}</p>
-                            <p><strong>Members:</strong> ${sessionData.member_count}</p>
-                            <p><strong>Cart Items:</strong> ${sessionData.cart_items.length}</p>
-                            <p><strong>Orders:</strong> ${sessionData.orders.length}</p>
+                            <p><strong>Created:</strong> ${sessionData.session.created_at ? new Date(sessionData.session.created_at).toLocaleString() : '-'}</p>
+                            <p><strong>Last Activity:</strong> ${sessionData.session.last_activity_at ? new Date(sessionData.session.last_activity_at).toLocaleString() : '-'}</p>
+                            <p><strong>State:</strong> ${sessionData.session.state}</p>
+                            <p><strong>Password Validated:</strong> ${sessionData.session.pass_validated ? 'Yes' : 'No'}</p>
                         </div>
                     ` : '<p>No active session for this table.</p>'}
+                    <div class="session-info-section">
+                        <h3>Members (${sessionData.member_count}, Active: ${sessionData.active_member_count})</h3>
+                        ${renderMembers(sessionData.members)}
+                    </div>
+                    <div class="session-info-section">
+                        <h3>Cart Items (${sessionData.cart_items.length})</h3>
+                        ${renderCartItems(sessionData.cart_items)}
+                    </div>
+                    <div class="session-info-section">
+                        <h3>Orders (${sessionData.orders.length})</h3>
+                        ${renderOrders(sessionData.orders)}
+                    </div>
+                    <div class="session-info-section">
+                        <h3>Totals</h3>
+                        <p><strong>Cart Total:</strong> ₹${sessionData.totals.cart_total}</p>
+                        <p><strong>Orders Total:</strong> ₹${sessionData.totals.orders_total}</p>
+                        <p><strong>Grand Total:</strong> ₹${sessionData.totals.grand_total}</p>
+                    </div>
                 </div>
             </div>
         </div>
     `;
-    
+
     document.body.insertAdjacentHTML('beforeend', modalHTML);
-    
+
     const modal = document.getElementById('sessionModal');
     modal.style.display = 'block';
-    
+
     modal.addEventListener('click', (e) => {
         if (e.target === modal) {
             this.closeSessionModal();
@@ -501,4 +603,18 @@ DashboardManager.prototype.closeSessionModal = function() {
     if (modal) {
         modal.remove();
     }
-}; 
+};
+
+// Add global click handler to close dropdowns when clicking outside
+document.addEventListener('click', function(event) {
+    if (!event.target.closest('.dropdown')) {
+        // Close all dropdowns and remove dropdown-active class from all tiles
+        document.querySelectorAll('.dropdown.active').forEach(dropdown => {
+            dropdown.classList.remove('active');
+            const parentTile = dropdown.closest('.tile');
+            if (parentTile) {
+                parentTile.classList.remove('dropdown-active');
+            }
+        });
+    }
+}); 

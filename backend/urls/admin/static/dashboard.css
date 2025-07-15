@@ -392,11 +392,21 @@ main {
     justify-content: space-between;
     box-shadow: 0 8px 25px rgba(0,0,0,0.1);
     backdrop-filter: blur(10px);
+    z-index: 100;
 }
 
 .tile:hover {
     transform: translateY(-5px);
     box-shadow: 0 12px 35px rgba(0,0,0,0.15);
+}
+
+.tile:has(.dropdown.active) {
+    z-index: 1300;
+}
+
+/* Fallback for browsers that don't support :has() */
+.tile.dropdown-active {
+    z-index: 1300;
 }
 
 .table-number {
@@ -495,7 +505,7 @@ main {
     background-color: white;
     min-width: 100%;
     box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-    z-index: 1000;
+    z-index: 1200;
     border-radius: 8px;
     overflow: hidden;
     top: 100%;
@@ -2348,5 +2358,331 @@ main {
     .qty-btn {
         width: 32px;
         height: 32px;
+    }
+}
+
+/* Session Modal Styles */
+.session-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1300;
+    backdrop-filter: blur(5px);
+}
+
+.session-modal-content {
+    background: white;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 800px;
+    max-height: 90vh;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.session-modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1.5rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.session-modal-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.close-modal {
+    background: none;
+    border: none;
+    font-size: 2rem;
+    cursor: pointer;
+    color: white;
+    padding: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease;
+}
+
+.close-modal:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.session-modal-body {
+    padding: 2rem;
+    max-height: calc(90vh - 120px);
+    overflow-y: auto;
+}
+
+.session-info-section {
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background: #f8f9fa;
+    border-radius: 12px;
+    border-left: 4px solid #667eea;
+}
+
+.session-info-section:last-child {
+    margin-bottom: 0;
+}
+
+.session-info-section h3 {
+    margin: 0 0 1rem 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #2d3748;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.session-info-section p {
+    margin: 0.5rem 0;
+    color: #4a5568;
+    font-size: 0.95rem;
+}
+
+.session-info-section p strong {
+    color: #2d3748;
+    font-weight: 600;
+    min-width: 140px;
+    display: inline-block;
+}
+
+/* Members Grid */
+.members-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.member-card {
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.member-name {
+    font-weight: 600;
+    color: #2d3748;
+    margin-bottom: 0.5rem;
+}
+
+.member-status {
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.member-status.active {
+    color: #38a169;
+}
+
+.member-status.inactive {
+    color: #a0aec0;
+}
+
+/* Items List */
+.items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.item-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.item-details {
+    flex: 1;
+}
+
+.item-name {
+    font-weight: 600;
+    color: #2d3748;
+    margin-bottom: 0.25rem;
+}
+
+.item-note {
+    font-size: 0.8rem;
+    color: #718096;
+    font-style: italic;
+}
+
+.item-quantity {
+    font-weight: 600;
+    color: #4a5568;
+    min-width: 40px;
+    text-align: center;
+}
+
+.item-price {
+    font-weight: 700;
+    color: #2d3748;
+    min-width: 80px;
+    text-align: right;
+}
+
+/* Orders List */
+.orders-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.order-card {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.order-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    background: #f7fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.order-id {
+    font-weight: 700;
+    color: #2d3748;
+    flex: 1;
+}
+
+.order-status {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.order-status.status-pending {
+    background: #fed7d7;
+    color: #c53030;
+}
+
+.order-status.status-confirmed {
+    background: #c6f6d5;
+    color: #22543d;
+}
+
+.order-status.status-preparing {
+    background: #feebc8;
+    color: #c05621;
+}
+
+.order-status.status-ready {
+    background: #bee3f8;
+    color: #2a69ac;
+}
+
+.order-total {
+    font-weight: 700;
+    color: #2d3748;
+    font-size: 1.1rem;
+}
+
+.order-items {
+    padding: 1rem 1.5rem;
+}
+
+.order-item-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.order-item-row:last-child {
+    border-bottom: none;
+}
+
+.order-item-row .item-name {
+    flex: 1;
+    font-weight: 500;
+    color: #4a5568;
+}
+
+.order-item-row .item-qty {
+    font-weight: 600;
+    color: #4a5568;
+    min-width: 40px;
+    text-align: center;
+}
+
+.order-item-row .item-price {
+    font-weight: 600;
+    color: #2d3748;
+    min-width: 80px;
+    text-align: right;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 2rem;
+    color: #a0aec0;
+    font-style: italic;
+    background: white;
+    border-radius: 8px;
+    border: 2px dashed #e2e8f0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .session-modal-content {
+        width: 95%;
+        margin: 1rem;
+    }
+    
+    .session-modal-header {
+        padding: 1rem 1.5rem;
+    }
+    
+    .session-modal-body {
+        padding: 1.5rem;
+    }
+    
+    .members-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .item-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .order-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
     }
 }
