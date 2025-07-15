@@ -71,11 +71,7 @@ app = FastAPI(
 # Add tenant middleware first (before other middlewares)
 # app.middleware("http")(tenant_middleware)
 
-app.mount(
-    "/image_data",
-    StaticFiles(directory=image_dir),
-    name="image_data",
-)
+
 
 # Mount static files for admin dashboard
 import os
