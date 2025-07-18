@@ -349,6 +349,7 @@ class MenuItem(Base):
     priority = Column(Integer, default=0)
     promote = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
+    show_on_menu = Column(Boolean, default=True)
     tags = Column(JSON, default=list)  # list[str] for frontend rendering
     
     # POS Integration (following simplified architecture)

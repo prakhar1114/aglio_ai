@@ -204,6 +204,9 @@ function CompactActionButtons({ item, onAskAI }) {
   );
   const qty = userCartItems.reduce((total, cartItem) => total + cartItem.qty, 0);
 
+  // Hide price and add button if base_price is 0
+  const shouldShowPriceAndButton = item.base_price > 0;
+
   const handleAdd = () => {
     if (qty === 0) {
       // Item not in cart, add new item
@@ -309,46 +312,48 @@ function CompactActionButtons({ item, onAskAI }) {
   return (
     <div className="flex items-center space-x-3 px-4 py-3">
       {/* Add to Cart / Quantity Control */}
-      <div className="flex-shrink-0">
-        {qty === 0 ? (
-          <button
-            onClick={handleAdd}
-            style={addButtonStyle}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M12 5v14m-7-7h14"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
-        ) : (
-          <div style={quantityPillStyle}>
-            <button
-              onClick={handleRemove}
-              style={quantityButtonStyle}
-            >
-              −
-            </button>
-            <span style={quantityDisplayStyle}>{qty}</span>
+      {shouldShowPriceAndButton && (
+        <div className="flex-shrink-0">
+          {qty === 0 ? (
             <button
               onClick={handleAdd}
-              style={quantityButtonStyle}
+              style={addButtonStyle}
             >
-              +
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M12 5v14m-7-7h14"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </button>
-          </div>
-        )}
-      </div>
+          ) : (
+            <div style={quantityPillStyle}>
+              <button
+                onClick={handleRemove}
+                style={quantityButtonStyle}
+              >
+                −
+              </button>
+              <span style={quantityDisplayStyle}>{qty}</span>
+              <button
+                onClick={handleAdd}
+                style={quantityButtonStyle}
+              >
+                +
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Ask AI Button */}
       <button
@@ -365,6 +370,9 @@ function CompactActionButtons({ item, onAskAI }) {
 
 // Details Section Component
 function DetailsSection({ item, onAskAI }) {
+  // Hide price and add button if base_price is 0
+  const shouldShowPriceAndButton = item.base_price > 0;
+
   return (
     <div className="space-y-4">
       {/* Compact Action Buttons */}
@@ -376,9 +384,11 @@ function DetailsSection({ item, onAskAI }) {
           <h1 className="text-xl font-bold text-gray-900 flex-1 mr-4 leading-tight">
             {item.name}
           </h1>
-          <span className="text-lg font-bold text-red-500 whitespace-nowrap">
-            ₹{item.base_price}
-          </span>
+          {shouldShowPriceAndButton && (
+            <span className="text-lg font-bold text-red-500 whitespace-nowrap">
+              ₹{item.base_price}
+            </span>
+          )}
         </div>
 
         {/* Description */}

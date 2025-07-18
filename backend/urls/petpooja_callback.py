@@ -609,6 +609,7 @@ def process_menu_entities(payload: Dict[str, Any], restaurant_id: int, pos_syste
     
     # Create attributes map for tags and veg_flag processing
     attributes_map = {attr["attributeid"]: attr["attribute"] for attr in payload.get("attributes", [])}
+    category_map = {cat["categoryid"]: cat["categoryname"] for cat in payload.get("categories", [])}
     
     # Process MenuItems
     logger.info(f"Processing {len(payload.get('items', []))} menu items")
@@ -619,10 +620,10 @@ def process_menu_entities(payload: Dict[str, Any], restaurant_id: int, pos_syste
         ).first()
         
         if existing_item:
-            update_menu_item(existing_item, item_data, pos_system_id, attributes_map)
+            update_menu_item(existing_item, item_data, pos_system_id, attributes_map, category_map)
             stats["items_updated"] += 1
         else:
-            new_item = create_menu_item(item_data, restaurant_id, pos_system_id, attributes_map)
+            new_item = create_menu_item(item_data, restaurant_id, pos_system_id, attributes_map, category_map)
             db.add(new_item)
             stats["items_created"] += 1
     
@@ -680,7 +681,7 @@ def process_menu_entities(payload: Dict[str, Any], restaurant_id: int, pos_syste
     return stats
 
 
-def create_menu_item(item_data: Dict[str, Any], restaurant_id: int, pos_system_id: int, attributes_map: Dict[str, str] = None) -> MenuItem:
+def create_menu_item(item_data: Dict[str, Any], restaurant_id: int, pos_system_id: int, attributes_map: Dict[str, str] = None, category_map: Dict[str, str] = None) -> MenuItem:
     """Create new MenuItem from PetPooja data."""
     # Handle tags - copy item_tags and add attribute if present
     tags_list = item_data.get("item_tags", []).copy()
@@ -701,6 +702,8 @@ def create_menu_item(item_data: Dict[str, Any], restaurant_id: int, pos_system_i
         restaurant_id=restaurant_id,
         name=item_data["itemname"],
         description=item_data.get("itemdescription", ""),
+        category_brief=category_map.get(item_data.get("item_categoryid", ""), ""),
+        group_category=category_map.get(item_data.get("item_categoryid", ""), ""),
         price=float(item_data["price"]),
         is_active=item_data.get("active", "0") == "1",
         veg_flag=veg_flag,
@@ -713,7 +716,7 @@ def create_menu_item(item_data: Dict[str, Any], restaurant_id: int, pos_system_i
     )
 
 
-def update_menu_item(menu_item: MenuItem, item_data: Dict[str, Any], pos_system_id: int, attributes_map: Dict[str, str] = None):
+def update_menu_item(menu_item: MenuItem, item_data: Dict[str, Any], pos_system_id: int, attributes_map: Dict[str, str] = None, category_map: Dict[str, str] = None):
     """Update existing MenuItem with PetPooja data."""
     # Handle tags - copy item_tags and add attribute if present
     tags_list = item_data.get("item_tags", []).copy()
@@ -730,7 +733,9 @@ def update_menu_item(menu_item: MenuItem, item_data: Dict[str, Any], pos_system_
             tags_list.append(attributes_map[attr_id_val])
     
     menu_item.name = item_data["itemname"]
-    menu_item.description = item_data.get("itemdescription", "")
+    # menu_item.description = item_data.get("itemdescription", "")
+    menu_item.category_brief=category_map.get(item_data.get("item_categoryid", ""), "")
+    menu_item.group_category=category_map.get(item_data.get("item_categoryid", ""), "")
     menu_item.price = float(item_data["price"])
     menu_item.is_active = item_data.get("active", "0") == "1"
     menu_item.veg_flag = veg_flag

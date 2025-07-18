@@ -200,8 +200,8 @@ def read_menu(
                     .joinedload(ItemAddon.addon_group)
                     .joinedload(AddonGroup.addon_items)
             ).filter(
-                and_(*filter_conditions)
-            ).order_by(MenuItemModel.id)
+                and_(MenuItemModel.show_on_menu == True, *filter_conditions)
+            ).order_by(MenuItemModel.priority.desc())
 
             regular_items_db = regular_query.all()
 
