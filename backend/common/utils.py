@@ -103,14 +103,29 @@ def download_instagram_content(instagram_url: str, save_dir: str, base_filename:
         
         L = instaloader.Instaloader()
         
+        # Parse URL to extract shortcode and img_index
+        from urllib.parse import urlparse, parse_qs
+        parsed_url = urlparse(instagram_url)
+        
         # Extract shortcode from Instagram URL
         if "/p/" in instagram_url:
-            shortcode = instagram_url.split("/p/")[1].split("/")[0]
+            shortcode = instagram_url.split("/p/")[1].split("/")[0].split("?")[0]
         elif "/reel/" in instagram_url:
-            shortcode = instagram_url.split("/reel/")[1].split("/")[0]
+            shortcode = instagram_url.split("/reel/")[1].split("/")[0].split("?")[0]
         else:
             logger.error("Invalid Instagram URL format")
             return "", "unknown", False
+        
+        # Extract img_index parameter (1-based in URL, convert to 0-based)
+        img_index = 0  # default to first item
+        query_params = parse_qs(parsed_url.query)
+        if 'img_index' in query_params:
+            try:
+                img_index = max(0, int(query_params['img_index'][0]) - 1)  # Convert to 0-based
+                logger.info(f"📍 Using img_index: {img_index + 1} (URL) -> {img_index} (0-based)")
+            except (ValueError, IndexError):
+                logger.warning(f"⚠️  Invalid img_index parameter, using default (0)")
+                img_index = 0
         
         # Get post
         post = instaloader.Post.from_shortcode(L.context, shortcode)
@@ -135,27 +150,33 @@ def download_instagram_content(instagram_url: str, save_dir: str, base_filename:
                 return file_path, "video", True
                 
         elif post.typename == "GraphSidecar":
-            # Carousel post with multiple images/videos - get first item only
+            # Carousel post with multiple images/videos - get item at specified index
             try:
-                # Get the first item from the carousel
-                first_node = None
-                for node in post.get_sidecar():
-                    first_node = node
-                    break
+                # Get all carousel items using get_sidecar_nodes()
+                carousel_items = list(post.get_sidecar_nodes())
                 
-                if first_node:
-                    if first_node.is_video:
-                        # First item is a video
+                # Use img_index if valid, otherwise fallback to first item
+                if img_index < len(carousel_items):
+                    selected_node = carousel_items[img_index]
+                    logger.info(f"📷 Selected carousel item {img_index + 1}/{len(carousel_items)}")
+                else:
+                    selected_node = carousel_items[0]
+                    logger.warning(f"⚠️  img_index {img_index + 1} out of bounds (max: {len(carousel_items)}), using first item")
+                
+                if selected_node:
+                    if selected_node.is_video:
+                        # Selected item is a video
                         file_path = os.path.join(save_dir, f"{base_filename}.mp4")
-                        response = requests.get(first_node.video_url)
-                        if response.status_code == 200:
-                            with open(file_path, 'wb') as f:
-                                f.write(response.content)
-                            return file_path, "video", True
+                        if selected_node.video_url:  # Check if video_url is not None
+                            response = requests.get(selected_node.video_url)
+                            if response.status_code == 200:
+                                with open(file_path, 'wb') as f:
+                                    f.write(response.content)
+                                return file_path, "video", True
                     else:
-                        # First item is an image
+                        # Selected item is an image
                         file_path = os.path.join(save_dir, f"{base_filename}.jpg")
-                        response = requests.get(first_node.display_url)
+                        response = requests.get(selected_node.display_url)
                         if response.status_code == 200:
                             with open(file_path, 'wb') as f:
                                 f.write(response.content)

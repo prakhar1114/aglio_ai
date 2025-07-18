@@ -265,8 +265,9 @@ export function ItemCard({ item, containerWidth, onItemClick, preload=false, aut
   // Use passed containerWidth or fallback
   const cardWidth = containerWidth || 180;
 
+  // Hide price and add button if base_price is 0
+  const shouldShowPriceAndButton = item.base_price > 0;
 
-  
   const hasMedia = item.image_url !== null;
 
   return (
@@ -296,13 +297,80 @@ export function ItemCard({ item, containerWidth, onItemClick, preload=false, aut
               contextId={`${context_namespace}-${item.id}`}
             />
             <div style={buttonOverlayStyle}>
-              {qty === 0 ? (
+              {shouldShowPriceAndButton ? (
+                <>
+                  {qty === 0 ? (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAdd();
+                      }}
+                      style={addButtonStyle}
+                    >
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          d="M12 5v14m-7-7h14"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </button>
+                  ) : (
+                    <div style={quantityPillStyle}>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemove();
+                        }}
+                        style={quantityButtonStyle}
+                      >
+                        −
+                      </button>
+                      <span style={quantityStyle}>{qty}</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAdd();
+                        }}
+                        style={quantityButtonStyle}
+                      >
+                        +
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                // Hide Add button and quantity controls if base_price is 0
+                null
+              )}
+            </div>
+          </div>
+          <div style={contentStyle}>
+            <h3 style={titleStyle}>{item.name}</h3>
+            {shouldShowPriceAndButton && <p style={priceStyle}>₹{item.base_price}</p>}
+          </div>
+        </div>
+      ) : (
+        // Inline card without image
+        <div style={noImageCardStyle}>
+          <h3 style={noImageTitleStyle}>{item.name}</h3>
+          <div style={noImageRightSectionStyle}>
+            {shouldShowPriceAndButton && (
+              qty === 0 ? (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     handleAdd();
                   }}
-                  style={addButtonStyle}
+                  style={noImageButtonStyle}
                 >
                   <svg
                     width="14"
@@ -321,7 +389,7 @@ export function ItemCard({ item, containerWidth, onItemClick, preload=false, aut
                   </svg>
                 </button>
               ) : (
-                <div style={quantityPillStyle}>
+                <div style={noImageQuantityPillStyle}>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -342,67 +410,9 @@ export function ItemCard({ item, containerWidth, onItemClick, preload=false, aut
                     +
                   </button>
                 </div>
-              )}
-            </div>
-          </div>
-          <div style={contentStyle}>
-            <h3 style={titleStyle}>{item.name}</h3>
-            <p style={priceStyle}>₹{item.base_price}</p>
-          </div>
-        </div>
-      ) : (
-        // Inline card without image
-        <div style={noImageCardStyle}>
-          <h3 style={noImageTitleStyle}>{item.name}</h3>
-          <div style={noImageRightSectionStyle}>
-            {qty === 0 ? (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleAdd();
-                }}
-                style={noImageButtonStyle}
-              >
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M12 5v14m-7-7h14"
-                    stroke="currentColor"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
-            ) : (
-              <div style={noImageQuantityPillStyle}>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRemove();
-                  }}
-                  style={quantityButtonStyle}
-                >
-                  −
-                </button>
-                <span style={quantityStyle}>{qty}</span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleAdd();
-                  }}
-                  style={quantityButtonStyle}
-                >
-                  +
-                </button>
-              </div>
+              )
             )}
-            <p style={noImagePriceStyle}>₹{item.base_price}</p>
+            {shouldShowPriceAndButton && <p style={noImagePriceStyle}>₹{item.base_price}</p>}
           </div>
         </div>
       )}

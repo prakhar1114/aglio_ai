@@ -59,7 +59,7 @@ def validate_and_clean_csv(df_menu: pd.DataFrame) -> pd.DataFrame:
         'name', 'category_brief', 'group_category', 'description', 
         'price', 'image_path', 'veg_flag', 'is_bestseller', 
         'is_recommended', 'kind', 'priority', 'promote', 'public_id',
-        'cloudflare_image_id', 'cloudflare_video_id', 'id'
+        'cloudflare_image_id', 'cloudflare_video_id', 'id', 'show_on_menu'
     ]
     
     # Check for required columns, ALWAYS ADD THESE, DO NOT REMOVE ANY
@@ -77,6 +77,8 @@ def validate_and_clean_csv(df_menu: pd.DataFrame) -> pd.DataFrame:
         if col not in df_cleaned.columns:
             if col == 'public_id':
                 df_cleaned[col] = None  # Will be auto-generated
+            elif col == 'show_on_menu':
+                df_cleaned[col] = True
     
     # Validate that all rows have non-null IDs
     id_series = df_cleaned['id'].tolist()
@@ -102,14 +104,20 @@ def process_image_urls_and_upload_to_cloudflare(df_menu: pd.DataFrame, image_dir
     
     processed_df = df_menu.copy()
     
-    # Initialize Cloudflare columns only if they don't already exist
-    if 'cloudflare_image_id' not in processed_df.columns:
-        processed_df['cloudflare_image_id'] = None
-    if 'cloudflare_video_id' not in processed_df.columns:
-        processed_df['cloudflare_video_id'] = None
+    # # Initialize Cloudflare columns only if they don't already exist
+    # if 'cloudflare_image_id' not in processed_df.columns:
+    #     processed_df['cloudflare_image_id'] = None
+    # if 'cloudflare_video_id' not in processed_df.columns:
+    #     processed_df['cloudflare_video_id'] = None
     
     for idx, row in processed_df.iterrows():
         image_path_value = row.get('image_path')
+        cloudflare_image_id = row.get('cloudflare_image_id')
+        cloudflare_video_id = row.get('cloudflare_video_id')
+
+        if pd.notna(cloudflare_image_id) or pd.notna(cloudflare_video_id):
+            continue
+        
         has_url = pd.notna(image_path_value) and is_url(str(image_path_value))
         
         local_file_path = None
@@ -498,19 +506,36 @@ def onboard_no_pos(folder: Path, db, restaurant_id: int, df_menu: pd.DataFrame, 
             # Check if this item variation has addons
             has_addons = item_var_ext_id in item_variations_with_addons
 
-            item_variation = ItemVariation(
+            # Check if ItemVariation already exists
+            existing_item_variation = db.query(ItemVariation).filter_by(
                 menu_item_id=menu_item.id,
                 variation_id=variation.id,
-                price=float(row["price"]),
-                is_active=str(row.get("is_active", "true")).lower().strip() in ["1", "true", "yes"],
-                priority=int(row.get("priority", 0)),
-                variationallowaddon=has_addons,
-                external_id=item_var_ext_id,
-                external_data=row.to_dict(),
-            )
-            db.add(item_variation)
-            db.flush()
-            item_variation_map[item_var_ext_id] = item_variation
+                external_id=item_var_ext_id
+            ).first()
+
+            if existing_item_variation:
+                # Update existing record
+                existing_item_variation.price = float(row["price"])
+                existing_item_variation.is_active = str(row.get("is_active", "true")).lower().strip() in ["1", "true", "yes"]
+                existing_item_variation.priority = int(row.get("priority", 0))
+                existing_item_variation.variationallowaddon = has_addons
+                existing_item_variation.external_data = row.to_dict()
+                item_variation_map[item_var_ext_id] = existing_item_variation
+            else:
+                # Create new record
+                item_variation = ItemVariation(
+                    menu_item_id=menu_item.id,
+                    variation_id=variation.id,
+                    price=float(row["price"]),
+                    is_active=str(row.get("is_active", "true")).lower().strip() in ["1", "true", "yes"],
+                    priority=int(row.get("priority", 0)),
+                    variationallowaddon=has_addons,
+                    external_id=item_var_ext_id,
+                    external_data=row.to_dict(),
+                )
+                db.add(item_variation)
+                db.flush()
+                item_variation_map[item_var_ext_id] = item_variation
 
     # 7. Insert Item Addons
     if item_addons_df is not None:
@@ -531,15 +556,29 @@ def onboard_no_pos(folder: Path, db, restaurant_id: int, df_menu: pd.DataFrame, 
             menu_item = menu_item_map[menu_item_key]
             addon_group = addon_group_map[addon_group_key]
 
-            item_addon = ItemAddon(
+            # Check if ItemAddon already exists
+            existing_item_addon = db.query(ItemAddon).filter_by(
                 menu_item_id=menu_item.id,
-                addon_group_id=addon_group.id,
-                min_selection=int(row["min_selection"]),
-                max_selection=int(row["max_selection"]),
-                is_active=str(row.get("is_active", "true")).lower().strip() in ["1", "true", "yes"],
-                priority=int(row.get("priority", 0)),
-            )
-            db.add(item_addon)
+                addon_group_id=addon_group.id
+            ).first()
+
+            if existing_item_addon:
+                # Update existing record
+                existing_item_addon.min_selection = int(row["min_selection"])
+                existing_item_addon.max_selection = int(row["max_selection"])
+                existing_item_addon.is_active = str(row.get("is_active", "true")).lower().strip() in ["1", "true", "yes"]
+                existing_item_addon.priority = int(row.get("priority", 0))
+            else:
+                # Create new record
+                item_addon = ItemAddon(
+                    menu_item_id=menu_item.id,
+                    addon_group_id=addon_group.id,
+                    min_selection=int(row["min_selection"]),
+                    max_selection=int(row["max_selection"]),
+                    is_active=str(row.get("is_active", "true")).lower().strip() in ["1", "true", "yes"],
+                    priority=int(row.get("priority", 0)),
+                )
+                db.add(item_addon)
 
     # 8. Insert ItemVariation Addons
     if item_variation_addons_df is not None:
@@ -560,15 +599,29 @@ def onboard_no_pos(folder: Path, db, restaurant_id: int, df_menu: pd.DataFrame, 
             item_variation = item_variation_map[item_var_key]
             addon_group = addon_group_map[addon_group_key]
 
-            item_var_addon = ItemVariationAddon(
+            # Check if ItemVariationAddon already exists
+            existing_item_var_addon = db.query(ItemVariationAddon).filter_by(
                 item_variation_id=item_variation.id,
-                addon_group_id=addon_group.id,
-                min_selection=int(row["min_selection"]),
-                max_selection=int(row["max_selection"]),
-                is_active=str(row.get("is_active", "true")).lower().strip() in ["1", "true", "yes"],
-                priority=int(row.get("priority", 0)),
-            )
-            db.add(item_var_addon)
+                addon_group_id=addon_group.id
+            ).first()
+
+            if existing_item_var_addon:
+                # Update existing record
+                existing_item_var_addon.min_selection = int(row["min_selection"])
+                existing_item_var_addon.max_selection = int(row["max_selection"])
+                existing_item_var_addon.is_active = str(row.get("is_active", "true")).lower().strip() in ["1", "true", "yes"]
+                existing_item_var_addon.priority = int(row.get("priority", 0))
+            else:
+                # Create new record
+                item_var_addon = ItemVariationAddon(
+                    item_variation_id=item_variation.id,
+                    addon_group_id=addon_group.id,
+                    min_selection=int(row["min_selection"]),
+                    max_selection=int(row["max_selection"]),
+                    is_active=str(row.get("is_active", "true")).lower().strip() in ["1", "true", "yes"],
+                    priority=int(row.get("priority", 0)),
+                )
+                db.add(item_var_addon)
 
     # 9. Update Menu Item flags
     # items with variations
@@ -800,6 +853,9 @@ def seed_folder(folder: Path):
                 description_val = row["description"]
                 mi.description = str(description_val) if pd.notna(description_val) else ""
                 
+                show_on_menu_val = row["show_on_menu"]
+                mi.show_on_menu = bool(show_on_menu_val) if pd.notna(show_on_menu_val) else True
+
                 # Handle price conversion properly
                 try:
                     price_val = row["price"]
@@ -982,8 +1038,11 @@ if __name__ == "__main__":
         logger.error("Provided path is not a directory")
         sys.exit(1)
 
-    try:
-        seed_folder(folder)
-    except Exception as e:
-        logger.error(f"❌ Onboarding failed: {e}")
-        sys.exit(1)
+    # try:
+    #     seed_folder(folder)
+    # except Exception as e:
+    #     logger.error(f"❌ Onboarding failed: {e}")
+    #     sys.exit(1)
+
+    seed_folder(folder)
+
