@@ -152,8 +152,8 @@ def download_instagram_content(instagram_url: str, save_dir: str, base_filename:
         elif post.typename == "GraphSidecar":
             # Carousel post with multiple images/videos - get item at specified index
             try:
-                # Get all carousel items
-                carousel_items = list(post.get_sidecar())
+                # Get all carousel items using get_sidecar_nodes()
+                carousel_items = list(post.get_sidecar_nodes())
                 
                 # Use img_index if valid, otherwise fallback to first item
                 if img_index < len(carousel_items):
@@ -167,11 +167,12 @@ def download_instagram_content(instagram_url: str, save_dir: str, base_filename:
                     if selected_node.is_video:
                         # Selected item is a video
                         file_path = os.path.join(save_dir, f"{base_filename}.mp4")
-                        response = requests.get(selected_node.video_url)
-                        if response.status_code == 200:
-                            with open(file_path, 'wb') as f:
-                                f.write(response.content)
-                            return file_path, "video", True
+                        if selected_node.video_url:  # Check if video_url is not None
+                            response = requests.get(selected_node.video_url)
+                            if response.status_code == 200:
+                                with open(file_path, 'wb') as f:
+                                    f.write(response.content)
+                                return file_path, "video", True
                     else:
                         # Selected item is an image
                         file_path = os.path.join(save_dir, f"{base_filename}.jpg")
