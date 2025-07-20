@@ -20,6 +20,7 @@ from models.cart_models import (
 
 # Utilities
 from utils.jwt_utils import decode_ws_token
+from utils.general import new_id
 from websocket.manager import connection_manager
 from services.pos.utils import get_any_pos_integration
 from utils.addon_helpers import resolve_addon_context, build_selected_addon_responses
@@ -255,7 +256,7 @@ async def handle_place_order(websocket, session_pid, member_pid, data):
             # Create Order record in database
             restaurant = db.query(Restaurant).filter(Restaurant.id == session.restaurant_id).first()
             new_order = Order(
-                public_id=f"{restaurant.slug[0:4].upper()}_{order_id}",
+                public_id=f"{new_id()}_{order_id}",
                 session_id=session.id,
                 initiated_by_member_id=member.id,  # Track who initiated the order
                 payload=[],  # Will be filled after processing

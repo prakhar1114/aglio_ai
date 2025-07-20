@@ -1,8 +1,10 @@
 import json
 import requests
-config_path = '/Users/prakharjain/code/aglio_ai/backend/scripts/pp_staging.json'
-output_dir = '/Users/prakharjain/code/aglio_ai/backend/scripts'
-output_path = f'{output_dir}/menu.json'
+from pathlib import Path
+
+config_path = Path(__file__).parent / 'pp_staging.json'
+output_dir = Path(__file__).parent
+output_path = output_dir / 'menu.json'
 
 with open(config_path, 'r') as file:
     data = json.load(file)
