@@ -32,7 +32,7 @@ export const useSessionStore = create((set, get) => ({
   wsConnection: null,
   wsStatus: 'disconnected', // 'disconnected', 'connecting', 'connected', 'error'
   wsRetryCount: 0,
-  wsMaxRetries: 5,
+  wsMaxRetries: 6,
   
   // Session members
   members: [], // Array of {member_pid, nickname, is_host}

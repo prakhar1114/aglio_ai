@@ -5,7 +5,7 @@ import { FeedItemSwitcher } from './FeedItemSwitcher.jsx';
 import { CategoryDropdown, CategoryDropdownButton } from './CategoryDropdown.jsx';
 
 export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
-  const isMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   // Refs for virtuoso
   const virtuosoRef = useRef(null);
 
@@ -401,6 +401,9 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
                           display: isMobile ? 'inline-block' : 'block',
                           width: '100%',
                           verticalAlign: 'top', // Align to top to prevent text baseline spacing
+                          // Create explicit stacking context for full-width items to isolate video z-index
+                          position: 'relative',
+                          zIndex: 0, // Lower than category header (zIndex: 100)
                         }}
                       >
                         <FeedItemSwitcher 

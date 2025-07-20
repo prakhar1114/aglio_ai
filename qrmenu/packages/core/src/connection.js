@@ -257,7 +257,7 @@ function handleWebSocketClose(event, sessionPid, wsToken) {
     default:
       // Normal disconnection or network error - attempt reconnect
       if (sessionStore.wsRetryCount < sessionStore.wsMaxRetries) {
-        const delay = Math.min(1000 * Math.pow(2, sessionStore.wsRetryCount), 10000);
+        const delay = Math.min(500 * Math.pow(2, sessionStore.wsRetryCount), 4000);
         console.log(`Reconnecting WebSocket in ${delay}ms (attempt ${sessionStore.wsRetryCount + 1})`);
         
         setTimeout(() => {
