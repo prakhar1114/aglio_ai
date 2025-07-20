@@ -141,6 +141,7 @@ async def handle_chat_message(websocket: WebSocket, message: dict, member_pid: s
         user_message = message.get("message", "")
         thread_id = message.get("thread_id")
         message_id = message.get("message_id")
+        extra_context = message.get("extra_context", None)
         
         if not user_message.strip():
             await connection_manager.send_error(
@@ -176,7 +177,7 @@ async def handle_chat_message(websocket: WebSocket, message: dict, member_pid: s
             "text": user_message,
             "filters": {},
             "cart": [],
-            "more_context": {}
+            "extra_context": extra_context
         }
         
         # # Generate blocks using AI system

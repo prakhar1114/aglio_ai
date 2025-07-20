@@ -574,7 +574,20 @@ function PreviewScreenComponent({
   // AI chat handler
   const handleAskAI = (item) => {
     const message = `Tell me more about ${item.name}`;
-    sendMessageAndOpenDrawer(message, nickname);
+    
+    // Safely create extraContext with proper JSON formatting
+    const contextData = {
+      "information-type": "item background information",
+      "name": item.name || "",
+      "category_brief": item.category_brief || "",
+      "category_name": item.group_category || "",
+      "price": item.base_price || 0,
+      "is_veg": item.is_veg || false,
+      "description": item.description || ""
+    };
+    
+    const extraContext = JSON.stringify(contextData);
+    sendMessageAndOpenDrawer(message, nickname, extraContext);
   };
 
   const playerContextIdRef = useRef(null);

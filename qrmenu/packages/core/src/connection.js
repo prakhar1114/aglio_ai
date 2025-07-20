@@ -315,7 +315,7 @@ export function sendCartMutation(mutation) {
   }
 }
 
-export function sendChatMessage(message, senderName, threadId, messageId) {
+export function sendChatMessage(message, senderName, threadId, messageId, extraContext = null) {
   const wsConnection = useSessionStore.getState().wsConnection;
   if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
     const chatMessage = {
@@ -323,7 +323,8 @@ export function sendChatMessage(message, senderName, threadId, messageId) {
       sender_name: senderName,
       message: message,
       thread_id: threadId,
-      message_id: messageId
+      message_id: messageId,
+      extra_context: extraContext
     };
     
     console.log('Sending chat message:', chatMessage);
