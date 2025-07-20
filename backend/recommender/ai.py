@@ -68,7 +68,7 @@ def generate_blocks(payload: Dict[str, Any], thread_id: str, restaurant_slug: st
     question = payload.pop("text")
     filters = payload.pop("filters")
     cart = payload.pop("cart")
-    more_context = payload
+    extra_context = payload.pop("extra_context")
 
     msgs = []
     if prev_id is None:
@@ -78,6 +78,16 @@ def generate_blocks(payload: Dict[str, Any], thread_id: str, restaurant_slug: st
         }
         msgs.append(system_msg)
     
+    if extra_context:
+        try:
+            extra_context = json.loads(extra_context)
+            context = f"Some extra context available about the upcoming user's question: {extra_context}"
+            logger.info(f"Extra context: {context}")
+            msgs.append({"role": "system", "content": context})
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse extra_context JSON: {e}. Context: {extra_context}")
+            # Continue without extra context rather than failing the entire request
+
     msg = {
         "role": "user",
         "content": question,

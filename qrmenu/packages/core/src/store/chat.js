@@ -96,7 +96,7 @@ export const useChatStore = create((set, get) => ({
   },
   
   // Send message via WebSocket (Phase 1 implementation)
-  sendMessage: async (content, senderName) => {
+  sendMessage: async (content, senderName, extraContext = null) => {
     const threadId = get().threadId || get().generateThreadId();
     
     // Generate unique message ID for optimistic update
@@ -117,15 +117,15 @@ export const useChatStore = create((set, get) => ({
     const { sendChatMessage } = await import('../connection.js');
     
     // Send message via WebSocket with message ID
-    sendChatMessage(content, senderName, threadId, messageId);
+    sendChatMessage(content, senderName, threadId, messageId, extraContext);
     
     return userMessage;
   },
   
   // Quick action to send message and open drawer
-  sendMessageAndOpenDrawer: (content, senderName) => {
+  sendMessageAndOpenDrawer: (content, senderName, extraContext = null) => {
     get().openDrawer();
-    return get().sendMessage(content, senderName);
+    return get().sendMessage(content, senderName, extraContext);
   },
   
   // Clear chat history

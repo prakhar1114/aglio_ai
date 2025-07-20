@@ -20,6 +20,7 @@ from models.cart_models import (
 
 # Utilities
 from utils.jwt_utils import decode_ws_token
+from utils.general import new_id
 from websocket.manager import connection_manager
 from services.pos.utils import get_any_pos_integration
 from utils.addon_helpers import resolve_addon_context, build_selected_addon_responses
@@ -140,6 +141,7 @@ async def handle_chat_message(websocket: WebSocket, message: dict, member_pid: s
         user_message = message.get("message", "")
         thread_id = message.get("thread_id")
         message_id = message.get("message_id")
+        extra_context = message.get("extra_context", None)
         
         if not user_message.strip():
             await connection_manager.send_error(
@@ -175,7 +177,7 @@ async def handle_chat_message(websocket: WebSocket, message: dict, member_pid: s
             "text": user_message,
             "filters": {},
             "cart": [],
-            "more_context": {}
+            "extra_context": extra_context
         }
         
         # # Generate blocks using AI system
@@ -255,7 +257,7 @@ async def handle_place_order(websocket, session_pid, member_pid, data):
             # Create Order record in database
             restaurant = db.query(Restaurant).filter(Restaurant.id == session.restaurant_id).first()
             new_order = Order(
-                public_id=f"{restaurant.slug[0:4].upper()}_{order_id}",
+                public_id=f"{new_id()}_{order_id}",
                 session_id=session.id,
                 initiated_by_member_id=member.id,  # Track who initiated the order
                 payload=[],  # Will be filled after processing

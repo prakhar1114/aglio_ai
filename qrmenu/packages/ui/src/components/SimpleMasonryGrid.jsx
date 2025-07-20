@@ -7,7 +7,7 @@ export function SimpleMasonryGrid({
   title,
   className = '' 
 }) {
-  const isMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
   // Debug logging
   console.log('SimpleMasonryGrid render:', {

@@ -128,7 +128,7 @@ export function CategoryDropdownButton({setIsDropdownOpen, currentVisibleCategor
         WebkitBackdropFilter: 'blur(8px)',
         padding: '6px 10px', // Reduced footprint: smaller padding
         borderRadius: '6px', // Smaller border radius to match reduced size
-        border: '1px solid rgba(229, 231, 235, 0.6)', // More transparent border
+        border: '2px solid  rgba(255, 255, 255, 0.5) ', // More transparent border
         fontSize: '14px', // Same font size as requested
         fontWeight: '600', // theme typography.weights.semibold
         fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
@@ -155,20 +155,18 @@ export function CategoryDropdownButton({setIsDropdownOpen, currentVisibleCategor
       </span>
       <svg
         xmlns="http://www.w3.org/2000/svg"
-        width="12" // Smaller icon for reduced footprint
-        height="12"
+        width="24"
+        height="24"
         viewBox="0 0 24 24"
-        fill="none"
-        stroke="#6B7280" // theme colors.text.secondary
-        strokeWidth="2.5" // Slightly bolder for smaller size
-        strokeLinecap="round"
-        strokeLinejoin="round"
+        fill="#374151"        // ← solid fill color
+        stroke="none"         // ← remove the stroke
         style={{
           transition: 'transform 0.15s ease-in-out',
           transform: isDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)'
         }}
       >
-        <path d="M19 9l-7 7-7-7" />
+        {/* A classic down‐pointing triangle */}
+        <path d="M6 9l6 6 6-6z" />
       </svg>
     </button>
   </div>
