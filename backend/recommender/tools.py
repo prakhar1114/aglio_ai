@@ -22,8 +22,11 @@ from typing import List, Dict, Any, Tuple, Optional
 
 import numpy as np
 from sentence_transformers import SentenceTransformer
+import os
+import pickle
+from rank_bm25 import BM25Okapi
 
-from config import qd
+from config import qd, logger
 from models.schema import SessionLocal, MenuItem
 
 
@@ -130,45 +133,82 @@ def _apply_pg_filters(query, filters: Dict[str, Any]):
 
 
 # ------------------------------------------------------------------#
+# BM25 Index Loader
+# ------------------------------------------------------------------#
+_bm25_indexes = {}
+_bm25_index_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'bm25_indexes')
+if os.path.exists(_bm25_index_dir):
+    for fname in os.listdir(_bm25_index_dir):
+        if fname.endswith('_bm25.pkl'):
+            slug = fname.replace('_bm25.pkl', '')
+            try:
+                with open(os.path.join(_bm25_index_dir, fname), 'rb') as f:
+                    data = pickle.load(f)
+                    _bm25_indexes[slug] = data
+            except Exception as e:
+                pass  # Could log error if needed
+
+def _get_bm25_index(restaurant_slug):
+    return _bm25_indexes.get(restaurant_slug)
+
+
+# ------------------------------------------------------------------#
 # Public API (exposed to the LLM) - now tenant-aware
 # ------------------------------------------------------------------#
 def search_menu(restaurant_slug: str,
                 query: str,
                 filters: Dict[str, Any] | None = None,
                 limit: int = 10) -> List[Dict[str, Any]]:
-    """Free‑text semantic search across name + description using embeddings."""
+    """Free‑text semantic search across name + description using embeddings and BM25."""
+    # --- Qdrant semantic search ---
     collection_name = _get_collection_name(restaurant_slug)
     vec = _embed(query).tolist()
-    
     limit = min(limit, 10)
-    # Search Qdrant for similar vectors
     points = qd.search(
         collection_name=collection_name,
         query_vector=vec,
-        limit=limit,  # Get more results to filter
+        limit=limit,
         with_payload=True
     )
-    
-    # Extract public_ids
-    public_ids = [p.payload.get("public_id") for p in points if p.payload.get("public_id")]
-    
-    # Get full menu item data from PostgreSQL with filters
+    qdrant_public_ids = [p.payload.get("public_id") for p in points if p.payload.get("public_id")]
+
+    # --- BM25 search ---
+    bm25_data = _get_bm25_index(restaurant_slug)
+    bm25_public_ids = []
+    if bm25_data:
+        bm25 = bm25_data['bm25']
+        id_map = bm25_data['id_map']
+        tokenized_query = query.lower().split()
+        scores = bm25.get_scores(tokenized_query)
+        ranked = sorted(enumerate(scores), key=lambda x: x[1], reverse=True)
+        for idx, score in ranked[:10]:
+            bm25_public_ids.append(id_map[idx])
+
+    logger.debug(f"Qdrant public ids: {qdrant_public_ids}")
+    logger.debug(f"BM25 public ids: {bm25_public_ids}")
+
+    # --- Merge and deduplicate ---
+    all_public_ids = []
+    seen = set()
+    for pid in qdrant_public_ids + bm25_public_ids:
+        if pid and pid not in seen:
+            all_public_ids.append(pid)
+            seen.add(pid)
+
+    # --- Fetch from Postgres ---
     with SessionLocal() as db:
         from models.schema import Restaurant
         restaurant = db.query(Restaurant).filter_by(slug=restaurant_slug).first()
         if not restaurant:
             return []
-        
         query_obj = db.query(MenuItem).filter(
             MenuItem.restaurant_id == restaurant.id,
-            MenuItem.public_id.in_(public_ids)
+            MenuItem.public_id.in_(all_public_ids),
+            MenuItem.is_active == True,
+            MenuItem.show_on_menu == True
         )
-        
-        # Apply filters
         query_obj = _apply_pg_filters(query_obj, filters or {})
-        
-        menu_items = query_obj.limit(limit).all()
-        
+        menu_items = query_obj.limit(20).all()
         # Convert to result format
         result = []
         for item in menu_items:
@@ -179,7 +219,7 @@ def search_menu(restaurant_slug: str,
                 "category": item.category_brief,
                 "group_category": item.group_category,
             })
-        
+        # print(f"Result: {result}")
         return result
 
 
