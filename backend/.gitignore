@@ -6,3 +6,4 @@ raw_data/
 **/*/.DS_Store
 onboarding_data/
 scripts/**/*.json
+bm25_indexes/*.pkl

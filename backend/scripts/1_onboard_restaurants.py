@@ -18,6 +18,8 @@ from io import BytesIO
 from sentence_transformers import SentenceTransformer
 from PIL import Image
 from loguru import logger
+import pickle
+from rank_bm25 import BM25Okapi
 
 # Add parent directory to path to import config and models
 sys.path.append(str(Path(__file__).parent.parent))
@@ -822,12 +824,41 @@ def seed_folder(folder: Path):
             for idx, row in df_menu.iterrows():
                 public_id_value = row.get('public_id')
                 has_public_id = pd.notna(public_id_value) and str(public_id_value).strip() != ''
+
                 if not has_public_id:
-                    df_menu.at[idx, 'public_id'] = new_id()
+                    mi = db.query(MenuItem).filter_by(
+                        restaurant_id=restaurant_id,
+                        external_id=str(row["id"])
+                    ).first()
+                    if mi:
+                        df_menu.at[idx, 'public_id'] = mi.public_id
+                    else:
+                        df_menu.at[idx, 'public_id'] = new_id()
 
             # Generate embeddings for all menu items
             logger.info("🧠 Generating embeddings for menu items...")
             df_with_embeddings = generate_embeddings_for_menu_items(df_menu, image_directory)
+
+            # --- BM25 Index Build & Save ---
+            logger.info("🔎 Building BM25 index for menu search...")
+            bm25_corpus = []
+            bm25_id_map = []
+            for idx, row in df_menu.iterrows():
+                # Concatenate fields for BM25
+                text = f"{row['name']} {row['description']} {row['category_brief']} {row['category_brief']} {row['group_category']}"
+                bm25_corpus.append(text.lower().split())
+                bm25_id_map.append(str(row['public_id']))
+            bm25 = BM25Okapi(bm25_corpus)
+            bm25_index_data = {
+                'bm25': bm25,
+                'id_map': bm25_id_map,
+            }
+            bm25_dir = Path(__file__).parent.parent / 'bm25_indexes'
+            bm25_dir.mkdir(exist_ok=True)
+            bm25_path = bm25_dir / f"{meta['slug']}_bm25.pkl"
+            with open(bm25_path, 'wb') as f:
+                pickle.dump(bm25_index_data, f)
+            logger.success(f"✅ BM25 index saved to {bm25_path}")
             
             for idx, row in df_menu.iterrows():
                 mi = db.query(MenuItem).filter_by(
@@ -836,7 +867,7 @@ def seed_folder(folder: Path):
                 ).first()
                 if not mi:
                     mi = MenuItem(
-                        public_id=str(row.get("public_id")) or new_id(),
+                        public_id=str(row.get("public_id")),
                         restaurant_id=restaurant_id
                     )
                     db.add(mi)

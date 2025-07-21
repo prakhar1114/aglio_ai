@@ -6,14 +6,15 @@ from dotenv import load_dotenv
 from loguru import logger
 import sys
 
-logger.remove()
-logger.add(sys.stderr, level="INFO")
-
 load_dotenv()
 
 BACKEND_URL = os.getenv("BACKEND_URL")
 FRONTEND_URL = os.getenv("FRONTEND_URL")
 DEBUG_MODE = ast.literal_eval(os.getenv("DEBUG_MODE", "False"))
+
+logger.remove()
+logger.add(sys.stderr, level="DEBUG" if DEBUG_MODE else "INFO")
+
 JWT_SECRET=os.getenv("JWT_SECRET")
 if not JWT_SECRET:
     raise ValueError("JWT_SECRET is not set in environment variables")
