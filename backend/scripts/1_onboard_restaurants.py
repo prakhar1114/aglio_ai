@@ -61,7 +61,7 @@ def validate_and_clean_csv(df_menu: pd.DataFrame) -> pd.DataFrame:
         'name', 'category_brief', 'group_category', 'description', 
         'price', 'image_path', 'veg_flag', 'is_bestseller', 
         'is_recommended', 'kind', 'priority', 'promote', 'public_id',
-        'cloudflare_image_id', 'cloudflare_video_id', 'id', 'show_on_menu'
+        'cloudflare_image_id', 'cloudflare_video_id', 'id', 'show_on_menu', "timing_start", "timing_end", "tags"
     ]
     
     # Check for required columns, ALWAYS ADD THESE, DO NOT REMOVE ANY
