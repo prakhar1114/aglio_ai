@@ -361,6 +361,62 @@ const themeJson = {
   }
 };
 
+const vercelConfig = {
+    "buildCommand": "pnpm build",
+    "outputDirectory": "dist",
+    "installCommand": "pnpm install",
+    "framework": "vite",
+    "git": {
+      "deploymentEnabled": false
+    },
+    "rewrites": [
+      {
+        "source": "/(.*)",
+        "destination": "/index.html"
+      }
+    ],
+    "headers": [
+      {
+        "source": "/assets/(.*)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=31536000, immutable"
+          }
+        ]
+      },
+      {
+        "source": "/(.*).js",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=31536000, immutable"
+          }
+        ]
+      },
+      {
+        "source": "/(.*).css",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=31536000, immutable"
+          }
+        ]
+      },
+      {
+        "source": "/index.html",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=0, must-revalidate"
+          }
+        ]
+      }
+    ]
+} 
+
+
+
 // Write all files
 try {
   // Root files
@@ -369,6 +425,7 @@ try {
   fs.writeFileSync(path.join(restaurantDir, 'index.html'), indexHtml);
   fs.writeFileSync(path.join(restaurantDir, 'tailwind.config.js'), tailwindConfig);
   fs.writeFileSync(path.join(restaurantDir, 'postcss.config.js'), postcssConfig);
+  fs.writeFileSync(path.join(restaurantDir, 'vercel.json'), JSON.stringify(vercelConfig, null, 2));
   
   // Src files
   fs.writeFileSync(path.join(restaurantDir, 'src', 'main.jsx'), mainJsx);
@@ -400,5 +457,7 @@ try {
 
 } catch (error) {
   console.error('Error creating restaurant app:', error);
+  // Clean up by deleting the partially created directory
+  fs.rmSync(restaurantDir, { recursive: true, force: true });
   process.exit(1);
 } 
