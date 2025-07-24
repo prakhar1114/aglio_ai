@@ -25,6 +25,8 @@ PG_DB_HOST = os.getenv("PG_DB_HOST", "localhost")
 PG_DB_PORT = os.getenv("PG_DB_PORT", "5432")
 PG_DB_NAME = os.getenv("PG_DB_NAME", "db")
 
+VAPID_PUBLIC_KEY = os.getenv("VAPID_PUBLIC_KEY")
+VAPID_PRIVATE_KEY = os.getenv("VAPID_PRIVATE_KEY")
 
 root_dir = Path(__file__).parent
 

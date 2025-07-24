@@ -8,6 +8,7 @@ import uvicorn
 from loguru import logger
 import sys
 from contextlib import asynccontextmanager
+import asyncio
 # from models.schema import init_db
 
 
@@ -29,7 +30,8 @@ from urls.cart import router as cart_router
 from urls.waiter_requests import router as waiter_requests_router
 from urls.petpooja_callback import router as petpooja_callback_router
 # from urls.pos import router as pos_router
-
+from urls.beeper import router as beeper_router
+from urls.beeper import _push_loop
 
 
 # init_db()
@@ -40,17 +42,9 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("🚀 Starting Aglio Multi-Tenant Restaurant API")
     logger.info(f"🔧 Debug mode: {DEBUG_MODE}")
+    asyncio.create_task(_push_loop())
     
-    # Display loaded restaurants status
-    # tenant_count = len(tenant_resolver.restaurants_data)
-    # logger.info(f"🏪 Found {tenant_count} restaurants")
-    
-    # if tenant_count == 0:
-    #     logger.warning("⚠️  No restaurants loaded! Check restaurant_onboarding.json")
-    # else:
-    #     for subdomain, info in tenant_resolver.restaurants_data.items():
-    #         status = "✅ Ready" if info.get("added2qdrant") else "⏳ Pending"
-    #         logger.info(f"   • {info['restaurant_name']} -> {subdomain}.aglioapp.com ({status})")
+
     
     yield
     
@@ -79,7 +73,16 @@ admin_static_dir = os.path.join(os.path.dirname(__file__), "urls", "admin", "sta
 if os.path.exists(admin_static_dir):
     app.mount("/admin/static", StaticFiles(directory=admin_static_dir), name="admin_static")
 
+
+beeper_dir = os.path.join(root_dir, "beeper")
+app.mount(
+    "/beeper_pwa",                               # mount at root so SW scope is "/"
+    StaticFiles(directory=beeper_dir, html=True),
+    name="beeper_pwa",
+)
+
 # Include routers
+app.include_router(beeper_router, prefix="/beeper", tags=["beeper"])
 app.include_router(categories_router, tags=["categories"])  # No prefix - full path in router
 app.include_router(menu_router, tags=["menu"])  # No prefix - full path in router
 # app.include_router(filtered_router, prefix="/filtered_recommendations", tags=["recommendations"])

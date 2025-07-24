@@ -27,3 +27,5 @@ pytz>=2023.3
 sqlalchemy
 alembic
 rank_bm25
+pywebpush
+cryptography
