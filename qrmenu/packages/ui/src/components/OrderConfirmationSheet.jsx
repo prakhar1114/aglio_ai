@@ -1,7 +1,7 @@
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { useCartStore } from '@qrmenu/core';
 
-export function OrderConfirmationSheet({ isOpen, onClose, onViewOrders, placedOrder }) {
+export function OrderConfirmationSheet({ isOpen, onClose, onViewOrders, placedOrder, message = null }) {
   const orders = useCartStore((state) => state.getOrders());
   
   // Helper function to format time
@@ -65,24 +65,28 @@ export function OrderConfirmationSheet({ isOpen, onClose, onViewOrders, placedOr
                  backgroundColor: 'rgba(34, 197, 94, 0.05)',
                  border: '1px solid rgba(34, 197, 94, 0.2)'
                }}>
-            <div className="text-4xl mb-3">✅</div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2"
-                style={{
-                  fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                  fontSize: '18px',
-                  fontWeight: '700',
-                  color: '#1C1C1E'
-                }}>
-              {placedOrder && `Order #${placedOrder.orderNumber} Placed!`}
-            </h3>
-            <p className="text-gray-600 mb-4"
+            <div className="flex items-center justify-center mb-3 gap-3">
+              <span className="text-4xl">✅</span>
+              <h3 className="text-xl font-semibold text-gray-900"
+                  style={{
+                    fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    fontSize: '18px',
+                    fontWeight: '700',
+                    color: '#1C1C1E',
+                    marginBottom: 0
+                  }}>
+                {placedOrder && `Order #${placedOrder.orderNumber} Placed!`}
+              </h3>
+            </div>
+            <p className="mb-4 text-gray-800 font-semibold"
                style={{
                  fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                 fontSize: '14px',
-                 color: '#6B7280',
-                 lineHeight: '1.5'
+                 fontSize: '15px',
+                 color: '#222',
+                 lineHeight: '1.5',
+                 marginTop: 0
                }}>
-              Please show this to your waiter to confirm your order.
+              {message || 'Please show this to your waiter to confirm your order.'}
             </p>
             {placedOrder && (
               <div className="bg-white p-4 rounded-lg border border-green-200 text-left"

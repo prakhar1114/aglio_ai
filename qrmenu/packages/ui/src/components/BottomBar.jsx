@@ -3,7 +3,7 @@ import { ShoppingCartIcon, AdjustmentsHorizontalIcon, ChatBubbleLeftIcon, Clipbo
 import { useCartStore, useSessionStore, useChatStore } from '@qrmenu/core';
 import { WaiterOptionsPopup } from './WaiterOptionsPopup.jsx';
 
-export function BottomBar({ onFiltersOpen, onAIChatOpen, onCartOpen, onMyOrdersOpen, onCallWaiterOpen }) {
+export function BottomBar({ onFiltersOpen, onAIChatOpen, onCartOpen, onMyOrdersOpen, onCallWaiterOpen, enableCallWaiter }) {
   const totalCount = useCartStore((state) => state.totalCount());
   const filterCount = useCartStore((state) => state.getFilterCount());
   const ordersCount = useCartStore((state) => state.getOrdersCount());
@@ -165,12 +165,14 @@ export function BottomBar({ onFiltersOpen, onAIChatOpen, onCartOpen, onMyOrdersO
             />
 
             {/* Waiter Options Button */}
+            {enableCallWaiter && (
             <TabButton
               ref={waiterButtonRef}
               onClick={toggleWaiterOptions}
               icon={BellIcon}
               label="Waiter"
             />
+            )}
 
             {/* Cart Button */}
             <TabButton
