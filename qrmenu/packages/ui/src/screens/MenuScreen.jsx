@@ -60,9 +60,9 @@ function MenuPage({enableCallWaiter, showToWaiter, message = null}) {
 
   // Show confirmation when order is placed
   useEffect(() => {
-    if (orderProcessingStatus === 'placed' && showToWaiter) {
+    if (orderProcessingStatus === 'placed' && showToWaiter && orders.length > 0) {
       setIsOrderConfirmationOpen(true);
-      setLastPlacedOrder(orders[0] || null);
+      setLastPlacedOrder(orders[0]);
     }
   }, [orderProcessingStatus, showToWaiter, orders]);
 
