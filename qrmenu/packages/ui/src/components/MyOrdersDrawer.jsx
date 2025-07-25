@@ -2,7 +2,7 @@ import { XMarkIcon, UserIcon, StarIcon, PencilSquareIcon, BellIcon, ReceiptPerce
 import { useCartStore, useSessionStore, updateMemberNickname, handleWaiterRequest } from '@qrmenu/core';
 import { useState } from 'react';
 
-export function MyOrdersDrawer({ isOpen, onClose }) {
+export function MyOrdersDrawer({ isOpen, onClose, enableCallWaiter }) {
   const orders = useCartStore((state) => state.getOrders());
   const totalBill = useCartStore((state) => state.getTotalBill());
   
@@ -317,7 +317,7 @@ export function MyOrdersDrawer({ isOpen, onClose }) {
           )}
 
           {/* Waiter Request Buttons */}
-          {sessionStore.sessionPid && (
+          {sessionStore.sessionPid && enableCallWaiter && (
             <div className="mt-3 flex gap-2">
               <button
                 onClick={handleCallWaiter}

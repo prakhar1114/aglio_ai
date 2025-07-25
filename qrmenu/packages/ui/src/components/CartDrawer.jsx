@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { XMarkIcon, MinusIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useCartStore, useSessionStore, updateCartItem, deleteCartItem, replaceCartItem, getMenuItem, placeOrder } from '@qrmenu/core';
 import { OptimizedMedia } from './OptimizedMedia.jsx';
-import { OrderConfirmationSheet } from './OrderConfirmationSheet.jsx';
 
 export function CartDrawer({ isOpen, onClose }) {
   const { items, getTotalAmount, getItemsByMember, canEditItem, hasCustomizationsAvailable, cartLocked, orderProcessingStatus, lockedByMember, isCartEditable, pendingOrderId, unlockCart } = useCartStore();
@@ -606,13 +605,6 @@ export function CartDrawer({ isOpen, onClose }) {
         )}
       </div>
       
-      {/* Order Confirmation Sheet */}
-      <OrderConfirmationSheet
-        isOpen={isOrderConfirmationOpen}
-        onClose={handleOrderConfirmationClose}
-        onViewOrders={handleViewOrdersFromConfirmation}
-        placedOrder={lastPlacedOrder}
-      />
     </>
   );
 } 

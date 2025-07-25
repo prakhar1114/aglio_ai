@@ -12,11 +12,12 @@ import { InformationModal } from '../components/InformationModal.jsx';
 import { ItemCustomisations } from '../components/ItemCustomisations.jsx';
 import { NicknamePrompt } from '../components/NicknamePrompt.jsx';
 import { PreviewScreen } from './PreviewScreen.jsx';
+import { OrderConfirmationSheet } from '../components/OrderConfirmationSheet.jsx';
 
 // Memoised version to avoid unnecessary re-renders when previewStack updates
 const MemoisedMasonryFeed = React.memo(MasonryFeed);
 
-function MenuPage() {
+function MenuPage({enableCallWaiter, showToWaiter, message = null}) {
   const location = useLocation();
   
   // UI State Management
@@ -35,11 +36,16 @@ function MenuPage() {
   const setFilters = useCartStore((state) => state.setFilters);
   
   // Order state from store
-  const addOrder = useCartStore((state) => state.addOrder);
+  const orders = useCartStore((state) => state.orders);
   
   // AI Chat methods from store
   const openAIChatDrawer = useChatStore((state) => state.openDrawer);
 
+  // Add state for order confirmation
+  const [isOrderConfirmationOpen, setIsOrderConfirmationOpen] = useState(false);
+  const [lastPlacedOrder, setLastPlacedOrder] = useState(orders[0] || null);
+  const orderProcessingStatus = useCartStore((state) => state.orderProcessingStatus);
+  
   // Setup connection on component mount
   useEffect(() => {
     setupConnection(location);
@@ -51,6 +57,14 @@ function MenuPage() {
       setHasCartEverOpened(true);
     }
   }, [isCartOpen, hasCartEverOpened]);
+
+  // Show confirmation when order is placed
+  useEffect(() => {
+    if (orderProcessingStatus === 'placed' && showToWaiter && orders.length > 0) {
+      setIsOrderConfirmationOpen(true);
+      setLastPlacedOrder(orders[0]);
+    }
+  }, [orderProcessingStatus, showToWaiter, orders]);
 
   // Handlers for bottom bar interactions
   const handleFiltersOpen = () => {
@@ -82,6 +96,15 @@ function MenuPage() {
 
   const handleCallWaiterOpen = async () => {
     await handleWaiterRequest('call_waiter', 'Waiter Called', 'Your waiter has been notified and will be with you shortly.');
+  };
+
+  // Handlers for order confirmation
+  const handleOrderConfirmationClose = () => {
+    setIsOrderConfirmationOpen(false);
+  };
+  const handleViewOrdersFromConfirmation = () => {
+    setIsOrderConfirmationOpen(false);
+    setIsMyOrdersOpen(true);
   };
 
   // Preview Screen Handlers
@@ -155,6 +178,7 @@ function MenuPage() {
         onCartOpen={handleCartOpen}
         onMyOrdersOpen={handleMyOrdersOpen}
         onCallWaiterOpen={handleCallWaiterOpen}
+        enableCallWaiter={enableCallWaiter}
       />
 
       {/* Drawers and Popups */}
@@ -162,6 +186,17 @@ function MenuPage() {
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
       />
+
+      {/* Mount OrderConfirmationSheet here instead of CartDrawer */}
+      {showToWaiter && (
+        <OrderConfirmationSheet
+          isOpen={isOrderConfirmationOpen}
+          onClose={handleOrderConfirmationClose}
+          onViewOrders={handleViewOrdersFromConfirmation}
+          placedOrder={lastPlacedOrder}
+          message={message}
+        />
+      )}
 
       <FilterSheet
         isOpen={isFiltersOpen}
@@ -180,6 +215,7 @@ function MenuPage() {
       <MyOrdersDrawer
         isOpen={isMyOrdersOpen}
         onClose={() => setIsMyOrdersOpen(false)}
+        enableCallWaiter={enableCallWaiter}
       />
 
       {/* Preview Screen Stack */}
@@ -210,10 +246,12 @@ function MenuPage() {
   );
 }
 
-export function MenuScreen() {
+export function MenuScreen({enableCallWaiter = true, showToWaiter = false, message = null}) {
   return (
     <Routes>
-      <Route path="/*" element={<MenuPage />} />
+      <Route path="/*" 
+        element={<MenuPage enableCallWaiter={enableCallWaiter} showToWaiter={showToWaiter} message={message} />} 
+      />
     </Routes>
   );
-} 
+}
