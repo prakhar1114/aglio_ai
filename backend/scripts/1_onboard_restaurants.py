@@ -356,6 +356,16 @@ def safe_read_csv(csv_path: Path):
         return pd.read_csv(csv_path)
     return None
 
+def clean_row_for_json(row):
+    """Clean pandas row data for JSON serialization by replacing NaN with None."""
+    cleaned = {}
+    for key, value in row.items():
+        if pd.isna(value):
+            cleaned[key] = None
+        else:
+            cleaned[key] = value
+    return cleaned
+
 # -----------------------------------------------------------------------------
 # No-POS onboarding helper
 # -----------------------------------------------------------------------------
@@ -409,7 +419,7 @@ def onboard_no_pos(folder: Path, db, restaurant_id: int, df_menu: pd.DataFrame, 
                 group_name=str(row["group_name"]),
                 is_active=str(row["is_active"]).lower().strip() in ["1", "true", "yes"],
                 external_variation_id=var_ext_id,
-                external_data=row.to_dict(),
+                external_data=clean_row_for_json(row),
                 pos_system_id=pos_system.id,
             )
             db.add(variation)
@@ -431,10 +441,10 @@ def onboard_no_pos(folder: Path, db, restaurant_id: int, df_menu: pd.DataFrame, 
             addon_group = AddonGroup(
                 name=str(row["name"]),
                 display_name=str(row["display_name"]),
-                priority=int(row.get("priority", 0)),
+                priority=int(row.get("priority", 0) or 0),
                 is_active=str(row.get("is_active", "true")).lower().strip() in ["1", "true", "yes"],
                 external_group_id=ag_ext_id,
-                external_data=row.to_dict(),
+                external_data=clean_row_for_json(row),
                 pos_system_id=pos_system.id,
             )
             db.add(addon_group)
@@ -458,8 +468,12 @@ def onboard_no_pos(folder: Path, db, restaurant_id: int, df_menu: pd.DataFrame, 
             if existing:
                 continue
 
-            tags_raw = str(row.get("tags", "")).strip()
-            tags = [t.strip() for t in tags_raw.split(",") if t.strip()] if tags_raw else []
+            tags_raw = row.get("tags", "")
+            if tags_raw is None or (hasattr(tags_raw, '__bool__') and not tags_raw) or pd.isna(tags_raw):
+                tags = []
+            else:
+                tags_raw = str(tags_raw).strip()
+                tags = [t.strip() for t in tags_raw.split(",") if t.strip()] if tags_raw else []
 
             addon_item = AddonGroupItem(
                 addon_group_id=addon_group_map[grp_id].id,
@@ -467,10 +481,10 @@ def onboard_no_pos(folder: Path, db, restaurant_id: int, df_menu: pd.DataFrame, 
                 display_name=str(row["display_name"]),
                 price=float(row["price"]),
                 is_active=str(row.get("is_active", "true")).lower().strip() in ["1", "true", "yes"],
-                priority=int(row.get("priority", 0)),
+                priority=int(row.get("priority", 0) or 0),
                 tags=tags,
                 external_addon_id=ai_ext_id,
-                external_data=row.to_dict(),
+                external_data=clean_row_for_json(row),
             )
             db.add(addon_item)
 
@@ -519,9 +533,9 @@ def onboard_no_pos(folder: Path, db, restaurant_id: int, df_menu: pd.DataFrame, 
                 # Update existing record
                 existing_item_variation.price = float(row["price"])
                 existing_item_variation.is_active = str(row.get("is_active", "true")).lower().strip() in ["1", "true", "yes"]
-                existing_item_variation.priority = int(row.get("priority", 0))
+                existing_item_variation.priority = int(row.get("priority", 0) or 0)
                 existing_item_variation.variationallowaddon = has_addons
-                existing_item_variation.external_data = row.to_dict()
+                existing_item_variation.external_data = clean_row_for_json(row)
                 item_variation_map[item_var_ext_id] = existing_item_variation
             else:
                 # Create new record
@@ -530,10 +544,10 @@ def onboard_no_pos(folder: Path, db, restaurant_id: int, df_menu: pd.DataFrame, 
                     variation_id=variation.id,
                     price=float(row["price"]),
                     is_active=str(row.get("is_active", "true")).lower().strip() in ["1", "true", "yes"],
-                    priority=int(row.get("priority", 0)),
+                    priority=int(row.get("priority", 0) or 0),
                     variationallowaddon=has_addons,
                     external_id=item_var_ext_id,
-                    external_data=row.to_dict(),
+                    external_data=clean_row_for_json(row),
                 )
                 db.add(item_variation)
                 db.flush()
@@ -569,7 +583,7 @@ def onboard_no_pos(folder: Path, db, restaurant_id: int, df_menu: pd.DataFrame, 
                 existing_item_addon.min_selection = int(row["min_selection"])
                 existing_item_addon.max_selection = int(row["max_selection"])
                 existing_item_addon.is_active = str(row.get("is_active", "true")).lower().strip() in ["1", "true", "yes"]
-                existing_item_addon.priority = int(row.get("priority", 0))
+                existing_item_addon.priority = int(row.get("priority", 0) or 0)
             else:
                 # Create new record
                 item_addon = ItemAddon(
@@ -578,7 +592,7 @@ def onboard_no_pos(folder: Path, db, restaurant_id: int, df_menu: pd.DataFrame, 
                     min_selection=int(row["min_selection"]),
                     max_selection=int(row["max_selection"]),
                     is_active=str(row.get("is_active", "true")).lower().strip() in ["1", "true", "yes"],
-                    priority=int(row.get("priority", 0)),
+                    priority=int(row.get("priority", 0) or 0),
                 )
                 db.add(item_addon)
 
@@ -612,7 +626,7 @@ def onboard_no_pos(folder: Path, db, restaurant_id: int, df_menu: pd.DataFrame, 
                 existing_item_var_addon.min_selection = int(row["min_selection"])
                 existing_item_var_addon.max_selection = int(row["max_selection"])
                 existing_item_var_addon.is_active = str(row.get("is_active", "true")).lower().strip() in ["1", "true", "yes"]
-                existing_item_var_addon.priority = int(row.get("priority", 0))
+                existing_item_var_addon.priority = int(row.get("priority", 0) or 0)
             else:
                 # Create new record
                 item_var_addon = ItemVariationAddon(
@@ -621,7 +635,7 @@ def onboard_no_pos(folder: Path, db, restaurant_id: int, df_menu: pd.DataFrame, 
                     min_selection=int(row["min_selection"]),
                     max_selection=int(row["max_selection"]),
                     is_active=str(row.get("is_active", "true")).lower().strip() in ["1", "true", "yes"],
-                    priority=int(row.get("priority", 0)),
+                    priority=int(row.get("priority", 0) or 0),
                 )
                 db.add(item_var_addon)
 
