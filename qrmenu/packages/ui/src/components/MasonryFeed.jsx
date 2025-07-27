@@ -3,8 +3,10 @@ import { GroupedVirtuoso } from 'react-virtuoso';
 import { useMenu } from '@qrmenu/core';
 import { FeedItemSwitcher } from './FeedItemSwitcher.jsx';
 import { CategoryDropdown, CategoryDropdownButton } from './CategoryDropdown.jsx';
+import { FilterDropdown } from './FilterDropdown.jsx';
+import { FilterDropdownButton } from './FilterDropdownButton.jsx';
 
-export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
+export function MasonryFeed({ filters = {}, gap = 2, onItemClick, showAggregatedCategory=false }) {
   const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   // Refs for virtuoso
   const virtuosoRef = useRef(null);
@@ -12,8 +14,17 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
   // Dropdown state
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   
+  // Filter dropdown state
+  const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
+  const [selectedTags, setSelectedTags] = useState([]);
+  
   // Track current visible category for the floating pill
   const [currentVisibleCategory, setCurrentVisibleCategory] = useState(null);
+  
+  // NEW: Track current visible group category for aggregated view
+  const [currentVisibleGroupCategory, setCurrentVisibleGroupCategory] = useState(null);
+  
+
   
   // Fetch data - now using client-side filtering
   const {
@@ -23,23 +34,49 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
   } = useMenu(filters);
 
   // Transform and group data
-  const { groupedData, groupCounts, categoryIndexMap, categories, dropdownCategories, hasAnyItems } = useMemo(() => {
+  const { groupedData, groupCounts, categoryIndexMap, categories, dropdownCategories, hasAnyItems, groupCategoryMap, availableTags, categoryItemCounts } = useMemo(() => {
     const fetchedItems = data ? data.items : []; // Changed from data.pages.flatMap since we no longer use pagination
-    const transformedItems = fetchedItems
+    
+    // Filter items by selected tags
+    const filteredItems = selectedTags.length > 0 
+      ? fetchedItems.filter(item => {
+          if (!item.tags || !Array.isArray(item.tags)) return false;
+          return selectedTags.some(tag => item.tags.includes(tag));
+        })
+      : fetchedItems;
+    
+    const transformedItems = filteredItems
       .filter(item => item && item.id)
       .map(item => ({
         ...item,
         kind: 'food',
       }));
 
-    // Extract unique categories for dropdown from all fetched items
+    // Extract unique categories for dropdown from filtered items (not all fetched items)
     const allCategories = new Set();
-    fetchedItems.forEach(item => {
+    filteredItems.forEach(item => {
       if (item && item.category_brief) {
         allCategories.add(item.category_brief.trim());
       }
     });
     const dropdownCategories = Array.from(allCategories);
+
+    // Extract unique tags from all fetched items
+    const tagSet = new Set();
+    fetchedItems.forEach(item => {
+      if (item.tags && Array.isArray(item.tags)) {
+        item.tags.forEach(tag => tagSet.add(tag));
+      }
+    });
+    const availableTags = Array.from(tagSet);
+
+    // NEW: Extract group categories and create mappings from filtered items
+    const groupCategoryMap = {};
+    filteredItems.forEach(item => {
+      if (item && item.group_category && item.category_brief) {
+        groupCategoryMap[item.category_brief.trim()] = item.group_category.trim();
+      }
+    });
 
     // Group items by category_brief
     const grouped = {};
@@ -54,6 +91,12 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
         categoryIndexMap[category] = categories.length - 1;
       }
       grouped[category].push(item);
+    });
+
+    // Calculate item counts per category for filtering
+    const categoryItemCounts = {};
+    categories.forEach(category => {
+      categoryItemCounts[category] = grouped[category] ? grouped[category].length : 0;
     });
 
     // Sort items within each category and apply column span logic
@@ -109,8 +152,8 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
 
     const hasAnyItems = transformedItems.length > 0;
 
-    return { groupedData, groupCounts, categoryIndexMap, categories, dropdownCategories, hasAnyItems };
-  }, [data]);
+    return { groupedData, groupCounts, categoryIndexMap, categories, dropdownCategories, hasAnyItems, groupCategoryMap, availableTags, categoryItemCounts };
+  }, [data, selectedTags]);
 
 
 
@@ -172,9 +215,25 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
       // React's setState only triggers re-render if value actually changes
       if (visibleCategory) {
         setCurrentVisibleCategory(visibleCategory);
+        // NEW: Set group category
+        const groupCategory = groupCategoryMap[visibleCategory];
+        setCurrentVisibleGroupCategory(groupCategory || null);
       }
     }
-  }, [categories]);
+  }, [categories, groupCategoryMap]);
+
+  // Filter handlers
+  const handleTagToggle = (tag) => {
+    setSelectedTags(prev => 
+      prev.includes(tag) 
+        ? prev.filter(t => t !== tag)
+        : [...prev, tag]
+    );
+  };
+
+  const handleRemoveTag = (tagToRemove) => {
+    setSelectedTags(prev => prev.filter(tag => tag !== tagToRemove));
+  };
 
   if (isLoading) {
     return (
@@ -204,17 +263,27 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
   });
 
   // Show no items found message when there are no items and filters are applied
-  if (!isLoading && !hasAnyItems && hasActiveFilters) {
+  if (!isLoading && !hasAnyItems && (hasActiveFilters || selectedTags.length > 0)) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-center px-6">
         <div className="text-4xl mb-4">🍽️</div>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">No Items Found</h3>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">
+          {selectedTags.length > 0 ? 'No Items Match Selected Filters' : 'No Items Found'}
+        </h3>
         <p className="text-gray-500 mb-4">
-          We couldn't find any items matching your current filters.
+          {selectedTags.length > 0 
+            ? 'Try adjusting your filter selections to see more options.'
+            : 'We couldn\'t find any items matching your current filters.'
+          }
         </p>
-        <p className="text-sm text-gray-400">
-          Try relaxing your filters to see more options.
-        </p>
+        {selectedTags.length > 0 && (
+          <button
+            onClick={() => setSelectedTags([])}
+            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            Clear all filters
+          </button>
+        )}
       </div>
     );
   }
@@ -222,19 +291,39 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
   return (
     <>
       {/* Fixed category header - always on top */}
-      {currentVisibleCategory && (
-        <CategoryDropdownButton
-          setIsDropdownOpen={setIsDropdownOpen}
-          currentVisibleCategory={currentVisibleCategory}
-          isDropdownOpen={isDropdownOpen}
-        />
-      )}
+      <div style={{ display: 'flex', gap: '8px', position: 'fixed', top: '4px', left: '6px', zIndex: 40, alignItems: 'flex-start' }}>
+        {currentVisibleCategory && (
+          <CategoryDropdownButton
+            setIsDropdownOpen={setIsDropdownOpen}
+            currentVisibleCategory={currentVisibleCategory}
+            isDropdownOpen={isDropdownOpen}
+            // NEW PROPS:
+            showAggregatedCategory={showAggregatedCategory}
+            currentVisibleGroupCategory={currentVisibleGroupCategory}
+          />
+        )}
+        
+        {/* Filter button */}
+        {availableTags.length > 0 && (  
+        <FilterDropdownButton
+          setIsFilterDropdownOpen={setIsFilterDropdownOpen}
+          isFilterDropdownOpen={isFilterDropdownOpen}
+          selectedTags={selectedTags}
+          onRemoveTag={handleRemoveTag}
+          availableTagsCount={availableTags.length}
+        />)}
+      </div>
 
       {/* Category dropdown */}
       <CategoryDropdown
         isOpen={isDropdownOpen}
         categories={dropdownCategories}
+        showAggregatedCategory={showAggregatedCategory}
+        groupCategoryMap={groupCategoryMap}
+        categoryItemCounts={categoryItemCounts}
+        selectedTags={selectedTags}
         onSelect={(category) => {
+          // Handle category selection
           const categoryIndex = categoryIndexMap[category];
           if (categoryIndex !== undefined && virtuosoRef.current) {
             virtuosoRef.current.scrollToIndex({
@@ -246,6 +335,15 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
           setIsDropdownOpen(false);
         }}
         onClose={() => setIsDropdownOpen(false)}
+      />
+
+      {/* Filter dropdown */}
+      <FilterDropdown
+        isOpen={isFilterDropdownOpen}
+        tags={availableTags}
+        selectedTags={selectedTags}
+        onTagToggle={handleTagToggle}
+        onClose={() => setIsFilterDropdownOpen(false)}
       />
 
       {/* Virtualized feed container */}
@@ -283,73 +381,29 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
             
             return (
               <div
-                className="sticky-category-header"
+                className="category-label"
                 style={{
-                  position: 'relative', // Regular section header, not sticky
-                  zIndex: 100, // Higher than ItemCard buttons (z-index: 10)
-                  height: '10px', // Minimal height to avoid zero-sized element error
-                  margin: '0',
+                  position: 'relative',
+                  zIndex: 10,
+                  height: '20px',
+                  margin: '8px 0 4px 8px',
                   padding: '0',
-                  overflow: 'visible', // Allow button to overflow outside the 1px container
+                  overflow: 'visible',
                 }}
               >
-                <button
-                  onClick={() => setIsDropdownOpen((prev) => !prev)}
+                <span
                   style={{
-                    position: 'absolute',
-                    top: '3px',
-                    left: '5px',
-                    zIndex: 100,
-                    background: 'rgba(255, 255, 255, 0.9)', // Subtle transparency as requested
-                    backdropFilter: 'blur(8px)', // Light blur for premium feel
-                    WebkitBackdropFilter: 'blur(8px)',
-                    padding: '6px 10px', // Reduced footprint: smaller padding
-                    borderRadius: '6px', // Smaller border radius to match reduced size
-                    border: '1px solid rgba(229, 231, 235, 0.6)', // More transparent border
-                    fontSize: '14px', // Same font size as requested
-                    fontWeight: '600', // theme typography.weights.semibold
+                    color: '#374151', // Darker text color for more prominence
+                    fontSize: '14px', // Bigger font size
+                    fontWeight: '600', // Bolder weight for more prominence
                     fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                    display: 'flex', // Show as section header for visual separation
-                    alignItems: 'center',
-                    gap: '4px', // Reduced gap for smaller footprint
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease-in-out',
-                    lineHeight: '1.4',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.background = 'rgba(255, 255, 255, 0.98)';
-                    e.target.style.transform = 'translateY(-0.5px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.background = 'rgba(255, 255, 255, 0.92)';
-                    e.target.style.transform = 'translateY(0)';
+                    letterSpacing: '-0.01em',
+                    textTransform: 'uppercase',
+                    opacity: 0.9, // Higher opacity for more prominence
                   }}
                 >
-                  <span style={{ 
-                    color: '#1C1C1E', // Same black as dish names (theme colors.text.primary)
-                    fontWeight: '600',
-                    letterSpacing: '-0.01em'
-                  }}>
-                    {category}
-                  </span>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="12" // Smaller icon for reduced footprint
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="#6B7280" // theme colors.text.secondary
-                    strokeWidth="2.5" // Slightly bolder for smaller size
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    style={{
-                      transition: 'transform 0.15s ease-in-out',
-                      transform: isDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)'
-                    }}
-                  >
-                    <path d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
+                  {category}
+                </span>
               </div>
             );
           }}

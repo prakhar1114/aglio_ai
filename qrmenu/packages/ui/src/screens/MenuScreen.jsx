@@ -17,7 +17,7 @@ import { OrderConfirmationSheet } from '../components/OrderConfirmationSheet.jsx
 // Memoised version to avoid unnecessary re-renders when previewStack updates
 const MemoisedMasonryFeed = React.memo(MasonryFeed);
 
-function MenuPage({enableCallWaiter, showToWaiter, message = null}) {
+function MenuPage({enableCallWaiter, showToWaiter, showAggregatedCategory, message = null}) {
   const location = useLocation();
   
   // UI State Management
@@ -166,6 +166,7 @@ function MenuPage({enableCallWaiter, showToWaiter, message = null}) {
         <main className="flex-1">
           <MemoisedMasonryFeed 
             filters={currentFilters}
+            showAggregatedCategory={showAggregatedCategory}
             onItemClick={handleItemClick}
           />
         </main>
@@ -246,11 +247,11 @@ function MenuPage({enableCallWaiter, showToWaiter, message = null}) {
   );
 }
 
-export function MenuScreen({enableCallWaiter = true, showToWaiter = false, message = null}) {
+export function MenuScreen({enableCallWaiter = true, showToWaiter = false, message = null, showAggregatedCategory=true}) {
   return (
     <Routes>
       <Route path="/*" 
-        element={<MenuPage enableCallWaiter={enableCallWaiter} showToWaiter={showToWaiter} message={message} />} 
+        element={<MenuPage enableCallWaiter={enableCallWaiter} showToWaiter={showToWaiter} message={message} showAggregatedCategory={showAggregatedCategory} />} 
       />
     </Routes>
   );
