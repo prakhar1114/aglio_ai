@@ -493,7 +493,7 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick, showAggregated
       </div>
 
       {/* Category dropdown */}
-      <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 9998 }}>
+      <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: isDropdownOpen ? 'auto' : 'none', zIndex: 9998 }}>
         <CategoryDropdown
           isOpen={isDropdownOpen}
           categories={dropdownCategories}
@@ -518,7 +518,7 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick, showAggregated
       </div>
 
       {/* Filter dropdown */}
-      <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 9998 }}>
+      <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: isFilterDropdownOpen ? 'auto' : 'none', zIndex: 9998 }}>
         <FilterDropdown
           isOpen={isFilterDropdownOpen}
           tags={availableTags}

@@ -61,7 +61,9 @@ export function FilterDropdown({ isOpen, tags = [], selectedTags = [], onTagTogg
         <div style={{ 
           maxHeight: 'calc(60vh - 60px)', 
           overflowY: 'auto',
-          padding: '8px'
+          overflowX: 'hidden',
+          padding: '8px',
+          WebkitOverflowScrolling: 'touch' // Enable smooth scrolling on iOS
         }}>
           {tags.length === 0 ? (
             <div

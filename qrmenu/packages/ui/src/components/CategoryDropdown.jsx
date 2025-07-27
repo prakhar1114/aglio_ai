@@ -74,7 +74,9 @@ export function CategoryDropdown({ isOpen, categories = [], onSelect, onClose, s
         <div style={{ 
           maxHeight: 'calc(60vh - 60px)', 
           overflowY: 'auto',
-          padding: '8px'
+          overflowX: 'hidden',
+          padding: '8px',
+          WebkitOverflowScrolling: 'touch' // Enable smooth scrolling on iOS
         }}>
           {showAggregatedCategory && groupedCategories ? (
             // Show categories grouped by group_category with labels
@@ -235,7 +237,7 @@ export function CategoryDropdownButton({
       <div
         style={{
           position: 'relative',
-          zIndex: 40, // Higher than any other element
+          zIndex: 9999, // Higher than the dropdown container
           pointerEvents: 'auto',
         }}
       >
@@ -316,7 +318,7 @@ export function CategoryDropdownButton({
       <div
         style={{
           position: 'relative',
-          zIndex: 40, // Higher than any other element
+          zIndex: 9999, // Higher than the dropdown container
           pointerEvents: 'auto',
         }}
       >
