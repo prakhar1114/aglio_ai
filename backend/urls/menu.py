@@ -180,7 +180,7 @@ def read_menu(
             promoted_items_db = promoted_query.all()
 
             promoted_items = [
-                _build_menu_item_response(item, restaurant_slug, "Recommendations")
+                _build_menu_item_response(item, restaurant_slug, "Recommendations") # need word "Recommendations" here, hardcoded in frontend, do not change
                 for item in promoted_items_db
             ]
 

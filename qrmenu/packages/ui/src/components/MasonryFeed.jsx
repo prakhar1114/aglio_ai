@@ -3,8 +3,10 @@ import { GroupedVirtuoso } from 'react-virtuoso';
 import { useMenu } from '@qrmenu/core';
 import { FeedItemSwitcher } from './FeedItemSwitcher.jsx';
 import { CategoryDropdown, CategoryDropdownButton } from './CategoryDropdown.jsx';
+import { FilterDropdown } from './FilterDropdown.jsx';
+import { FilterDropdownButton } from './FilterDropdownButton.jsx';
 
-export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
+export function MasonryFeed({ filters = {}, gap = 2, onItemClick, showAggregatedCategory=false }) {
   const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   // Refs for virtuoso
   const virtuosoRef = useRef(null);
@@ -12,8 +14,17 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
   // Dropdown state
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   
+  // Filter dropdown state
+  const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
+  const [selectedTags, setSelectedTags] = useState([]);
+  
   // Track current visible category for the floating pill
   const [currentVisibleCategory, setCurrentVisibleCategory] = useState(null);
+  
+  // NEW: Track current visible group category for aggregated view
+  const [currentVisibleGroupCategory, setCurrentVisibleGroupCategory] = useState(null);
+  
+
   
   // Fetch data - now using client-side filtering
   const {
@@ -23,23 +34,49 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
   } = useMenu(filters);
 
   // Transform and group data
-  const { groupedData, groupCounts, categoryIndexMap, categories, dropdownCategories, hasAnyItems } = useMemo(() => {
+  const { groupedData, groupCounts, categoryIndexMap, categories, dropdownCategories, hasAnyItems, groupCategoryMap, availableTags, categoryItemCounts } = useMemo(() => {
     const fetchedItems = data ? data.items : []; // Changed from data.pages.flatMap since we no longer use pagination
-    const transformedItems = fetchedItems
+    
+    // Filter items by selected tags
+    const filteredItems = selectedTags.length > 0 
+      ? fetchedItems.filter(item => {
+          if (!item.tags || !Array.isArray(item.tags)) return false;
+          return selectedTags.some(tag => item.tags.includes(tag));
+        })
+      : fetchedItems;
+    
+    const transformedItems = filteredItems
       .filter(item => item && item.id)
       .map(item => ({
         ...item,
         kind: 'food',
       }));
 
-    // Extract unique categories for dropdown from all fetched items
+    // Extract unique categories for dropdown from filtered items (not all fetched items)
     const allCategories = new Set();
-    fetchedItems.forEach(item => {
+    filteredItems.forEach(item => {
       if (item && item.category_brief) {
         allCategories.add(item.category_brief.trim());
       }
     });
     const dropdownCategories = Array.from(allCategories);
+
+    // Extract unique tags from all fetched items
+    const tagSet = new Set();
+    fetchedItems.forEach(item => {
+      if (item.tags && Array.isArray(item.tags)) {
+        item.tags.forEach(tag => tagSet.add(tag));
+      }
+    });
+    const availableTags = Array.from(tagSet);
+
+    // NEW: Extract group categories and create mappings from filtered items
+    const groupCategoryMap = {};
+    filteredItems.forEach(item => {
+      if (item && item.group_category && item.category_brief) {
+        groupCategoryMap[item.category_brief.trim()] = item.group_category.trim();
+      }
+    });
 
     // Group items by category_brief
     const grouped = {};
@@ -54,6 +91,12 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
         categoryIndexMap[category] = categories.length - 1;
       }
       grouped[category].push(item);
+    });
+
+    // Calculate item counts per category for filtering
+    const categoryItemCounts = {};
+    categories.forEach(category => {
+      categoryItemCounts[category] = grouped[category] ? grouped[category].length : 0;
     });
 
     // Sort items within each category and apply column span logic
@@ -109,8 +152,8 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
 
     const hasAnyItems = transformedItems.length > 0;
 
-    return { groupedData, groupCounts, categoryIndexMap, categories, dropdownCategories, hasAnyItems };
-  }, [data]);
+    return { groupedData, groupCounts, categoryIndexMap, categories, dropdownCategories, hasAnyItems, groupCategoryMap, availableTags, categoryItemCounts };
+  }, [data, selectedTags]);
 
 
 
@@ -172,9 +215,203 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
       // React's setState only triggers re-render if value actually changes
       if (visibleCategory) {
         setCurrentVisibleCategory(visibleCategory);
+        // NEW: Set group category
+        const groupCategory = groupCategoryMap[visibleCategory];
+        setCurrentVisibleGroupCategory(groupCategory || null);
       }
     }
-  }, [categories]);
+  }, [categories, groupCategoryMap]);
+
+  // Filter handlers
+  const handleTagToggle = (tag) => {
+    setSelectedTags(prev => 
+      prev.includes(tag) 
+        ? prev.filter(t => t !== tag)
+        : [...prev, tag]
+    );
+  };
+
+  const handleRemoveTag = (tagToRemove) => {
+    setSelectedTags(prev => prev.filter(tag => tag !== tagToRemove));
+  };
+
+  // Memoize the GroupedVirtuoso component to prevent rerendering when dropdown states change
+  const memoizedVirtuoso = React.useMemo(() => (
+    <GroupedVirtuoso
+      ref={virtuosoRef}
+      style={{ height: '100%' }}
+      groupCounts={groupCounts}
+      rangeChanged={handleRangeChanged}
+      overscan={200}
+      components={{
+        List: React.forwardRef((props, ref) => (
+          <div 
+            ref={ref} 
+            {...props}
+            style={{
+              ...props.style,
+              display: 'block',
+              width: '100%',
+              overscrollBehavior: 'none', // Disable bounce/overscroll
+            }}
+          />
+        )),
+        Footer: () => (
+          <div style={{
+            padding: '20px 16px',
+            textAlign: 'center',
+            color: '#6B7280',
+            fontSize: '16px',
+            fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+            fontWeight: '500',
+            letterSpacing: '-0.01em',
+            backgroundColor: 'transparent'
+          }}>
+            You have reached the end
+          </div>
+        ),
+      }}
+      groupContent={(index) => {
+        const category = categories[index];
+        
+        return (
+          <div
+            className="category-label"
+            style={{
+              position: 'relative',
+              zIndex: 10,
+              height: '20px',
+              margin: '8px 0 4px 8px',
+              padding: '0',
+              overflow: 'visible',
+            }}
+          >
+            <span
+              style={{
+                color: '#374151', // Darker text color for more prominence
+                fontSize: '14px', // Bigger font size
+                fontWeight: '600', // Bolder weight for more prominence
+                fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                letterSpacing: '-0.01em',
+                textTransform: 'uppercase',
+                opacity: 0.9, // Higher opacity for more prominence
+              }}
+            >
+              {category}
+            </span>
+          </div>
+        );
+      }}
+      itemContent={(index, groupIndex) => {
+        const groupItems = groupedData[groupIndex][0]; // Get all items in this group
+        const category = (groupItems[0]?.category_brief || '').trim();
+        
+        // Apple-like subtle alternating backgrounds for visual differentiation
+        const getBackgroundForCategory = (index) => {
+          const backgrounds = [
+            // '#F7F9FC', // theme colors.background
+            // 'rgba(226, 55, 68, 0.02)', // theme colors.primarySubtle (very subtle Zomato red tint)
+            // 'rgba(250, 251, 252, 1)', // theme colors.surfaceElevated
+            'transparent',
+          ];
+          return backgrounds[index % backgrounds.length];
+        };
+        
+        return (
+          <div style={{ width: '100%' }}>
+            {/* Regular masonry grid for normal-span items */}
+            {groupItems.filter(item => item.columnSpan !== 'all').length > 0 && (
+              <div
+                className="masonry-container"
+                data-category={category}
+                style={{
+                  // Use CSS columns for true masonry layout like Pinterest
+                  columnCount: columnCount,
+                  columnGap: `4px`, // theme spacing.xs - minimal gap for Apple-like breathing
+                  width: '100%',
+                  padding: `0px 4px`, // Minimal padding - just enough to prevent edge collision
+                  margin: '0 0 4px 0',
+                  lineHeight: '1',
+                  backgroundColor: getBackgroundForCategory(groupIndex), // Subtle alternating backgrounds
+                  borderRadius: '8px', // theme radius.md for gentle container feel
+                }}
+              >
+                {groupItems.filter(item => item.columnSpan !== 'all').map((item, itemIndex) => (
+                  <div
+                    key={item.id}
+                    className="feed-item"
+                    data-category={category}
+                    style={{
+                      borderRadius: '0px',
+                      overflow: 'hidden',
+                      breakInside: 'avoid', // Prevents items from breaking across columns
+                      margin: '0 0 4px 0', // theme spacing.xs bottom margin for subtle item separation
+                      padding: '0',
+                      display: isMobile ? 'inline-block' : 'block',
+                      width: '100%',
+                      verticalAlign: 'top', // Align to top to prevent text baseline spacing
+                      // Create explicit stacking context for full-width items to isolate video z-index
+                      position: 'relative',
+                      zIndex: 0, // Lower than category header (zIndex: 100)
+                    }}
+                  >
+                    <FeedItemSwitcher 
+                      item={item} 
+                      containerWidth={cardWidth}
+                      onItemClick={() => {
+                        const allCurrentItems = data ? data.items : [];
+                        onItemClick?.(item, allCurrentItems);
+                      }}
+                      preload={true}
+                      autoplay={true}
+                      muted={true}
+                      context_namespace={`masonry-feed`}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Full-width items outside the masonry grid */}
+            {groupItems.filter(item => item.columnSpan === 'all').map((item, itemIndex) => (
+              <div
+                key={item.id}
+                className="full-width-item"
+                data-category={category}
+                style={{
+                  width: '100%',
+                  padding: '0px 4px', // Same as masonry container
+                  backgroundColor: getBackgroundForCategory(groupIndex),
+                  borderRadius: '8px',
+                  // border: groupIndex % 3 === 1 ? '1px solid rgba(226, 55, 68, 0.08)' : 'none',
+                  margin: '0 0 4px 0', // Same margin as masonry items
+                  // Create explicit stacking context for full-width items to isolate video z-index
+                  position: 'relative',
+                  zIndex: 0, // Lower than category header (zIndex: 100)
+                }}
+              >
+                <FeedItemSwitcher 
+                  item={item} 
+                  containerWidth={Math.min((window.innerWidth || 400) - 16, 800)} // Full width minus padding, max 800px
+                  onItemClick={() => {
+                    const allCurrentItems = data ? data.items : [];
+                    onItemClick?.(item, allCurrentItems);
+                  }}
+                  preload={true}
+                  autoplay={true}
+                  muted={true}
+                  context_namespace={`masonry-feed`}
+                />
+              </div>
+            ))}
+          </div>
+        );
+      }}
+      endReached={() => {
+        // No longer need infinite scroll since we fetch full menu
+      }}
+    />
+  ), [groupCounts, categories, groupedData, columnCount, cardWidth, isMobile, data]);
 
   if (isLoading) {
     return (
@@ -204,17 +441,27 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
   });
 
   // Show no items found message when there are no items and filters are applied
-  if (!isLoading && !hasAnyItems && hasActiveFilters) {
+  if (!isLoading && !hasAnyItems && (hasActiveFilters || selectedTags.length > 0)) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-center px-6">
         <div className="text-4xl mb-4">🍽️</div>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">No Items Found</h3>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">
+          {selectedTags.length > 0 ? 'No Items Match Selected Filters' : 'No Items Found'}
+        </h3>
         <p className="text-gray-500 mb-4">
-          We couldn't find any items matching your current filters.
+          {selectedTags.length > 0 
+            ? 'Try adjusting your filter selections to see more options.'
+            : 'We couldn\'t find any items matching your current filters.'
+          }
         </p>
-        <p className="text-sm text-gray-400">
-          Try relaxing your filters to see more options.
-        </p>
+        {selectedTags.length > 0 && (
+          <button
+            onClick={() => setSelectedTags([])}
+            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            Clear all filters
+          </button>
+        )}
       </div>
     );
   }
@@ -222,247 +469,78 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick }) {
   return (
     <>
       {/* Fixed category header - always on top */}
-      {currentVisibleCategory && (
-        <CategoryDropdownButton
-          setIsDropdownOpen={setIsDropdownOpen}
-          currentVisibleCategory={currentVisibleCategory}
-          isDropdownOpen={isDropdownOpen}
-        />
-      )}
+      <div style={{ display: 'flex', gap: '8px', position: 'fixed', top: '4px', left: '6px', zIndex: 40, alignItems: 'flex-start' }}>
+        {currentVisibleCategory && (
+          <CategoryDropdownButton
+            setIsDropdownOpen={setIsDropdownOpen}
+            currentVisibleCategory={currentVisibleCategory}
+            isDropdownOpen={isDropdownOpen}
+            // NEW PROPS:
+            showAggregatedCategory={showAggregatedCategory}
+            currentVisibleGroupCategory={currentVisibleGroupCategory}
+          />
+        )}
+        
+        {/* Filter button */}
+        {availableTags.length > 0 && (  
+        <FilterDropdownButton
+          setIsFilterDropdownOpen={setIsFilterDropdownOpen}
+          isFilterDropdownOpen={isFilterDropdownOpen}
+          selectedTags={selectedTags}
+          onRemoveTag={handleRemoveTag}
+          availableTagsCount={availableTags.length}
+        />)}
+      </div>
 
       {/* Category dropdown */}
-      <CategoryDropdown
-        isOpen={isDropdownOpen}
-        categories={dropdownCategories}
-        onSelect={(category) => {
-          const categoryIndex = categoryIndexMap[category];
-          if (categoryIndex !== undefined && virtuosoRef.current) {
-            virtuosoRef.current.scrollToIndex({
-              index: categoryIndex,
-              behavior: 'smooth',
-              align: 'start'
-            });
-          }
-          setIsDropdownOpen(false);
-        }}
-        onClose={() => setIsDropdownOpen(false)}
-      />
+      <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 9998 }}>
+        <CategoryDropdown
+          isOpen={isDropdownOpen}
+          categories={dropdownCategories}
+          showAggregatedCategory={showAggregatedCategory}
+          groupCategoryMap={groupCategoryMap}
+          categoryItemCounts={categoryItemCounts}
+          selectedTags={selectedTags}
+          onSelect={(category) => {
+            // Handle category selection
+            const categoryIndex = categoryIndexMap[category];
+            if (categoryIndex !== undefined && virtuosoRef.current) {
+              virtuosoRef.current.scrollToIndex({
+                index: categoryIndex,
+                behavior: 'smooth',
+                align: 'start'
+              });
+            }
+            setIsDropdownOpen(false);
+          }}
+          onClose={() => setIsDropdownOpen(false)}
+        />
+      </div>
+
+      {/* Filter dropdown */}
+      <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 9998 }}>
+        <FilterDropdown
+          isOpen={isFilterDropdownOpen}
+          tags={availableTags}
+          selectedTags={selectedTags}
+          onTagToggle={handleTagToggle}
+          onClose={() => setIsFilterDropdownOpen(false)}
+        />
+      </div>
 
       {/* Virtualized feed container */}
       <div
         style={{
           width: '100%',
           margin: '0 auto',
-          height: '100vh', // Full height for virtualization
+          height: 'calc(100vh - 50px)', // Account for bottom navigation bar
           boxSizing: 'border-box',
           padding: '1px', // Minimal padding
           overflow: 'hidden', // Ensure no horizontal scroll
           backgroundColor: '#D8D8DD',
         }}
       >
-        <GroupedVirtuoso
-          ref={virtuosoRef}
-          style={{ height: '100%' }}
-          groupCounts={groupCounts}
-          rangeChanged={handleRangeChanged}
-          components={{
-            List: React.forwardRef((props, ref) => (
-              <div 
-                ref={ref} 
-                {...props}
-                style={{
-                  ...props.style,
-                  display: 'block',
-                  width: '100%',
-                }}
-              />
-            )),
-          }}
-          groupContent={(index) => {
-            const category = categories[index];
-            
-            return (
-              <div
-                className="sticky-category-header"
-                style={{
-                  position: 'relative', // Regular section header, not sticky
-                  zIndex: 100, // Higher than ItemCard buttons (z-index: 10)
-                  height: '10px', // Minimal height to avoid zero-sized element error
-                  margin: '0',
-                  padding: '0',
-                  overflow: 'visible', // Allow button to overflow outside the 1px container
-                }}
-              >
-                <button
-                  onClick={() => setIsDropdownOpen((prev) => !prev)}
-                  style={{
-                    position: 'absolute',
-                    top: '3px',
-                    left: '5px',
-                    zIndex: 100,
-                    background: 'rgba(255, 255, 255, 0.9)', // Subtle transparency as requested
-                    backdropFilter: 'blur(8px)', // Light blur for premium feel
-                    WebkitBackdropFilter: 'blur(8px)',
-                    padding: '6px 10px', // Reduced footprint: smaller padding
-                    borderRadius: '6px', // Smaller border radius to match reduced size
-                    border: '1px solid rgba(229, 231, 235, 0.6)', // More transparent border
-                    fontSize: '14px', // Same font size as requested
-                    fontWeight: '600', // theme typography.weights.semibold
-                    fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                    display: 'flex', // Show as section header for visual separation
-                    alignItems: 'center',
-                    gap: '4px', // Reduced gap for smaller footprint
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease-in-out',
-                    lineHeight: '1.4',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.background = 'rgba(255, 255, 255, 0.98)';
-                    e.target.style.transform = 'translateY(-0.5px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.background = 'rgba(255, 255, 255, 0.92)';
-                    e.target.style.transform = 'translateY(0)';
-                  }}
-                >
-                  <span style={{ 
-                    color: '#1C1C1E', // Same black as dish names (theme colors.text.primary)
-                    fontWeight: '600',
-                    letterSpacing: '-0.01em'
-                  }}>
-                    {category}
-                  </span>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="12" // Smaller icon for reduced footprint
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="#6B7280" // theme colors.text.secondary
-                    strokeWidth="2.5" // Slightly bolder for smaller size
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    style={{
-                      transition: 'transform 0.15s ease-in-out',
-                      transform: isDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)'
-                    }}
-                  >
-                    <path d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-              </div>
-            );
-          }}
-          itemContent={(index, groupIndex) => {
-            const groupItems = groupedData[groupIndex][0]; // Get all items in this group
-            const category = (groupItems[0]?.category_brief || '').trim();
-            
-            // Apple-like subtle alternating backgrounds for visual differentiation
-            const getBackgroundForCategory = (index) => {
-              const backgrounds = [
-                // '#F7F9FC', // theme colors.background
-                // 'rgba(226, 55, 68, 0.02)', // theme colors.primarySubtle (very subtle Zomato red tint)
-                // 'rgba(250, 251, 252, 1)', // theme colors.surfaceElevated
-                'transparent',
-              ];
-              return backgrounds[index % backgrounds.length];
-            };
-            
-            return (
-              <div style={{ width: '100%' }}>
-                {/* Regular masonry grid for normal-span items */}
-                {groupItems.filter(item => item.columnSpan !== 'all').length > 0 && (
-                  <div
-                    className="masonry-container"
-                    data-category={category}
-                    style={{
-                      // Use CSS columns for true masonry layout like Pinterest
-                      columnCount: columnCount,
-                      columnGap: `4px`, // theme spacing.xs - minimal gap for Apple-like breathing
-                      width: '100%',
-                      padding: `0px 4px`, // Minimal padding - just enough to prevent edge collision
-                      margin: '0 0 4px 0',
-                      lineHeight: '1',
-                      backgroundColor: getBackgroundForCategory(groupIndex), // Subtle alternating backgrounds
-                      borderRadius: '8px', // theme radius.md for gentle container feel
-                    }}
-                  >
-                    {groupItems.filter(item => item.columnSpan !== 'all').map((item, itemIndex) => (
-                      <div
-                        key={item.id}
-                        className="feed-item"
-                        data-category={category}
-                        style={{
-                          borderRadius: '0px',
-                          overflow: 'hidden',
-                          breakInside: 'avoid', // Prevents items from breaking across columns
-                          margin: '0 0 4px 0', // theme spacing.xs bottom margin for subtle item separation
-                          padding: '0',
-                          display: isMobile ? 'inline-block' : 'block',
-                          width: '100%',
-                          verticalAlign: 'top', // Align to top to prevent text baseline spacing
-                          // Create explicit stacking context for full-width items to isolate video z-index
-                          position: 'relative',
-                          zIndex: 0, // Lower than category header (zIndex: 100)
-                        }}
-                      >
-                        <FeedItemSwitcher 
-                          item={item} 
-                          containerWidth={cardWidth}
-                          onItemClick={() => {
-                            const allCurrentItems = data ? data.items : [];
-                            onItemClick?.(item, allCurrentItems);
-                          }}
-                          preload={true}
-                          autoplay={true}
-                          muted={true}
-                          context_namespace={`masonry-feed`}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Full-width items outside the masonry grid */}
-                {groupItems.filter(item => item.columnSpan === 'all').map((item, itemIndex) => (
-                  <div
-                    key={item.id}
-                    className="full-width-item"
-                    data-category={category}
-                    style={{
-                      width: '100%',
-                      padding: '0px 4px', // Same as masonry container
-                      backgroundColor: getBackgroundForCategory(groupIndex),
-                      borderRadius: '8px',
-                      // border: groupIndex % 3 === 1 ? '1px solid rgba(226, 55, 68, 0.08)' : 'none',
-                      margin: '0 0 4px 0', // Same margin as masonry items
-                      // Create explicit stacking context for full-width items to isolate video z-index
-                      position: 'relative',
-                      zIndex: 0, // Lower than category header (zIndex: 100)
-                    }}
-                  >
-                    <FeedItemSwitcher 
-                      item={item} 
-                      containerWidth={Math.min((window.innerWidth || 400) - 16, 800)} // Full width minus padding, max 800px
-                      onItemClick={() => {
-                        const allCurrentItems = data ? data.items : [];
-                        onItemClick?.(item, allCurrentItems);
-                      }}
-                      preload={true}
-                      autoplay={true}
-                      muted={true}
-                      context_namespace={`masonry-feed`}
-                    />
-                  </div>
-                ))}
-              </div>
-            );
-          }}
-          endReached={() => {
-            // No longer need infinite scroll since we fetch full menu
-          }}
-          overscan={200}
-        />
+                {memoizedVirtuoso}
         
         {/* Menu items are now loaded completely at once */}
       </div>

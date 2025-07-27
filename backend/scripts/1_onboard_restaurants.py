@@ -925,7 +925,8 @@ def seed_folder(folder: Path):
                 
                 # Set boolean and other fields
                 veg_val = row.get("veg_flag")
-                mi.veg_flag = bool(veg_val) if pd.notna(veg_val) else False
+                is_veg = bool(veg_val) if pd.notna(veg_val) else False
+                mi.veg_flag = is_veg
                 
                 bestseller_val = row.get("is_bestseller")
                 mi.is_bestseller = bool(bestseller_val) if pd.notna(bestseller_val) else False
@@ -952,8 +953,18 @@ def seed_folder(folder: Path):
                 mi.itemallowvariation = False  # Simple restaurants don't have variations
                 mi.itemallowaddon = False  # Simple restaurants don't have addons
                 mi.pos_system_id = None  # No POS system integration
-                mi.tags = []  # Empty tags list
+
+                tags_val = row.get("tags", "")
+                if isinstance(tags_val, pd.Series) or pd.isna(tags_val) or not str(tags_val).strip():
+                    tags_list = []
+                else:
+                    tags_list = [tag.strip() for tag in str(tags_val).split(";") if tag.strip()]
                 
+                # Add "veg" tag if item is vegetarian and tag not already present
+                if mi.veg_flag and "veg" not in [t.lower() for t in tags_list]:
+                    tags_list.append("veg")
+                mi.tags = tags_list  # Empty tags list
+
                 # Add POS-specific basic fields (external_id, flags) if applicable
                 if menu_api_data:
                     external_id_str = str(mi.external_id) if mi.external_id else None
