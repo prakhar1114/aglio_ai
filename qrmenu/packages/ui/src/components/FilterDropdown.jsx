@@ -20,6 +20,7 @@ export function FilterDropdown({ isOpen, tags = [], selectedTags = [], onTagTogg
     <div
       className="fixed inset-0 z-[9998]"
       onClick={handleBackgroundClick}
+      style={{ pointerEvents: 'auto' }}
     >
       <div 
         style={{

@@ -141,7 +141,6 @@ export function FilterDropdownButton({
           transition: 'all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)', // Apple's easing
           lineHeight: '1.4',
           boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)', // Subtle shadow
-          backgroundColor: 'rgba(255, 255, 255, 0.95)',
           letterSpacing: '-0.01em',
           marginLeft: 'auto', // Push to the right,
           fill: "transparent"

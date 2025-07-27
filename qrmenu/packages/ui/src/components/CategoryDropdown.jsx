@@ -282,7 +282,6 @@ export function CategoryDropdownButton({
             transition: 'all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)', // Apple's easing
             lineHeight: '1.4',
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)', // Subtle shadow
-            backgroundColor: 'rgba(255, 255, 255, 0.95)',
             letterSpacing: '-0.01em',
             fill: "transparent"
           }}
@@ -363,27 +362,9 @@ export function CategoryDropdownButton({
             transition: 'all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)', // Apple's easing
             lineHeight: '1.4',
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)', // Subtle shadow
-            backgroundColor: 'rgba(255, 255, 255, 0.95)',
             letterSpacing: '-0.01em'
           }}
-          onMouseEnter={(e) => {
-            e.target.style.transform = 'translateY(-1px)';
-            e.target.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.12)';
-            e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.98)';
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.transform = 'translateY(0)';
-            e.target.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.08)';
-            e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
-          }}
-          onMouseDown={(e) => {
-            e.target.style.transform = 'translateY(0px)';
-            e.target.style.boxShadow = '0 1px 4px rgba(0, 0, 0, 0.12)';
-          }}
-          onMouseUp={(e) => {
-            e.target.style.transform = 'translateY(-1px)';
-            e.target.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.12)';
-          }}
+
         >
           <span style={{ 
             color: '#1C1C1E', // Apple's primary text color
