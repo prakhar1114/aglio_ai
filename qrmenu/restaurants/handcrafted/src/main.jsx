@@ -17,7 +17,10 @@ async function init() {
 
     root.render(
       <App theme={theme}>
-        <MenuScreen />
+        <MenuScreen 
+          showToWaiter={true}
+          message="Please go to the counter to make the payment and confirm."
+        />
       </App>
     );
   } catch (error) {
