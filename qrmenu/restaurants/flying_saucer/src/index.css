@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Prevent unwanted zoom while allowing pinch-to-zoom */
+html, body {
+  touch-action: pan-x pan-y pinch-zoom;
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Prevent iOS zoom on input focus */
+input, textarea, select, button {
+  font-size: 16px !important;
+}
+
+/* Prevent double-tap zoom while allowing pinch */
+* {
+  touch-action: manipulation;
+}
+
+/* Override for elements that need pinch zoom */
+.zoomable, img, canvas {
+  touch-action: pan-x pan-y pinch-zoom;
+}
