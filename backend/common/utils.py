@@ -8,6 +8,7 @@ from loguru import logger
 from pathlib import Path
 import mimetypes
 from urllib.parse import urlparse
+import shutil
 
 def enrich_blocks(blocks: Blocks, restaurant_slug: str) -> dict:
     """
@@ -262,6 +263,48 @@ def download_url_content(url: str, save_dir: str, base_filename: str) -> tuple[s
         logger.error(f"Error downloading URL content: {e}")
         return "", "unknown", False
 
+def download_google_drive_content(url: str, save_dir: str, base_filename: str) -> tuple[str, str, bool]:
+    """Download content from a Google Drive URL using gdown
+    
+    Returns:
+        tuple: (file_path, content_type, success)
+        content_type: 'image', 'video', or 'unknown'
+        success: True if download successful
+    """
+    try:
+        import gdown
+        
+        # Download using gdown without specifying output filename
+        logger.info(f"📥 Downloading Google Drive content: {url}")
+        downloaded_filename = gdown.download(url, quiet=False, fuzzy=True)
+        
+        if downloaded_filename and os.path.exists(downloaded_filename):
+            # Move the file to the target directory with the desired base filename
+            file_extension = Path(downloaded_filename).suffix.lower()
+            target_filename = f"{base_filename}{file_extension}"
+            target_path = os.path.join(save_dir, target_filename)
+            
+            # Move the downloaded file to the target location
+            shutil.move(downloaded_filename, target_path)
+            
+            # Determine content type based on file extension
+            if file_extension in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tiff']:
+                content_type = 'image'
+            elif file_extension in ['.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm', '.mkv']:
+                content_type = 'video'
+            else:
+                content_type = 'unknown'
+            
+            logger.info(f"✅ Downloaded Google Drive content: {target_path} ({content_type})")
+            return target_path, content_type, True
+        else:
+            logger.error(f"❌ Failed to download Google Drive content: {url}")
+            return "", "unknown", False
+            
+    except Exception as e:
+        logger.error(f"Error downloading Google Drive content: {e}")
+        return "", "unknown", False
+
 def is_url(text: str) -> bool:
     """Check if a string is a URL"""
     if not text or not isinstance(text, str):
@@ -273,3 +316,9 @@ def is_instagram_url(url: str) -> bool:
     if not url:
         return False
     return 'instagram.com' in url and ('/p/' in url or '/reel/' in url)
+
+def is_google_drive_url(url: str) -> bool:
+    """Check if a URL is a Google Drive URL"""
+    if not url:
+        return False
+    return 'drive.google.com' in url and ('/file/d/' in url or '/uc?' in url or '/open?' in url)

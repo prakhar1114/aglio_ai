@@ -24,7 +24,7 @@ from rank_bm25 import BM25Okapi
 # Add parent directory to path to import config and models
 sys.path.append(str(Path(__file__).parent.parent))
 from models.schema import SessionLocal
-from common.utils import download_instagram_content, download_url_content, is_url, is_instagram_url
+from common.utils import download_instagram_content, download_url_content, download_google_drive_content, is_url, is_instagram_url, is_google_drive_url
 from common.cloudflare_utils import upload_media_to_cloudflare
 from urls.admin.auth_utils import generate_api_key
 from utils.jwt_utils import create_qr_token  # Unified QR token generation
@@ -138,6 +138,12 @@ def process_image_urls_and_upload_to_cloudflare(df_menu: pd.DataFrame, image_dir
                     # Handle Instagram URLs
                     logger.info(f"📸 Downloading Instagram content for {row['name']}")
                     downloaded_path, content_type, success = download_instagram_content(
+                        image_url, image_directory, base_filename
+                    )
+                elif is_google_drive_url(image_url):
+                    # Handle Google Drive URLs
+                    logger.info(f"☁️  Downloading Google Drive content for {row['name']}")
+                    downloaded_path, content_type, success = download_google_drive_content(
                         image_url, image_directory, base_filename
                     )
                 else:
