@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Header, Query, HTTPException, Path
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import random
 from sqlalchemy.orm import joinedload
 from sqlalchemy import and_, or_
@@ -59,6 +59,7 @@ class MenuItem(BaseModel):
     is_bestseller: bool
     variation_groups: List[VariationGroup]
     addon_groups: List[AddonGroupResponse]
+    timing: Optional[Dict[str, Any]] = None  # Daily timing or weekly schedule
 
 class MenuResponse(BaseModel):
     items: List[MenuItem]
@@ -324,6 +325,24 @@ def _build_menu_item_response(item: MenuItemModel, restaurant_slug: str, overrid
             for group_data in variation_groups_dict.values()
         ]
     
+    # ------------------------------------------------------------------
+    # Build timing data
+    # ------------------------------------------------------------------
+    timing_data: Optional[Dict[str, Any]] = None
+    
+    # Check if weekly schedule exists (takes precedence)
+    if item.timing_schedule:
+        timing_data = item.timing_schedule
+    # Fall back to daily timing if no weekly schedule
+    elif item.timing_start is not None or item.timing_end is not None:
+        timing_data = {
+            "start": item.timing_start.strftime("%H:%M") if item.timing_start else None,
+            "end": item.timing_end.strftime("%H:%M") if item.timing_end else None
+        }
+        # Only include if at least one timing value exists
+        if timing_data["start"] is None and timing_data["end"] is None:
+            timing_data = None
+    
     return MenuItem(
         id=item.public_id,
         name=item.name,
@@ -338,5 +357,6 @@ def _build_menu_item_response(item: MenuItemModel, restaurant_slug: str, overrid
         tags=item.tags or [],
         is_bestseller=item.is_bestseller,
         variation_groups=variation_groups,
-        addon_groups=addon_groups
+        addon_groups=addon_groups,
+        timing=timing_data
         )

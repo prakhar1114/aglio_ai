@@ -35,6 +35,72 @@ export function isVideoUrl(url) {
 }
 
 /**
+ * Parse time string (HH:MM) to minutes since midnight
+ * @param {string} timeStr - Time string in HH:MM format
+ * @returns {number} - Minutes since midnight
+ */
+export function parseTimeToMinutes(timeStr) {
+  if (!timeStr || typeof timeStr !== 'string') return 0;
+  
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  return (hours || 0) * 60 + (minutes || 0);
+}
+
+/**
+ * Check if a menu item is currently available based on its timing data
+ * @param {Object} item - Menu item object with timing data
+ * @returns {boolean} - True if item is currently available
+ */
+export function isItemCurrentlyAvailable(item) {
+  if (!item.timing) {
+    return true; // No timing restrictions, always available
+  }
+
+  const now = new Date();
+  const currentTime = now.getHours() * 60 + now.getMinutes(); // Convert to minutes since midnight
+
+  // Handle daily timing (simple start/end format)
+  if (item.timing.start && item.timing.end) {
+    const startTime = parseTimeToMinutes(item.timing.start);
+    const endTime = parseTimeToMinutes(item.timing.end);
+    
+    if (startTime <= endTime) {
+      // Same day timing (e.g., 09:00 to 22:00)
+      return currentTime >= startTime && currentTime <= endTime;
+    } else {
+      // Overnight timing (e.g., 22:00 to 06:00)
+      return currentTime >= startTime || currentTime <= endTime;
+    }
+  }
+
+  // Handle weekly timing (advanced format)
+  if (item.timing.monday || item.timing.tuesday || item.timing.wednesday || 
+      item.timing.thursday || item.timing.friday || item.timing.saturday || item.timing.sunday) {
+    
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const currentDay = dayNames[now.getDay()];
+    const dayTiming = item.timing[currentDay];
+    
+    if (!dayTiming || !dayTiming.start || !dayTiming.end) {
+      return false; // Not available on this day
+    }
+    
+    const startTime = parseTimeToMinutes(dayTiming.start);
+    const endTime = parseTimeToMinutes(dayTiming.end);
+    
+    if (startTime <= endTime) {
+      // Same day timing
+      return currentTime >= startTime && currentTime <= endTime;
+    } else {
+      // Overnight timing
+      return currentTime >= startTime || currentTime <= endTime;
+    }
+  }
+
+  return true; // Fallback - no valid timing data, assume available
+}
+
+/**
  * Play a success sound using Web Audio API
  */
 export function playSuccessSound() {

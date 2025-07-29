@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { isItemCurrentlyAvailable } from '../utils/general';
+
 const RESTAURANT_SLUG = import.meta.env.VITE_RESTAURANT_SLUG;
 
 const CACHE_DURATION = 3 * 60 * 60 * 1000; // 3 hours in milliseconds
@@ -115,6 +117,11 @@ const useMenuStore = create(
           filteredItems = filteredItems.filter(item => 
             item.base_price <= filters.priceRange[1]
           );
+        }
+        
+        // Apply timing filter (check if items are currently available)
+        if (filters.includeTiming !== false) { // Default to true
+          filteredItems = filteredItems.filter(isItemCurrentlyAvailable);
         }
         
         return {
