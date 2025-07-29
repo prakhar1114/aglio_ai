@@ -352,6 +352,13 @@ class MenuItem(Base):
     show_on_menu = Column(Boolean, default=True)
     tags = Column(JSON, default=list)  # list[str] for frontend rendering
     
+    # Timing support - daily timing for backward compatibility
+    timing_start = Column(Time, nullable=True)  # When item becomes available (daily)
+    timing_end = Column(Time, nullable=True)    # When item becomes unavailable (daily)
+    
+    # Weekly schedule for advanced timing (future extension)
+    timing_schedule = Column(JSON, nullable=True)  # Weekly schedule with different timing per day
+    
     # POS Integration (following simplified architecture)
     external_id = Column(String, nullable=True)  # PetPooja itemid
     external_data = Column(JSON, nullable=True)  # Full POS item data

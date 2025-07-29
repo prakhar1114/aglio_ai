@@ -1,3 +1,23 @@
+"""
+Restaurant onboarding script for Aglio AI
+
+This script processes restaurant data and creates menu items with timing support.
+
+CSV Format for timing:
+- timing_start: 24-hour format (HH:MM), e.g., "09:00", "14:30"
+- timing_end: 24-hour format (HH:MM), e.g., "22:00", "23:30"
+- Both fields are optional. If null/empty, item is available all day
+- Examples:
+  - timing_start: "09:00", timing_end: "22:00" -> Available 9 AM to 10 PM
+  - timing_start: "22:00", timing_end: "06:00" -> Available 10 PM to 6 AM (overnight)
+  - timing_start: null, timing_end: null -> Available all day
+
+API Response Format:
+- Daily timing: {"timing": {"start": "09:00", "end": "22:00"}}
+- Weekly timing: {"timing": {"monday": {"start": "09:00", "end": "22:00"}, ...}}
+- No timing: {"timing": null}
+"""
+
 #!/usr/bin/env python3
 """
 Seed a single restaurant folder into Postgres and Qdrant.
@@ -54,6 +74,22 @@ def new_id() -> str:
     """Generate 6‑char public_id."""
     return uuid.uuid4().hex[:6]
 
+def validate_timing_format(timing_str: str) -> bool:
+    """Validate timing string is in 24-hour format (HH:MM)"""
+    if not timing_str or pd.isna(timing_str):
+        return True  # Null values are allowed
+    
+    timing_str = str(timing_str).strip()
+    if not timing_str:
+        return True  # Empty strings are allowed
+    
+    try:
+        # Parse time in 24-hour format
+        time_obj = datetime.strptime(timing_str, "%H:%M").time()
+        return True
+    except ValueError:
+        return False
+
 def validate_and_clean_csv(df_menu: pd.DataFrame) -> pd.DataFrame:
     """Validate CSV format and clean extra columns"""
     # Expected columns according to documentation
@@ -81,6 +117,25 @@ def validate_and_clean_csv(df_menu: pd.DataFrame) -> pd.DataFrame:
                 df_cleaned[col] = None  # Will be auto-generated
             elif col == 'show_on_menu':
                 df_cleaned[col] = True
+    
+    # Validate timing format if timing columns exist
+    if 'timing_start' in df_cleaned.columns:
+        invalid_start_timing = []
+        for idx, timing_str in enumerate(df_cleaned['timing_start']):
+            if not validate_timing_format(timing_str):
+                invalid_start_timing.append((idx, timing_str))
+        
+        if invalid_start_timing:
+            raise ValueError(f"Invalid timing_start format (must be HH:MM): {invalid_start_timing}")
+    
+    if 'timing_end' in df_cleaned.columns:
+        invalid_end_timing = []
+        for idx, timing_str in enumerate(df_cleaned['timing_end']):
+            if not validate_timing_format(timing_str):
+                invalid_end_timing.append((idx, timing_str))
+        
+        if invalid_end_timing:
+            raise ValueError(f"Invalid timing_end format (must be HH:MM): {invalid_end_timing}")
     
     # Validate that all rows have non-null IDs
     id_series = df_cleaned['id'].tolist()
@@ -951,6 +1006,30 @@ def seed_folder(folder: Path):
                 
                 promote_val = row.get("promote")
                 mi.promote = bool(promote_val) if pd.notna(promote_val) else False
+                
+                # Set timing fields if they exist in the CSV
+                timing_start_val = row.get("timing_start")
+                if pd.notna(timing_start_val) and str(timing_start_val).strip():
+                    try:
+                        mi.timing_start = datetime.strptime(str(timing_start_val).strip(), "%H:%M").time()
+                    except ValueError:
+                        logger.warning(f"⚠️  Invalid timing_start format for {row['name']}: {timing_start_val}, skipping")
+                        mi.timing_start = None
+                else:
+                    mi.timing_start = None
+                
+                timing_end_val = row.get("timing_end")
+                if pd.notna(timing_end_val) and str(timing_end_val).strip():
+                    try:
+                        mi.timing_end = datetime.strptime(str(timing_end_val).strip(), "%H:%M").time()
+                    except ValueError:
+                        logger.warning(f"⚠️  Invalid timing_end format for {row['name']}: {timing_end_val}, skipping")
+                        mi.timing_end = None
+                else:
+                    mi.timing_end = None
+                
+                # Set timing_schedule to None (weekly schedule not supported in CSV yet)
+                mi.timing_schedule = None
                 
                 # Set new schema fields with defaults for simple restaurants
                 external_id_val = row.get("id")

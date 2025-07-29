@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { getBaseApiCandidates, constructImageUrl } from './base.js';
-import useMenuStore from '../store/menu.js';
+import { getBaseApiCandidates } from './base';
+import useMenuStore from '../store/menu';
 import React from 'react';
 
 const restaurantSlug = import.meta.env.VITE_RESTAURANT_SLUG;
@@ -89,16 +89,14 @@ export const useMenu = (filters = {}) => {
     try {
       const menuStore = useMenuStore.getState();
       if (menuStore && typeof menuStore.getFilteredMenu === 'function') {
-        // Set the full menu in store if not already set
-        if (!menuStore.getFullMenu()) {
-          menuStore.setFullMenu(fullMenuQuery.data);
-        }
+        // getFilteredMenu already handles timing filtering
         return menuStore.getFilteredMenu(filters);
       }
     } catch (error) {
       console.warn('Menu store not available for filtering:', error);
     }
     
+    // Fallback: return data without filtering
     return fullMenuQuery.data;
   }, [fullMenuQuery.data, filters]);
 
