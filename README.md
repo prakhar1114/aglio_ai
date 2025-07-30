@@ -10,6 +10,11 @@ conda activate aglio_ai
 python -m backend.main
 ```
 
+Running backend with 4 workers:
+```
+uvicorn main:app   --host 0.0.0.0   --port 8005   --workers 4
+```
+
 Running frontend:
 ```bash
 cd aglio-app
