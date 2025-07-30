@@ -1,0 +1,120 @@
+{
+  "brandColor": "#C72C48",
+  "fontHeading": "'Poppins', sans-serif",
+  "secondaryColor": "#4ECDC4",
+  "backgroundColor": "#F7F9FC",
+  "textColor": "#2C3E50",
+  "logo": "/logo.png",
+  "instagram": "@mintoos",
+  "extras": {
+    "heroBanner": "welcome-promo"
+  },
+  "design": {
+    "colors": {
+      "primary": "#C72C48",
+      "primarySubtle": "#C72C4815",
+      "primaryLight": "#C72C4830",
+      "surface": "#FFFFFF",
+      "surfaceElevated": "#FAFBFC",
+      "surfacePressed": "#F5F6F7",
+      "background": "#F7F9FC",
+      "text": {
+        "primary": "#1C1C1E",
+        "secondary": "#6B7280",
+        "tertiary": "#9CA3AF",
+        "inverse": "#FFFFFF"
+      },
+      "border": {
+        "light": "#E5E7EB",
+        "medium": "#D1D5DB",
+        "heavy": "#9CA3AF"
+      },
+      "semantic": {
+        "success": "#10B981",
+        "warning": "#F59E0B",
+        "error": "#EF4444"
+      }
+    },
+    "typography": {
+      "fontFamily": "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      "sizes": {
+        "xs": "12px",
+        "sm": "14px",
+        "base": "16px",
+        "lg": "18px",
+        "xl": "20px",
+        "2xl": "24px"
+      },
+      "weights": {
+        "regular": 400,
+        "medium": 500,
+        "semibold": 600,
+        "bold": 700
+      },
+      "lineHeights": {
+        "tight": 1.2,
+        "normal": 1.4,
+        "relaxed": 1.6
+      }
+    },
+    "spacing": {
+      "xs": "4px",
+      "sm": "8px",
+      "md": "12px",
+      "lg": "16px",
+      "xl": "20px",
+      "2xl": "24px",
+      "3xl": "32px",
+      "4xl": "40px"
+    },
+    "radius": {
+      "sm": "4px",
+      "md": "8px",
+      "lg": "12px",
+      "xl": "16px",
+      "full": "9999px"
+    },
+    "shadows": {
+      "sm": "0 1px 2px rgba(0, 0, 0, 0.05)",
+      "md": "0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)",
+      "lg": "0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06)",
+      "xl": "0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05)"
+    }
+  },
+  "components": {
+    "button": {
+      "primary": {
+        "background": "#C72C48",
+        "color": "#FFFFFF",
+        "borderRadius": "6px",
+        "fontSize": "12px",
+        "fontWeight": "600",
+        "padding": "6px",
+        "size": "28px",
+        "shadow": "0 2px 4px rgba(0, 0, 0, 0.15)"
+      }
+    },
+    "card": {
+      "background": "#FFFFFF",
+      "borderRadius": "12px",
+      "border": "1px solid #E5E7EB",
+      "shadow": "0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06)"
+    },
+    "dropdown": {
+      "background": "#FFFFFF",
+      "borderRadius": "8px",
+      "border": "1px solid #E5E7EB",
+      "shadow": "0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06)",
+      "itemHover": "#F7F9FC"
+    },
+    "categoryHeader": {
+      "background": "rgba(255, 255, 255, 0.92)",
+      "borderRadius": "6px",
+      "border": "1px solid rgba(229, 231, 235, 0.6)",
+      "shadow": "0 1px 3px rgba(0, 0, 0, 0.08)",
+      "padding": "6px 10px",
+      "fontSize": "14px",
+      "fontWeight": "600"
+    }
+  }
+}
