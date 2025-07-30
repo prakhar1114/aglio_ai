@@ -59,7 +59,7 @@ export function ItemCustomisations() {
     return total;
   }, [menuItem, customisationData.selectedAddons, customisationData.selectedVariationId]);
 
-  const unitPrice = (menuItem?.base_price || 0) + (selectedVariation?.price || 0) + addonsPrice;
+  const unitPrice = (selectedVariation?.price || menuItem?.base_price || 0) + addonsPrice;
   const totalPrice = unitPrice * (customisationData.qty || 1);
 
   if (!isCustomisationOpen || !currentActiveItem) {
