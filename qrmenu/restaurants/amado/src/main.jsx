@@ -21,6 +21,8 @@ async function init() {
           enableCallWaiter={false}
           showToWaiter={true}
           message="Please go to the counter to make the payment and confirm."
+          enablePlaceOrder={false}
+          showAskNameModal={false}
         />
       </App>
     );

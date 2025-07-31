@@ -17,7 +17,7 @@ import { OrderConfirmationSheet } from '../components/OrderConfirmationSheet.jsx
 // Memoised version to avoid unnecessary re-renders when previewStack updates
 const MemoisedMasonryFeed = React.memo(MasonryFeed);
 
-function MenuPage({enableCallWaiter, showToWaiter, showAggregatedCategory, message = null}) {
+function MenuPage({enableCallWaiter, showToWaiter, showAggregatedCategory, enablePlaceOrder, showAskNameModal, message = null}) {
   const location = useLocation();
   
   // UI State Management
@@ -180,12 +180,14 @@ function MenuPage({enableCallWaiter, showToWaiter, showAggregatedCategory, messa
         onMyOrdersOpen={handleMyOrdersOpen}
         onCallWaiterOpen={handleCallWaiterOpen}
         enableCallWaiter={enableCallWaiter}
+        enablePlaceOrder={enablePlaceOrder}
       />
 
       {/* Drawers and Popups */}
       <CartDrawer 
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
+        enablePlaceOrder={enablePlaceOrder}
       />
 
       {/* Mount OrderConfirmationSheet here instead of CartDrawer */}
@@ -242,16 +244,16 @@ function MenuPage({enableCallWaiter, showToWaiter, showAggregatedCategory, messa
       <ItemCustomisations />
 
       {/* Nickname Prompt */}
-      <NicknamePrompt />
+      {showAskNameModal && <NicknamePrompt />}
     </div>
   );
 }
 
-export function MenuScreen({enableCallWaiter = true, showToWaiter = false, message = null, showAggregatedCategory=true}) {
+export function MenuScreen({enableCallWaiter = true, showToWaiter = false, message = null, showAggregatedCategory=true, enablePlaceOrder=true, showAskNameModal=true}) {
   return (
     <Routes>
       <Route path="/*" 
-        element={<MenuPage enableCallWaiter={enableCallWaiter} showToWaiter={showToWaiter} message={message} showAggregatedCategory={showAggregatedCategory} />} 
+        element={<MenuPage enableCallWaiter={enableCallWaiter} showToWaiter={showToWaiter} message={message} showAggregatedCategory={showAggregatedCategory} enablePlaceOrder={enablePlaceOrder} showAskNameModal={showAskNameModal}/>} 
       />
     </Routes>
   );
