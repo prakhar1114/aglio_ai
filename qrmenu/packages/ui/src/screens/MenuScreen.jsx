@@ -17,13 +17,16 @@ import { OrderConfirmationSheet } from '../components/OrderConfirmationSheet.jsx
 // Memoised version to avoid unnecessary re-renders when previewStack updates
 const MemoisedMasonryFeed = React.memo(MasonryFeed);
 
-function MenuPage({enableCallWaiter, showToWaiter, showAggregatedCategory, enablePlaceOrder, showAskNameModal, message = null}) {
+function MenuPage({enableCallWaiter, showToWaiter, showAggregatedCategory, enablePlaceOrder, showAskNameModal, enableNavigationOverlay, message = null}) {
   const location = useLocation();
   
   // UI State Management
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isMyOrdersOpen, setIsMyOrdersOpen] = useState(false);
+  
+  // Navigation Overlay State Management
+  const [isNavigationOverlayVisible, setIsNavigationOverlayVisible] = useState(enableNavigationOverlay);
 
   // Preview State Management - support for stacking previews
   const [previewStack, setPreviewStack] = useState([]);
@@ -98,6 +101,15 @@ function MenuPage({enableCallWaiter, showToWaiter, showAggregatedCategory, enabl
     await handleWaiterRequest('call_waiter', 'Waiter Called', 'Your waiter has been notified and will be with you shortly.');
   };
 
+  // Navigation Overlay Handlers
+  const handleHomeOpen = () => {
+    setIsNavigationOverlayVisible(true);
+  };
+
+  const handleNavigationOverlayClose = () => {
+    setIsNavigationOverlayVisible(false);
+  };
+
   // Handlers for order confirmation
   const handleOrderConfirmationClose = () => {
     setIsOrderConfirmationOpen(false);
@@ -168,6 +180,9 @@ function MenuPage({enableCallWaiter, showToWaiter, showAggregatedCategory, enabl
             filters={currentFilters}
             showAggregatedCategory={showAggregatedCategory}
             onItemClick={handleItemClick}
+            enableNavigationOverlay={enableNavigationOverlay}
+            isNavigationOverlayVisible={isNavigationOverlayVisible}
+            onNavigationOverlayClose={handleNavigationOverlayClose}
           />
         </main>
       </div>
@@ -179,8 +194,10 @@ function MenuPage({enableCallWaiter, showToWaiter, showAggregatedCategory, enabl
         onCartOpen={handleCartOpen}
         onMyOrdersOpen={handleMyOrdersOpen}
         onCallWaiterOpen={handleCallWaiterOpen}
+        onHomeOpen={handleHomeOpen}
         enableCallWaiter={enableCallWaiter}
         enablePlaceOrder={enablePlaceOrder}
+        enableNavigationOverlay={enableNavigationOverlay}
       />
 
       {/* Drawers and Popups */}
@@ -249,11 +266,11 @@ function MenuPage({enableCallWaiter, showToWaiter, showAggregatedCategory, enabl
   );
 }
 
-export function MenuScreen({enableCallWaiter = true, showToWaiter = false, message = null, showAggregatedCategory=true, enablePlaceOrder=true, showAskNameModal=true}) {
+export function MenuScreen({enableCallWaiter = true, showToWaiter = false, message = null, showAggregatedCategory=true, enablePlaceOrder=true, showAskNameModal=true, enableNavigationOverlay=false}) {
   return (
     <Routes>
       <Route path="/*" 
-        element={<MenuPage enableCallWaiter={enableCallWaiter} showToWaiter={showToWaiter} message={message} showAggregatedCategory={showAggregatedCategory} enablePlaceOrder={enablePlaceOrder} showAskNameModal={showAskNameModal}/>} 
+        element={<MenuPage enableCallWaiter={enableCallWaiter} showToWaiter={showToWaiter} message={message} showAggregatedCategory={showAggregatedCategory} enablePlaceOrder={enablePlaceOrder} showAskNameModal={showAskNameModal} enableNavigationOverlay={enableNavigationOverlay}/>} 
       />
     </Routes>
   );

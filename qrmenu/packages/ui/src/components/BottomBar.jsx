@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ShoppingCartIcon, AdjustmentsHorizontalIcon, ChatBubbleLeftIcon, ClipboardDocumentListIcon, BellIcon } from '@heroicons/react/24/outline';
+import { ShoppingCartIcon, AdjustmentsHorizontalIcon, ChatBubbleLeftIcon, ClipboardDocumentListIcon, BellIcon, HomeIcon } from '@heroicons/react/24/outline';
 import { useCartStore, useSessionStore, useChatStore } from '@qrmenu/core';
 import { WaiterOptionsPopup } from './WaiterOptionsPopup.jsx';
 
-export function BottomBar({ onFiltersOpen, onAIChatOpen, onCartOpen, onMyOrdersOpen, onCallWaiterOpen, enableCallWaiter, enablePlaceOrder }) {
+export function BottomBar({ onFiltersOpen, onAIChatOpen, onCartOpen, onMyOrdersOpen, onCallWaiterOpen, onHomeOpen, enableCallWaiter, enablePlaceOrder, enableNavigationOverlay }) {
   const totalCount = useCartStore((state) => state.totalCount());
   const filterCount = useCartStore((state) => state.getFilterCount());
   const ordersCount = useCartStore((state) => state.getOrdersCount());
@@ -136,6 +136,15 @@ export function BottomBar({ onFiltersOpen, onAIChatOpen, onCartOpen, onMyOrdersO
             ${showMyTable ? 'justify-around' : 'justify-between'}
           `}>
             
+            {/* Home Button - only show if navigation overlay is enabled */}
+            {enableNavigationOverlay && (
+              <TabButton
+                onClick={onHomeOpen}
+                icon={HomeIcon}
+                label="Home"
+              />
+            )}
+
             {/* My Table Button */}
             {enablePlaceOrder && showMyTable && (
               <TabButton

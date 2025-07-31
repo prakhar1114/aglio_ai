@@ -5,7 +5,7 @@ import './index.css';
 // Core imports
 import { loadTheme } from '@qrmenu/theme-loader';
 import { App } from '@qrmenu/core';
-import { MenuScreen } from '@qrmenu/ui';
+import { MenuScreen, ThemeProvider } from '@qrmenu/ui';
 
 // Bootstrap the app
 async function init() {
@@ -17,13 +17,16 @@ async function init() {
 
     root.render(
       <App theme={theme}>
-        <MenuScreen 
-          enableCallWaiter={false}
-          showToWaiter={true}
-          message="Please go to the counter to make the payment and confirm."
-          enablePlaceOrder={false}
-          showAskNameModal={false}
-        />
+        <ThemeProvider theme={theme}>
+          <MenuScreen 
+            enableCallWaiter={false}
+            showToWaiter={true}
+            message="Please go to the counter to make the payment and confirm."
+            enablePlaceOrder={false}
+            showAskNameModal={false}
+            enableNavigationOverlay={true}
+          />
+        </ThemeProvider>
       </App>
     );
   } catch (error) {

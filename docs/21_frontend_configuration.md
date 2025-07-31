@@ -33,5 +33,5 @@ showAskNameModal=true or false
 
 __________________
 
-navigationModal
-- animation of category changing while going down
+enableNavigationOverlay
+- showing grouped category 
