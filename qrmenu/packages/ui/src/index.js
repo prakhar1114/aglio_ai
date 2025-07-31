@@ -29,3 +29,6 @@ export { NicknamePrompt } from './components/NicknamePrompt.jsx';
 // Complete Screens (compose individual components + core functionality)
 export { MenuScreen } from './screens/MenuScreen.jsx';
 export { PreviewScreen } from './screens/PreviewScreen.jsx';
+
+// Contexts
+export { ThemeProvider, useTheme } from './contexts/ThemeContext.jsx';

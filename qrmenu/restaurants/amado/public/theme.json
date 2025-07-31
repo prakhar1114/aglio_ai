@@ -116,5 +116,17 @@
       "fontSize": "14px",
       "fontWeight": "600"
     }
+  },
+  "restaurantName": "Café Amado",
+  "restaurantLogo": "/amado-color-logo.png",
+  "navigationOverlay": {
+    "title": "Amado Menu",
+    "specialsTitle": "Today's Specials",
+    "browseMenuTitle": "Browse Menu",
+    "brandColor": "#E63946",
+    "showLogo": true,
+    "logoPosition": "top",
+    "coverImage": "https://imagedelivery.net/J-YAzqh0xCiR5OJtQewXmg/f05aa909-4c49-466b-4849-3162f87c7f00/medium",
+    "rotate": -90
   }
 }

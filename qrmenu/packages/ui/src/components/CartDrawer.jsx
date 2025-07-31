@@ -3,7 +3,7 @@ import { XMarkIcon, MinusIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/o
 import { useCartStore, useSessionStore, updateCartItem, deleteCartItem, replaceCartItem, getMenuItem, placeOrder } from '@qrmenu/core';
 import { OptimizedMedia } from './OptimizedMedia.jsx';
 
-export function CartDrawer({ isOpen, onClose }) {
+export function CartDrawer({ isOpen, onClose, enablePlaceOrder }) {
   const { items, getTotalAmount, getItemsByMember, canEditItem, hasCustomizationsAvailable, cartLocked, orderProcessingStatus, lockedByMember, isCartEditable, pendingOrderId, unlockCart } = useCartStore();
   const { memberPid, isHost, sessionValidated, members } = useSessionStore();
   
@@ -162,7 +162,7 @@ export function CartDrawer({ isOpen, onClose }) {
                 fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                 color: '#1C1C1E'
               }}>
-            Shared Cart {!isEmpty && `(${items.length} items)`}
+                {!enablePlaceOrder ? 'Your List' : 'Your Cart'} {!isEmpty && `(${items.length} items)`}
           </h2>
           <button
             onClick={onClose}
@@ -220,7 +220,27 @@ export function CartDrawer({ isOpen, onClose }) {
               </button>
             </div>
           ) : (
-            <div className="p-4 space-y-3">
+            <div>
+              {/* Message when place order is disabled */}
+              {!enablePlaceOrder && (
+                <div className="w-full bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 text-blue-700 py-3 px-4 rounded-xl text-center"
+                     style={{
+                       backgroundColor: 'linear-gradient(135deg, #F0F9FF 0%, #EEF2FF 100%)',
+                       borderColor: '#DBEAFE',
+                       fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                       fontSize: '18px',
+                       fontWeight: '500',
+                       borderRadius: '16px',
+                       color: '#1D4ED8',
+                       lineHeight: '1.5',
+                       boxShadow: '0 2px 8px rgba(59, 130, 246, 0.08), 0 1px 4px rgba(59, 130, 246, 0.06)',
+                       border: '1px solid #DBEAFE'
+                     }}>
+                Please place your order with the waiters
+                </div>
+              )}
+
+              <div className="p-4 space-y-3">
               {/* Cart Items - Grouped by Member */}
               {Object.entries(itemsByMember).map(([member_pid, memberItems]) => {
                 if (memberItems.length === 0) return null;
@@ -460,6 +480,7 @@ export function CartDrawer({ isOpen, onClose }) {
                 );
               })}
             </div>
+            </div>
           )}
         </div>
 
@@ -538,7 +559,8 @@ export function CartDrawer({ isOpen, onClose }) {
             </div>
 
             {/* Checkout Button */}
-            {cartLocked && lockedByMember && lockedByMember !== memberPid ? (
+            {enablePlaceOrder && (
+              cartLocked && lockedByMember && lockedByMember !== memberPid ? (
               // Show locked by other member state
               <div className="w-full bg-gray-300 text-gray-600 py-3 rounded-lg font-medium text-center"
                    style={{
@@ -554,52 +576,53 @@ export function CartDrawer({ isOpen, onClose }) {
                   return `Order Submitted by ${lockingMember?.nickname || 'Another Member'}`;
                 })()}
               </div>
-            ) : (
-            <button
-              onClick={() => handleCheckout()}
-                disabled={orderProcessingStatus === 'processing'}
-                className={`w-full py-3 rounded-lg font-medium transition-all duration-200 ${
+              ) : (
+                <button
+                  onClick={() => handleCheckout()}
+                  disabled={orderProcessingStatus === 'processing'}
+                  className={`w-full py-3 rounded-lg font-medium transition-all duration-200 ${
                   orderProcessingStatus === 'processing' || orderProcessingStatus === 'placed'
                     ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
                     : orderProcessingStatus === 'failed' || orderProcessingStatus === 'cancelled'
                     ? 'bg-orange-500 text-white hover:bg-orange-600'
                     : 'bg-red-500 text-white hover:bg-red-600'
-                }`}
-              style={{
-                  backgroundColor: orderProcessingStatus === 'processing' || orderProcessingStatus === 'placed'
-                    ? '#9CA3AF' 
+                  }`}
+                  style={{
+                    backgroundColor: orderProcessingStatus === 'processing' || orderProcessingStatus === 'placed'
+                      ? '#9CA3AF' 
+                      : orderProcessingStatus === 'failed' || orderProcessingStatus === 'cancelled'
+                      ? '#F97316'
+                      : '#C72C48',
+                    fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    borderRadius: '12px',
+                    boxShadow: orderProcessingStatus === 'processing' || orderProcessingStatus === 'placed'
+                      ? 'none' 
+                      : '0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06)',
+                    transition: 'all 0.2s ease-in-out',
+                    transform: 'translateY(0)'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (orderProcessingStatus !== 'processing' && orderProcessingStatus !== 'placed') {
+                      e.target.style.transform = 'translateY(-1px)';
+                      e.target.style.boxShadow = '0 6px 8px rgba(0, 0, 0, 0.15)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (orderProcessingStatus !== 'processing' && orderProcessingStatus !== 'placed') {
+                      e.target.style.transform = 'translateY(0)';
+                      e.target.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06)';
+                    }
+                  }}
+                >
+                  {orderProcessingStatus === 'processing' 
+                    ? 'Pending Confirmation...' 
                     : orderProcessingStatus === 'failed' || orderProcessingStatus === 'cancelled'
-                    ? '#F97316'
-                    : '#C72C48',
-                fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                fontSize: '16px',
-                fontWeight: '600',
-                borderRadius: '12px',
-                  boxShadow: orderProcessingStatus === 'processing' || orderProcessingStatus === 'placed'
-                    ? 'none' 
-                    : '0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06)',
-                transition: 'all 0.2s ease-in-out',
-                transform: 'translateY(0)'
-              }}
-              onMouseEnter={(e) => {
-                  if (orderProcessingStatus !== 'processing' && orderProcessingStatus !== 'placed') {
-                e.target.style.transform = 'translateY(-1px)';
-                e.target.style.boxShadow = '0 6px 8px rgba(0, 0, 0, 0.15)';
-                  }
-              }}
-              onMouseLeave={(e) => {
-                  if (orderProcessingStatus !== 'processing' && orderProcessingStatus !== 'placed') {
-                e.target.style.transform = 'translateY(0)';
-                e.target.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06)';
-                  }
-              }}
-            >
-                {orderProcessingStatus === 'processing' 
-                  ? 'Pending Confirmation...' 
-                  : orderProcessingStatus === 'failed' || orderProcessingStatus === 'cancelled'
-                  ? 'Retry Order'
-                  : 'Place Order'}
-            </button>
+                    ? 'Retry Order'
+                    : 'Place Order'}
+                </button>
+              )
             )}
           </div>
         )}

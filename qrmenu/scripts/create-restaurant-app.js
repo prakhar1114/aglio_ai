@@ -151,7 +151,7 @@ import './index.css';
 // Core imports
 import { loadTheme } from '@qrmenu/theme-loader';
 import { App } from '@qrmenu/core';
-import { MenuScreen } from '@qrmenu/ui';
+import { MenuScreen, ThemeProvider } from '@qrmenu/ui';
 
 // Bootstrap the app
 async function init() {
@@ -163,7 +163,9 @@ async function init() {
 
     root.render(
       <App theme={theme}>
-        <MenuScreen />
+        <ThemeProvider theme={theme}>
+          <MenuScreen />
+        </ThemeProvider>
       </App>
     );
   } catch (error) {
@@ -248,8 +250,20 @@ const themeJson = {
   textColor: "#2C3E50",
   logo: "/logo.png",
   instagram: `@${restaurantSlug}`,
+  restaurantName: restaurantName,
+  restaurantLogo: "/logo.png",
   extras: {
     heroBanner: "welcome-promo"
+  },
+  navigationOverlay: {
+    title: `${restaurantName} Menu`,
+    specialsTitle: "Today's Specials",
+    browseMenuTitle: "Browse Menu",
+    brandColor: "#C72C48",
+    showLogo: true,
+    logoPosition: "top",
+    coverImage: "https://imagedelivery.net/[ACCOUNT_HASH]/[IMAGE_ID]/large",
+    rotate: 0
   },
   design: {
     colors: {

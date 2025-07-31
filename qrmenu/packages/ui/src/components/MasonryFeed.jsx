@@ -5,8 +5,9 @@ import { FeedItemSwitcher } from './FeedItemSwitcher.jsx';
 import { CategoryDropdown, CategoryDropdownButton } from './CategoryDropdown.jsx';
 import { FilterDropdown } from './FilterDropdown.jsx';
 import { FilterDropdownButton } from './FilterDropdownButton.jsx';
+import { NavigationOverlay } from './NavigationOverlay.jsx';
 
-export function MasonryFeed({ filters = {}, gap = 2, onItemClick, showAggregatedCategory=false }) {
+export function MasonryFeed({ filters = {}, gap = 2, onItemClick, enableNavigationOverlay=false, showAggregatedCategory=false, isNavigationOverlayVisible=false, onNavigationOverlayClose }) {
   const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   // Refs for virtuoso
   const virtuosoRef = useRef(null);
@@ -34,7 +35,7 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick, showAggregated
   } = useMenu(filters);
 
   // Transform and group data
-  const { groupedData, groupCounts, categoryIndexMap, categories, dropdownCategories, hasAnyItems, groupCategoryMap, availableTags, categoryItemCounts } = useMemo(() => {
+  const { groupedData, groupCounts, categoryIndexMap, categories, dropdownCategories, hasAnyItems, groupCategoryMap, availableTags, categoryItemCounts, groupCategories } = useMemo(() => {
     const fetchedItems = data ? data.items : []; // Changed from data.pages.flatMap since we no longer use pagination
     
     // Filter items by selected tags
@@ -72,11 +73,14 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick, showAggregated
 
     // NEW: Extract group categories and create mappings from filtered items
     const groupCategoryMap = {};
+    const groupCategoriesSet = new Set();
     filteredItems.forEach(item => {
       if (item && item.group_category && item.category_brief) {
         groupCategoryMap[item.category_brief.trim()] = item.group_category.trim();
+        groupCategoriesSet.add(item.group_category.trim());
       }
     });
+    const groupCategories = Array.from(groupCategoriesSet);
 
     // Group items by category_brief
     const grouped = {};
@@ -152,7 +156,7 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick, showAggregated
 
     const hasAnyItems = transformedItems.length > 0;
 
-    return { groupedData, groupCounts, categoryIndexMap, categories, dropdownCategories, hasAnyItems, groupCategoryMap, availableTags, categoryItemCounts };
+    return { groupedData, groupCounts, categoryIndexMap, categories, dropdownCategories, hasAnyItems, groupCategoryMap, availableTags, categoryItemCounts, groupCategories };
   }, [data, selectedTags]);
 
 
@@ -205,6 +209,7 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick, showAggregated
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+
   // Handle range changes to track visible category
   const handleRangeChanged = React.useCallback((range) => {
     if (range && categories.length > 0) {
@@ -233,6 +238,21 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick, showAggregated
 
   const handleRemoveTag = (tagToRemove) => {
     setSelectedTags(prev => prev.filter(tag => tag !== tagToRemove));
+  };
+
+  // Navigation overlay handlers
+  const handleNavigation = (categoryIndex) => {
+    if (virtuosoRef.current) {
+      virtuosoRef.current.scrollToIndex({
+        index: categoryIndex,
+        behavior: 'smooth',
+        align: 'start'
+      });
+    }
+  };
+
+  const handleCloseNavigationOverlay = () => {
+    onNavigationOverlayClose?.();
   };
 
   // Memoize the GroupedVirtuoso component to prevent rerendering when dropdown states change
@@ -468,6 +488,18 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick, showAggregated
 
   return (
     <>
+      {/* Navigation Overlay */}
+      {enableNavigationOverlay && (
+        <NavigationOverlay
+          isVisible={isNavigationOverlayVisible}
+          groupCategories={groupCategories}
+          categoryIndexMap={categoryIndexMap}
+          groupCategoryMap={groupCategoryMap}
+          onNavigate={handleNavigation}
+          onClose={handleCloseNavigationOverlay}
+        />
+      )}
+
       {/* Fixed category header - always on top */}
       <div style={{ display: 'flex', gap: '8px', position: 'fixed', top: '4px', left: '6px', zIndex: 40, alignItems: 'flex-start' }}>
         {currentVisibleCategory && (
