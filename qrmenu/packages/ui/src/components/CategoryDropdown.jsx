@@ -231,6 +231,49 @@ export function CategoryDropdownButton({
   setIsGroupDropdownOpen = null,
   isGroupDropdownOpen = false
 }) {
+  // Animation state for font size changes
+  const [isAnimating, setIsAnimating] = React.useState(false);
+  const [animationKey, setAnimationKey] = React.useState(0);
+  const lastCategoryRef = React.useRef(currentVisibleCategory);
+  const animationTimeoutRef = React.useRef(null);
+
+  // Debounced animation trigger
+  const triggerAnimation = React.useCallback(() => {
+    // Clear any existing timeout
+    if (animationTimeoutRef.current) {
+      clearTimeout(animationTimeoutRef.current);
+    }
+
+    // Set animation state
+    setIsAnimating(true);
+    setAnimationKey(prev => prev + 1);
+
+    // Reset animation after duration
+    animationTimeoutRef.current = setTimeout(() => {
+      setIsAnimating(false);
+    }, 600); // 600ms total animation duration
+  }, []);
+
+  // Watch for category changes and trigger animation
+  React.useEffect(() => {
+    if (currentVisibleCategory && currentVisibleCategory !== lastCategoryRef.current) {
+      // Only trigger animation if we have a previous category (not initial load)
+      if (lastCategoryRef.current !== null) {
+        triggerAnimation();
+      }
+      lastCategoryRef.current = currentVisibleCategory;
+    }
+  }, [currentVisibleCategory, triggerAnimation]);
+
+  // Cleanup timeout on unmount
+  React.useEffect(() => {
+    return () => {
+      if (animationTimeoutRef.current) {
+        clearTimeout(animationTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Conditional rendering based on showAggregatedCategory
   if (showAggregatedCategory && currentVisibleGroupCategory) {
     return (
@@ -259,6 +302,25 @@ export function CategoryDropdownButton({
             .category-dropdown-button:hover {
               animation-play-state: paused;
             }
+
+            @keyframes category-change-animation {
+              0% {
+                font-size: 16px;
+                transform: scale(1);
+              }
+              50% {
+                font-size: 19px;
+                transform: scale(1.08);
+              }
+              100% {
+                font-size: 16px;
+                transform: scale(1);
+              }
+            }
+
+            .category-text-animating {
+              animation: category-change-animation 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            }
           `}
         </style>
         {/* Single unified pill with both group and sub category */}
@@ -274,7 +336,7 @@ export function CategoryDropdownButton({
             padding: '8px 14px', // Slightly more padding for better touch target
             borderRadius: '10px', // Apple-style rounded corners
             border: '1px solid rgba(255, 255, 255, 0.3)', // Subtle border
-            fontSize: '14px',
+            fontSize: '16px',
             fontWeight: '500', // Apple's medium weight
             fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
             display: 'flex',
@@ -288,11 +350,17 @@ export function CategoryDropdownButton({
             fill: "transparent"
           }}
         >
-          <span style={{ 
-            color: '#1C1C1E', // Apple's primary text color
-            fontWeight: '500',
-            letterSpacing: '-0.01em'
-          }}>
+          <span 
+            key={animationKey}
+            className={isAnimating ? 'category-text-animating' : ''}
+            style={{ 
+              color: '#1C1C1E', // Apple's primary text color
+              fontWeight: '500',
+              letterSpacing: '-0.01em',
+              fontSize: '16px', // Base font size
+              transition: 'font-size 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+            }}
+          >
             {currentVisibleCategory === "Recommendations" ? currentVisibleCategory : currentVisibleGroupCategory + " / " + currentVisibleCategory}
           </span>
           <svg
@@ -340,6 +408,25 @@ export function CategoryDropdownButton({
             .category-dropdown-button:hover {
               animation-play-state: paused;
             }
+
+            @keyframes category-change-animation {
+              0% {
+                font-size: 16px;
+                transform: scale(1);
+              }
+              50% {
+                font-size: 19px;
+                transform: scale(1.08);
+              }
+              100% {
+                font-size: 16px;
+                transform: scale(1);
+              }
+            }
+
+            .category-text-animating {
+              animation: category-change-animation 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            }
           `}
         </style>
         <button
@@ -354,7 +441,7 @@ export function CategoryDropdownButton({
             padding: '8px 14px', // Slightly more padding for better touch target
             borderRadius: '10px', // Apple-style rounded corners
             border: '1px solid rgba(255, 255, 255, 0.3)', // Subtle border
-            fontSize: '14px',
+            fontSize: '16px',
             fontWeight: '500', // Apple's medium weight
             fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
             display: 'flex',
@@ -368,11 +455,17 @@ export function CategoryDropdownButton({
           }}
 
         >
-          <span style={{ 
-            color: '#1C1C1E', // Apple's primary text color
-            fontWeight: '500',
-            letterSpacing: '-0.01em'
-          }}>
+          <span 
+            key={animationKey}
+            className={isAnimating ? 'category-text-animating' : ''}
+            style={{ 
+              color: '#1C1C1E', // Apple's primary text color
+              fontWeight: '500',
+              letterSpacing: '-0.01em',
+              fontSize: '16px', // Base font size
+              transition: 'font-size 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+            }}
+          >
             {currentVisibleCategory}
           </span>
           <svg
