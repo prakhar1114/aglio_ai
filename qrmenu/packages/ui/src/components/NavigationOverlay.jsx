@@ -25,8 +25,18 @@ export function NavigationOverlay({
     restaurantName = 'Restaurant',
     logo = null,
     restaurantLogo = null,
-    navigationOverlay = {}
+    navigationOverlay = {},
+    font = null
   } = theme || {};
+
+  // Get font from theme with fallback hierarchy
+  const getThemeFont = () => {
+    // Check multiple possible font locations in theme
+    if (font) return `'${font}', serif`;
+    return "'Playfair Display', 'Georgia', serif";
+  };
+
+  const themeFont = getThemeFont();
 
   const {
     title = 'Navigation Menu',
@@ -280,7 +290,7 @@ export function NavigationOverlay({
                   fontSize: '28px',
                   fontWeight: '300',
                   color: '#1A1A1A',
-                  fontFamily: "'Playfair Display', 'Georgia', serif",
+                  fontFamily: themeFont,
                   letterSpacing: '0.05em',
                   lineHeight: '1.1',
                   textShadow: 'none',

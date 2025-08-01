@@ -4,10 +4,21 @@
   "secondaryColor": "#4ECDC4",
   "backgroundColor": "#F7F9FC",
   "textColor": "#2C3E50",
-  "logo": "/logo.png",
-  "instagram": "@handcrafted",
+  "instagram": "@romeolane",
+  "restaurantName": "Romeo Lane",
+  "restaurantLogo": "/rl_logo.jpg",
   "extras": {
     "heroBanner": "welcome-promo"
+  },
+  "navigationOverlay": {
+    "title": "Romeo Lane Menu",
+    "specialsTitle": "Today's Specials",
+    "browseMenuTitle": "Browse Menu",
+    "brandColor": "#C72C48",
+    "showLogo": true,
+    "logoPosition": "top",
+    "coverImage": "https://imagedelivery.net/J-YAzqh0xCiR5OJtQewXmg/872c6b56-4156-42e0-c7bb-cf6d28bb7e00/large",
+    "rotate": 0
   },
   "design": {
     "colors": {
@@ -116,17 +127,5 @@
       "fontSize": "14px",
       "fontWeight": "600"
     }
-  },
-  "restaurantName": "HANDCRAFTED CAFE",
-  "restaurantLogo": "/logo.jpg",
-  "font": "Metropolis",
-  "navigationOverlay": {
-    "title": "Handcrafted Menu",
-    "specialsTitle": "Today's Specials",
-    "browseMenuTitle": "View Menu",
-    "brandColor": "black",
-    "showLogo": true,
-    "logoPosition": "top",
-    "coverImage": "https://imagedelivery.net/J-YAzqh0xCiR5OJtQewXmg/38b09bb1-f367-4996-0740-931fa6c10600/large"
   }
 }
