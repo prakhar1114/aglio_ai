@@ -17,7 +17,7 @@ import { OrderConfirmationSheet } from '../components/OrderConfirmationSheet.jsx
 // Memoised version to avoid unnecessary re-renders when previewStack updates
 const MemoisedMasonryFeed = React.memo(MasonryFeed);
 
-function MenuPage({enableCallWaiter, showToWaiter, showAggregatedCategory, enablePlaceOrder, showAskNameModal, enableNavigationOverlay, message = null}) {
+function MenuPage({enableCallWaiter, showToWaiter, showAggregatedCategory, enablePlaceOrder, showAskNameModal, enableNavigationOverlay, enableBottombarFilters, message = null}) {
   const location = useLocation();
   
   // UI State Management
@@ -198,6 +198,7 @@ function MenuPage({enableCallWaiter, showToWaiter, showAggregatedCategory, enabl
         enableCallWaiter={enableCallWaiter}
         enablePlaceOrder={enablePlaceOrder}
         enableNavigationOverlay={enableNavigationOverlay}
+        enableBottombarFilters={enableBottombarFilters}
       />
 
       {/* Drawers and Popups */}
@@ -266,11 +267,11 @@ function MenuPage({enableCallWaiter, showToWaiter, showAggregatedCategory, enabl
   );
 }
 
-export function MenuScreen({enableCallWaiter = true, showToWaiter = false, message = null, showAggregatedCategory=true, enablePlaceOrder=true, showAskNameModal=true, enableNavigationOverlay=false}) {
+export function MenuScreen({enableCallWaiter = true, showToWaiter = false, message = null, showAggregatedCategory=true, enablePlaceOrder=true, showAskNameModal=true, enableNavigationOverlay=false, enableBottombarFilters=false}) {
   return (
     <Routes>
       <Route path="/*" 
-        element={<MenuPage enableCallWaiter={enableCallWaiter} showToWaiter={showToWaiter} message={message} showAggregatedCategory={showAggregatedCategory} enablePlaceOrder={enablePlaceOrder} showAskNameModal={showAskNameModal} enableNavigationOverlay={enableNavigationOverlay}/>} 
+        element={<MenuPage enableCallWaiter={enableCallWaiter} showToWaiter={showToWaiter} message={message} showAggregatedCategory={showAggregatedCategory} enablePlaceOrder={enablePlaceOrder} showAskNameModal={showAskNameModal} enableNavigationOverlay={enableNavigationOverlay} enableBottombarFilters={enableBottombarFilters}/>} 
       />
     </Routes>
   );
