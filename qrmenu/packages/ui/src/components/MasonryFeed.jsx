@@ -7,7 +7,7 @@ import { FilterDropdown } from './FilterDropdown.jsx';
 import { FilterDropdownButton } from './FilterDropdownButton.jsx';
 import { NavigationOverlay } from './NavigationOverlay.jsx';
 
-export function MasonryFeed({ filters = {}, gap = 2, onItemClick, enableNavigationOverlay=false, showAggregatedCategory=false, isNavigationOverlayVisible=false, onNavigationOverlayClose }) {
+export function MasonryFeed({ filters = {}, gap = 2, onItemClick, enableNavigationOverlay=false, showAggregatedCategory=false, isNavigationOverlayVisible=false, onNavigationOverlayClose, enableImageGalleryFeed=false, showImageGalleryFeed=false }) {
   const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   // Refs for virtuoso
   const virtuosoRef = useRef(null);
@@ -39,12 +39,17 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick, enableNavigati
     const fetchedItems = data ? data.items : []; // Changed from data.pages.flatMap since we no longer use pagination
     
     // Filter items by selected tags
-    const filteredItems = selectedTags.length > 0 
+    let filteredItems = selectedTags.length > 0 
       ? fetchedItems.filter(item => {
           if (!item.tags || !Array.isArray(item.tags)) return false;
           return selectedTags.some(tag => item.tags.includes(tag));
         })
       : fetchedItems;
+    
+    // Filter items by media if image gallery feed is enabled
+    if (enableImageGalleryFeed && showImageGalleryFeed) {
+      filteredItems = filteredItems.filter(item => item.image_url !== null);
+    }
     
     const transformedItems = filteredItems
       .filter(item => item && item.id)
@@ -157,7 +162,7 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick, enableNavigati
     const hasAnyItems = transformedItems.length > 0;
 
     return { groupedData, groupCounts, categoryIndexMap, categories, dropdownCategories, hasAnyItems, groupCategoryMap, availableTags, categoryItemCounts, groupCategories };
-  }, [data, selectedTags]);
+  }, [data, selectedTags, enableImageGalleryFeed, showImageGalleryFeed]);
 
 
 

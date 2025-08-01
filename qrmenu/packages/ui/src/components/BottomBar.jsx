@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ShoppingCartIcon, AdjustmentsHorizontalIcon, ChatBubbleLeftIcon, ClipboardDocumentListIcon, BellIcon, HomeIcon } from '@heroicons/react/24/outline';
+import { ShoppingCartIcon, AdjustmentsHorizontalIcon, ChatBubbleLeftIcon, ClipboardDocumentListIcon, BellIcon, HomeIcon, PhotoIcon, ListBulletIcon } from '@heroicons/react/24/outline';
 import { useCartStore, useSessionStore, useChatStore } from '@qrmenu/core';
 import { WaiterOptionsPopup } from './WaiterOptionsPopup.jsx';
 
-export function BottomBar({ onFiltersOpen, onAIChatOpen, onCartOpen, onMyOrdersOpen, onCallWaiterOpen, onHomeOpen, enableCallWaiter, enablePlaceOrder, enableNavigationOverlay, enableBottombarFilters }) {
+export function BottomBar({ onFiltersOpen, onAIChatOpen, onCartOpen, onMyOrdersOpen, onCallWaiterOpen, onHomeOpen, enableCallWaiter, enablePlaceOrder, enableNavigationOverlay, enableBottombarFilters, enableImageGalleryFeed, showImageGalleryFeed, onToggleImageGallery }) {
   const totalCount = useCartStore((state) => state.totalCount());
   const filterCount = useCartStore((state) => state.getFilterCount());
   const ordersCount = useCartStore((state) => state.getOrdersCount());
@@ -136,6 +136,35 @@ export function BottomBar({ onFiltersOpen, onAIChatOpen, onCartOpen, onMyOrdersO
             ${showMyTable ? 'justify-around' : 'justify-between'}
           `}>
             
+                         {/* Image Gallery Toggle Button */}
+             {enableImageGalleryFeed && (
+               <button
+                 onClick={onToggleImageGallery}
+                 className="flex items-center justify-center px-3.5 py-2 rounded-lg transition-all duration-200 ease-out active:scale-95"
+                 style={{
+                   backgroundColor: showImageGalleryFeed 
+                     ? '#F3F4F6' 
+                     : '#1C1C1E',
+                   color: showImageGalleryFeed ? '#374151' : 'white',
+                   fontSize: '11px',
+                   fontWeight: '500',
+                   fontFamily: "'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif",
+                   letterSpacing: '-0.003em',
+                   border: showImageGalleryFeed ? '1px solid #E5E7EB' : 'none',
+                   outline: 'none',
+                   boxShadow: showImageGalleryFeed 
+                     ? '0 1px 2px rgba(0, 0, 0, 0.05)' 
+                     : '0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24)',
+                   backdropFilter: 'blur(10px)',
+                   WebkitBackdropFilter: 'blur(10px)',
+                 }}
+               >
+                 <span>
+                   {showImageGalleryFeed ? "Show Full Menu" : "Show Trending"}
+                 </span>
+               </button>
+             )}
+
             {/* Home Button - only show if navigation overlay is enabled */}
             {enableNavigationOverlay && (
               <TabButton
