@@ -17,13 +17,14 @@ import { OrderConfirmationSheet } from '../components/OrderConfirmationSheet.jsx
 // Memoised version to avoid unnecessary re-renders when previewStack updates
 const MemoisedMasonryFeed = React.memo(MasonryFeed);
 
-function MenuPage({enableCallWaiter, showToWaiter, showAggregatedCategory, enablePlaceOrder, showAskNameModal, enableNavigationOverlay, message = null}) {
+function MenuPage({enableCallWaiter, showToWaiter, showAggregatedCategory, enablePlaceOrder, showAskNameModal, enableNavigationOverlay, enableBottombarFilters, enableImageGalleryFeed, message = null}) {
   const location = useLocation();
   
   // UI State Management
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isMyOrdersOpen, setIsMyOrdersOpen] = useState(false);
+  const [showImageGalleryFeed, setShowImageGalleryFeed] = useState(false);
   
   // Navigation Overlay State Management
   const [isNavigationOverlayVisible, setIsNavigationOverlayVisible] = useState(enableNavigationOverlay);
@@ -110,6 +111,11 @@ function MenuPage({enableCallWaiter, showToWaiter, showAggregatedCategory, enabl
     setIsNavigationOverlayVisible(false);
   };
 
+  // Image Gallery Feed Handler
+  const handleToggleImageGallery = () => {
+    setShowImageGalleryFeed(prev => !prev);
+  };
+
   // Handlers for order confirmation
   const handleOrderConfirmationClose = () => {
     setIsOrderConfirmationOpen(false);
@@ -183,6 +189,8 @@ function MenuPage({enableCallWaiter, showToWaiter, showAggregatedCategory, enabl
             enableNavigationOverlay={enableNavigationOverlay}
             isNavigationOverlayVisible={isNavigationOverlayVisible}
             onNavigationOverlayClose={handleNavigationOverlayClose}
+            enableImageGalleryFeed={enableImageGalleryFeed}
+            showImageGalleryFeed={showImageGalleryFeed}
           />
         </main>
       </div>
@@ -198,6 +206,10 @@ function MenuPage({enableCallWaiter, showToWaiter, showAggregatedCategory, enabl
         enableCallWaiter={enableCallWaiter}
         enablePlaceOrder={enablePlaceOrder}
         enableNavigationOverlay={enableNavigationOverlay}
+        enableBottombarFilters={enableBottombarFilters}
+        enableImageGalleryFeed={enableImageGalleryFeed}
+        showImageGalleryFeed={showImageGalleryFeed}
+        onToggleImageGallery={handleToggleImageGallery}
       />
 
       {/* Drawers and Popups */}
@@ -266,11 +278,11 @@ function MenuPage({enableCallWaiter, showToWaiter, showAggregatedCategory, enabl
   );
 }
 
-export function MenuScreen({enableCallWaiter = true, showToWaiter = false, message = null, showAggregatedCategory=true, enablePlaceOrder=true, showAskNameModal=true, enableNavigationOverlay=false}) {
+export function MenuScreen({enableCallWaiter = true, showToWaiter = false, message = null, showAggregatedCategory=true, enablePlaceOrder=true, showAskNameModal=true, enableNavigationOverlay=false, enableBottombarFilters=false, enableImageGalleryFeed=false}) {
   return (
     <Routes>
       <Route path="/*" 
-        element={<MenuPage enableCallWaiter={enableCallWaiter} showToWaiter={showToWaiter} message={message} showAggregatedCategory={showAggregatedCategory} enablePlaceOrder={enablePlaceOrder} showAskNameModal={showAskNameModal} enableNavigationOverlay={enableNavigationOverlay}/>} 
+        element={<MenuPage enableCallWaiter={enableCallWaiter} showToWaiter={showToWaiter} message={message} showAggregatedCategory={showAggregatedCategory} enablePlaceOrder={enablePlaceOrder} showAskNameModal={showAskNameModal} enableNavigationOverlay={enableNavigationOverlay} enableBottombarFilters={enableBottombarFilters} enableImageGalleryFeed={enableImageGalleryFeed} />} 
       />
     </Routes>
   );
