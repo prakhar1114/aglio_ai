@@ -1,13 +1,15 @@
-import React, { useRef, useState, useMemo } from 'react';
+import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { GroupedVirtuoso } from 'react-virtuoso';
-import { useMenu } from '@qrmenu/core';
+import { useMenu, useCartStore } from '@qrmenu/core';
+import { useMenuStore } from '@qrmenu/core';
 import { FeedItemSwitcher } from './FeedItemSwitcher.jsx';
 import { CategoryDropdown, CategoryDropdownButton } from './CategoryDropdown.jsx';
 import { FilterDropdown } from './FilterDropdown.jsx';
 import { FilterDropdownButton } from './FilterDropdownButton.jsx';
 import { NavigationOverlay } from './NavigationOverlay.jsx';
+import { HomeIcon } from '@heroicons/react/24/outline';
 
-export function MasonryFeed({ filters = {}, gap = 2, onItemClick, enableNavigationOverlay=false, showAggregatedCategory=false, isNavigationOverlayVisible=false, onNavigationOverlayClose, enableImageGalleryFeed=false, showImageGalleryFeed=false }) {
+export function MasonryFeed({ filters = {}, gap = 2, onItemClick, enableNavigationOverlay=false, showAggregatedCategory=false, isNavigationOverlayVisible=false, onNavigationOverlayClose, onNavigationOverlayOpen, enableImageGalleryFeed=false, showImageGalleryFeed=false, onCategoryDataChange }) {
   const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   // Refs for virtuoso
   const virtuosoRef = useRef(null);
@@ -25,6 +27,30 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick, enableNavigati
   // NEW: Track current visible group category for aggregated view
   const [currentVisibleGroupCategory, setCurrentVisibleGroupCategory] = useState(null);
   
+  // Get cart store for clearing filters
+  const setFilters = useCartStore((state) => state.setFilters);
+  
+  // Check if category filters are active
+  const hasCategoryFilters = filters?.category && filters.category.length > 0;
+  
+  // Back to Home handler
+  const handleBackToHome = () => {
+    // Clear all filters
+    setFilters({});
+    // Open navigation overlay if available
+    if (onNavigationOverlayOpen) {
+      onNavigationOverlayOpen();
+    }
+
+  };
+  
+  // Scroll to top when filters change
+  useEffect(() => {
+    if (virtuosoRef.current) {
+      virtuosoRef.current.scrollToIndex(0);
+    }
+  }, [filters]);
+  
 
   
   // Fetch data - now using client-side filtering
@@ -35,8 +61,13 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick, enableNavigati
   } = useMenu(filters);
 
   // Transform and group data
-  const { groupedData, groupCounts, categoryIndexMap, categories, dropdownCategories, hasAnyItems, groupCategoryMap, availableTags, categoryItemCounts, groupCategories } = useMemo(() => {
+  const { groupedData, groupCounts, categoryIndexMap, categories, dropdownCategories, hasAnyItems, groupCategoryMap, availableTags, categoryItemCounts, groupCategories, hasRecommendations } = useMemo(() => {
     const fetchedItems = data ? data.items : []; // Changed from data.pages.flatMap since we no longer use pagination
+    
+    // Get full unfiltered menu for calculating groupCategories and hasRecommendations
+    const menuStore = useMenuStore.getState();
+    const fullMenu = menuStore?.getFullMenu?.();
+    const allItems = fullMenu?.items || fetchedItems; // Fallback to fetchedItems if full menu not available
     
     // Filter items by selected tags
     let filteredItems = selectedTags.length > 0 
@@ -76,10 +107,10 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick, enableNavigati
     });
     const availableTags = Array.from(tagSet);
 
-    // NEW: Extract group categories and create mappings from filtered items
+    // NEW: Extract group categories and create mappings from ALL items (unfiltered)
     const groupCategoryMap = {};
     const groupCategoriesSet = new Set();
-    filteredItems.forEach(item => {
+    allItems.forEach(item => {
       if (item && item.group_category && item.category_brief) {
         groupCategoryMap[item.category_brief.trim()] = item.group_category.trim();
         groupCategoriesSet.add(item.group_category.trim());
@@ -160,9 +191,35 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick, enableNavigati
     const groupCounts = groupedData.map(() => 1); // Each group renders as 1 item (the complete grid)
 
     const hasAnyItems = transformedItems.length > 0;
+    
+    // Check if "Recommendations" category exists in ALL items (unfiltered)
+    const hasRecommendations = allItems.some(item => 
+      item && item.category_brief && item.category_brief.trim() === 'Recommendations'
+    );
 
-    return { groupedData, groupCounts, categoryIndexMap, categories, dropdownCategories, hasAnyItems, groupCategoryMap, availableTags, categoryItemCounts, groupCategories };
-  }, [data, selectedTags, enableImageGalleryFeed, showImageGalleryFeed]);
+    return { groupedData, groupCounts, categoryIndexMap, categories, dropdownCategories, hasAnyItems, groupCategoryMap, availableTags, categoryItemCounts, groupCategories, hasRecommendations };
+  }, [data, selectedTags, enableImageGalleryFeed, showImageGalleryFeed, filters]);
+
+  // Handle category data changes and UI updates
+  useEffect(() => {
+    // Call callback to notify parent components of category data changes
+    if (onCategoryDataChange) {
+      onCategoryDataChange({ groupCategories, hasRecommendations });
+    }
+
+    // Update current visible category based on filtered results
+    if (categories.length > 0) {
+      const firstCategory = categories[0];
+      setCurrentVisibleCategory(firstCategory);
+      
+      // Set the group category based on the first category
+      const groupCategory = groupCategoryMap[firstCategory];
+      setCurrentVisibleGroupCategory(groupCategory || null);
+    } else {
+      setCurrentVisibleCategory(null);
+      setCurrentVisibleGroupCategory(null);
+    }
+  }, [categories, groupCategories, hasRecommendations, groupCategoryMap, onCategoryDataChange]);
 
 
 
@@ -285,14 +342,53 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick, enableNavigati
           <div style={{
             padding: '20px 16px',
             textAlign: 'center',
-            color: '#6B7280',
-            fontSize: '16px',
-            fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-            fontWeight: '500',
-            letterSpacing: '-0.01em',
             backgroundColor: 'transparent'
           }}>
-            You have reached the end
+            <div style={{
+              color: '#6B7280',
+              fontSize: '16px',
+              fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+              fontWeight: '500',
+              letterSpacing: '-0.01em',
+              marginBottom: hasCategoryFilters ? '16px' : '0'
+            }}>
+              You have reached the end
+            </div>
+            
+            {/* Back to Home Button - only show when category filters are active */}
+            {hasCategoryFilters && (
+              <button
+                onClick={handleBackToHome}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  margin: '0 auto',
+                  padding: '12px 24px',
+                  backgroundColor: '#F3F4F6',
+                  border: '1px solid #D1D5DB',
+                  borderRadius: '12px',
+                  color: '#374151',
+                  fontSize: '14px',
+                  fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = '#E5E7EB';
+                  e.target.style.transform = 'translateY(-1px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = '#F3F4F6';
+                  e.target.style.transform = 'translateY(0)';
+                }}
+              >
+                <HomeIcon style={{ width: '16px', height: '16px' }} />
+                Back to Home
+              </button>
+            )}
           </div>
         ),
       }}

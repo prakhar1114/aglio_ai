@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ShoppingCartIcon, AdjustmentsHorizontalIcon, ChatBubbleLeftIcon, ClipboardDocumentListIcon, BellIcon, HomeIcon, PhotoIcon, ListBulletIcon } from '@heroicons/react/24/outline';
+import { ShoppingCartIcon, AdjustmentsHorizontalIcon, ChatBubbleLeftIcon, ClipboardDocumentListIcon, BellIcon, HomeIcon, PhotoIcon, ListBulletIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { useCartStore, useSessionStore, useChatStore } from '@qrmenu/core';
 import { WaiterOptionsPopup } from './WaiterOptionsPopup.jsx';
+import { CategorySwitcherDropdown } from './CategorySwitcherDropdown.jsx';
 
-export function BottomBar({ onFiltersOpen, onAIChatOpen, onCartOpen, onMyOrdersOpen, onCallWaiterOpen, onHomeOpen, enableCallWaiter, enablePlaceOrder, enableNavigationOverlay, enableBottombarFilters, enableImageGalleryFeed, showImageGalleryFeed, onToggleImageGallery }) {
+export function BottomBar({ onFiltersOpen, onAIChatOpen, onCartOpen, onMyOrdersOpen, onCallWaiterOpen, onHomeOpen, enableCallWaiter, enablePlaceOrder, enableNavigationOverlay, enableBottombarFilters, enableImageGalleryFeed, showImageGalleryFeed, onToggleImageGallery, enableBottombarCategoryDropdown, groupCategories = [], hasRecommendations = false }) {
   const totalCount = useCartStore((state) => state.totalCount());
   const filterCount = useCartStore((state) => state.getFilterCount());
   const ordersCount = useCartStore((state) => state.getOrdersCount());
@@ -24,12 +25,61 @@ export function BottomBar({ onFiltersOpen, onAIChatOpen, onCartOpen, onMyOrdersO
   const [isWaiterOptionsOpen, setIsWaiterOptionsOpen] = useState(false);
   const [waiterAnchor, setWaiterAnchor] = useState({ x: 0, y: 0 });
 
+  // Category switcher dropdown state
+  const [isCategorySwitcherOpen, setIsCategorySwitcherOpen] = useState(false);
+
+  // Get current filters to determine active category
+  const filters = useCartStore((state) => state.filters);
+  const setFilters = useCartStore((state) => state.setFilters);
+
   const toggleWaiterOptions = () => {
     if (waiterButtonRef.current) {
       const rect = waiterButtonRef.current.getBoundingClientRect();
       setWaiterAnchor({ x: rect.left + rect.width / 2, y: rect.top });
     }
     setIsWaiterOptionsOpen((prev) => !prev);
+  };
+
+  // Determine current active category
+  const getCurrentActiveCategory = () => {
+    if (filters?.category && filters.category.length > 0) {
+      const activeCategory = filters.category[0];
+      if (activeCategory === 'Recommendations') {
+        return 'Recommendations';
+      }
+      if (groupCategories.includes(activeCategory)) {
+        return activeCategory;
+      }
+      return 'all';
+    }
+    return 'all';
+  };
+
+  const currentActiveCategory = getCurrentActiveCategory();
+
+  // Get display text for current selection
+  const getCategoryDisplayText = () => {
+    if (currentActiveCategory === 'Recommendations') {
+      return 'Trending Menu';
+    }
+    if (currentActiveCategory === 'all') {
+      return 'Full Menu';
+    }
+    return `${currentActiveCategory} Menu`;
+  };
+
+  // Handle category selection
+  const handleCategorySelect = (category) => {
+    if (category === 'Recommendations') {
+      setFilters({ category: ['Recommendations'] });
+    } else {
+      setFilters({ category: [category] });
+    }
+  };
+
+  // Toggle category switcher dropdown
+  const toggleCategorySwitcher = () => {
+    setIsCategorySwitcherOpen((prev) => !prev);
   };
 
   // Show My Table tab if there are orders OR if there's a table number
@@ -165,6 +215,45 @@ export function BottomBar({ onFiltersOpen, onAIChatOpen, onCartOpen, onMyOrdersO
                </button>
              )}
 
+            {/* Category Switcher Button */}
+            {enableBottombarCategoryDropdown && (groupCategories.length > 0 || hasRecommendations) && (
+              <button
+                onClick={toggleCategorySwitcher}
+                className="flex items-center justify-center px-3.5 py-2 rounded-lg transition-all duration-200 ease-out active:scale-95"
+                style={{
+                  backgroundColor: currentActiveCategory !== 'all' 
+                    ? '#F3F4F6' 
+                    : '#1C1C1E',
+                  color: currentActiveCategory !== 'all' ? '#374151' : 'white',
+                  fontSize: '11px',
+                  fontWeight: '500',
+                  fontFamily: "'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif",
+                  letterSpacing: '-0.003em',
+                  border: currentActiveCategory !== 'all' ? '1px solid #E5E7EB' : 'none',
+                  outline: 'none',
+                  boxShadow: currentActiveCategory !== 'all' 
+                    ? '0 1px 2px rgba(0, 0, 0, 0.05)' 
+                    : '0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24)',
+                  backdropFilter: 'blur(10px)',
+                  WebkitBackdropFilter: 'blur(10px)',
+                  gap: '4px',
+                }}
+              >
+                <span>
+                  {getCategoryDisplayText()}
+                </span>
+                <ChevronDownIcon 
+                  style={{
+                    width: '12px',
+                    height: '12px',
+                    transition: 'transform 0.2s ease',
+                    transform: isCategorySwitcherOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                    color: currentActiveCategory !== 'all' ? '#6B7280' : 'rgba(255, 255, 255, 0.8)',
+                  }}
+                />
+              </button>
+            )}
+
             {/* Home Button - only show if navigation overlay is enabled */}
             {enableNavigationOverlay && (
               <TabButton
@@ -232,6 +321,18 @@ export function BottomBar({ onFiltersOpen, onAIChatOpen, onCartOpen, onMyOrdersO
         <WaiterOptionsPopup
           anchor={waiterAnchor}
           onClose={() => setIsWaiterOptionsOpen(false)}
+        />
+      )}
+
+      {/* Category Switcher Dropdown */}
+      {isCategorySwitcherOpen && (
+        <CategorySwitcherDropdown
+          isOpen={isCategorySwitcherOpen}
+          onClose={() => setIsCategorySwitcherOpen(false)}
+          groupCategories={groupCategories}
+          hasRecommendations={hasRecommendations}
+          currentActiveCategory={filters?.category?.[0] || null}
+          onCategorySelect={handleCategorySelect}
         />
       )}
     </>
