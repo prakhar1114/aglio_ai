@@ -25,7 +25,8 @@ async function init() {
             enablePlaceOrder={false}
             showAskNameModal={false}
             enableNavigationOverlay={true}
-            enableImageGalleryFeed={true}
+            enableImageGalleryFeed={false}
+            enableBottombarCategoryDropdown={true}
           />
         </ThemeProvider>
       </App>

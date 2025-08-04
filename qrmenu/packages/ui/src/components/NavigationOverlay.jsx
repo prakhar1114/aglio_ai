@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext.jsx';
+import { useCartStore } from '@qrmenu/core';
 
 export function NavigationOverlay({ 
   isVisible, 
@@ -40,7 +41,7 @@ export function NavigationOverlay({
 
   const {
     title = 'Navigation Menu',
-    specialsTitle = "Today's Specials",
+    specialsTitle = "Trending",
     browseMenuTitle = 'Browse Menu',
     brandColor = '#C72C48',
     showLogo = true,
@@ -69,23 +70,16 @@ export function NavigationOverlay({
   );
 
   const handleCategoryClick = (groupCategory) => {
-    if (groupCategory === "Today's Specials") {
-      // Navigate to Recommendations category
-      const recommendationsIndex = categoryIndexMap['Recommendations'];
-      if (recommendationsIndex !== undefined) {
-        onNavigate?.(recommendationsIndex);
-      }
-    } else {
-      // Find the first category in this group
-      const firstCategoryInGroup = Object.keys(groupCategoryMap).find(cat => 
-        groupCategoryMap[cat] === groupCategory
-      );
-      
-      if (firstCategoryInGroup) {
-        const categoryIndex = categoryIndexMap[firstCategoryInGroup];
-        if (categoryIndex !== undefined) {
-          onNavigate?.(categoryIndex);
-        }
+    // Get setFilters function from cart store
+    const setFilters = useCartStore.getState()?.setFilters;
+    
+    if (setFilters) {
+      if (groupCategory === "Today's Specials") {
+        // Filter for Recommendations category
+        setFilters({ category: ['Recommendations'] });
+      } else {
+        // Filter for the selected group category
+        setFilters({ category: [groupCategory] });
       }
     }
     
@@ -351,7 +345,7 @@ export function NavigationOverlay({
             )}
 
             {/* Browse Menu Section */}
-            <div style={{
+            {/* <div style={{
               marginBottom: '20px',
               padding: '0 24px',
             }}>
@@ -366,7 +360,7 @@ export function NavigationOverlay({
               }}>
                 {browseMenuTitle}
               </div>
-            </div>
+            </div> */}
 
             {/* Navigation Buttons */}
             <div style={{

@@ -14,10 +14,11 @@ import { NicknamePrompt } from '../components/NicknamePrompt.jsx';
 import { PreviewScreen } from './PreviewScreen.jsx';
 import { OrderConfirmationSheet } from '../components/OrderConfirmationSheet.jsx';
 
+
 // Memoised version to avoid unnecessary re-renders when previewStack updates
 const MemoisedMasonryFeed = React.memo(MasonryFeed);
 
-function MenuPage({enableCallWaiter, showToWaiter, showAggregatedCategory, enablePlaceOrder, showAskNameModal, enableNavigationOverlay, enableBottombarFilters, enableImageGalleryFeed, message = null}) {
+function MenuPage({enableCallWaiter, showToWaiter, showAggregatedCategory, enablePlaceOrder, showAskNameModal, enableNavigationOverlay, enableBottombarFilters, enableImageGalleryFeed, enableBottombarCategoryDropdown, message = null}) {
   const location = useLocation();
   
   // UI State Management
@@ -28,6 +29,9 @@ function MenuPage({enableCallWaiter, showToWaiter, showAggregatedCategory, enabl
   
   // Navigation Overlay State Management
   const [isNavigationOverlayVisible, setIsNavigationOverlayVisible] = useState(enableNavigationOverlay);
+
+  // Category data state from MasonryFeed
+  const [categoryData, setCategoryData] = useState({ groupCategories: [], hasRecommendations: false });
 
   // Preview State Management - support for stacking previews
   const [previewStack, setPreviewStack] = useState([]);
@@ -104,6 +108,7 @@ function MenuPage({enableCallWaiter, showToWaiter, showAggregatedCategory, enabl
 
   // Navigation Overlay Handlers
   const handleHomeOpen = () => {
+    setFilters({});
     setIsNavigationOverlayVisible(true);
   };
 
@@ -115,6 +120,11 @@ function MenuPage({enableCallWaiter, showToWaiter, showAggregatedCategory, enabl
   const handleToggleImageGallery = () => {
     setShowImageGalleryFeed(prev => !prev);
   };
+
+  // Category Data Handler
+  const handleCategoryDataChange = useCallback((data) => {
+    setCategoryData(data);
+  }, []);
 
   // Handlers for order confirmation
   const handleOrderConfirmationClose = () => {
@@ -189,8 +199,10 @@ function MenuPage({enableCallWaiter, showToWaiter, showAggregatedCategory, enabl
             enableNavigationOverlay={enableNavigationOverlay}
             isNavigationOverlayVisible={isNavigationOverlayVisible}
             onNavigationOverlayClose={handleNavigationOverlayClose}
+            onNavigationOverlayOpen={handleHomeOpen}
             enableImageGalleryFeed={enableImageGalleryFeed}
             showImageGalleryFeed={showImageGalleryFeed}
+            onCategoryDataChange={handleCategoryDataChange}
           />
         </main>
       </div>
@@ -210,6 +222,9 @@ function MenuPage({enableCallWaiter, showToWaiter, showAggregatedCategory, enabl
         enableImageGalleryFeed={enableImageGalleryFeed}
         showImageGalleryFeed={showImageGalleryFeed}
         onToggleImageGallery={handleToggleImageGallery}
+        enableBottombarCategoryDropdown={enableBottombarCategoryDropdown}
+        groupCategories={categoryData.groupCategories}
+        hasRecommendations={categoryData.hasRecommendations}
       />
 
       {/* Drawers and Popups */}
@@ -278,11 +293,11 @@ function MenuPage({enableCallWaiter, showToWaiter, showAggregatedCategory, enabl
   );
 }
 
-export function MenuScreen({enableCallWaiter = true, showToWaiter = false, message = null, showAggregatedCategory=true, enablePlaceOrder=true, showAskNameModal=true, enableNavigationOverlay=false, enableBottombarFilters=false, enableImageGalleryFeed=false}) {
+export function MenuScreen({enableCallWaiter = true, showToWaiter = false, message = null, showAggregatedCategory=true, enablePlaceOrder=true, showAskNameModal=true, enableNavigationOverlay=false, enableBottombarFilters=false, enableImageGalleryFeed=false, enableBottombarCategoryDropdown=false}) {
   return (
     <Routes>
       <Route path="/*" 
-        element={<MenuPage enableCallWaiter={enableCallWaiter} showToWaiter={showToWaiter} message={message} showAggregatedCategory={showAggregatedCategory} enablePlaceOrder={enablePlaceOrder} showAskNameModal={showAskNameModal} enableNavigationOverlay={enableNavigationOverlay} enableBottombarFilters={enableBottombarFilters} enableImageGalleryFeed={enableImageGalleryFeed} />} 
+        element={<MenuPage enableCallWaiter={enableCallWaiter} showToWaiter={showToWaiter} message={message} showAggregatedCategory={showAggregatedCategory} enablePlaceOrder={enablePlaceOrder} showAskNameModal={showAskNameModal} enableNavigationOverlay={enableNavigationOverlay} enableBottombarFilters={enableBottombarFilters} enableImageGalleryFeed={enableImageGalleryFeed} enableBottombarCategoryDropdown={enableBottombarCategoryDropdown}  />} 
       />
     </Routes>
   );
