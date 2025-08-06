@@ -15,6 +15,7 @@ from config import rdb, qd, root_dir, DEBUG_MODE, image_dir
 # from middleware.tenant_resolver import tenant_middleware, tenant_resolver, get_qdrant_collection
 # from urls.filtered_recommendations import router as filtered_router
 from urls.menu import router as menu_router
+from urls.menu_crud import router as menu_crud_router
 # from urls.chat import router as chat_router
 from urls.categories import router as categories_router
 # from urls.featured import router as featured_router
@@ -82,6 +83,7 @@ if os.path.exists(admin_static_dir):
 # Include routers
 app.include_router(categories_router, tags=["categories"])  # No prefix - full path in router
 app.include_router(menu_router, tags=["menu"])  # No prefix - full path in router
+app.include_router(menu_crud_router, prefix="/menu", tags=["menu-management"])
 # app.include_router(filtered_router, prefix="/filtered_recommendations", tags=["recommendations"])
 # app.include_router(featured_router, prefix="/featured", tags=["featured"])
 # app.include_router(prev_orders_router, prefix="/prev_orders", tags=["orders"])
