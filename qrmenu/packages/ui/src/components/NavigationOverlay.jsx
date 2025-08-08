@@ -134,7 +134,7 @@ export function NavigationOverlay({
 
         <div ref={scrollRef} className="nav-sheet-enter" style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 'env(safe-area-inset-bottom)' }}>
           {/* Hero */}
-          <div style={{ position: 'relative', width: '100%', height: '34vh', minHeight: 180, maxHeight: 280, overflow: 'hidden' }}>
+          <div style={{ position: 'relative', width: '100%', height: '34vh', minHeight: 180, maxHeight: 280, overflow: 'visible' }}>
             {coverImage ? (
               <img src={coverImage} alt="Cover" style={{ width: '100%', height: '100%', objectFit: 'cover', transform: `rotate(${rotate}deg)` }} onError={(e) => { e.target.style.display = 'none'; }} />
             ) : (
@@ -143,7 +143,7 @@ export function NavigationOverlay({
             <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(transparent, rgba(0,0,0,0.45))' }} />
 
             {showLogo && logoUrl && (
-              <div style={{ position: 'absolute', left: '50%', bottom: -42, transform: 'translateX(-50%)', zIndex: 3 }}>
+              <div style={{ position: 'absolute', left: '50%', bottom: -48, transform: 'translateX(-50%)', zIndex: 3, pointerEvents: 'none' }}>
                 <div style={{ width: 96, height: 96, borderRadius: '50%', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 16px 40px rgba(0,0,0,0.16)', border: '3px solid #FFF', overflow: 'hidden' }}>
                   <img src={logoUrl} alt={restaurantName} style={{ width: '84%', height: '84%', objectFit: 'contain', objectPosition: 'center' }} onError={(e) => { e.target.style.display = 'none'; }} />
                 </div>
@@ -152,7 +152,7 @@ export function NavigationOverlay({
           </div>
 
           {/* Title */}
-          <div style={{ padding: '56px 20px 8px 20px', textAlign: 'center' }}>
+          <div style={{ padding: '64px 20px 8px 20px', textAlign: 'center' }}>
             <div style={{ fontSize: 28, fontWeight: 300, color: '#1A1A1A', fontFamily: themeFont, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               {restaurantName}
             </div>
