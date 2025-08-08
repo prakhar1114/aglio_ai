@@ -32,7 +32,6 @@ export function NavigationOverlay({
 
   // Get font from theme with fallback hierarchy
   const getThemeFont = () => {
-    // Check multiple possible font locations in theme
     if (font) return `'${font}', serif`;
     return "'Playfair Display', 'Georgia', serif";
   };
@@ -41,7 +40,7 @@ export function NavigationOverlay({
 
   const {
     title = 'Navigation Menu',
-    specialsTitle = "Trending",
+    specialsTitle = "Trending Items",
     browseMenuTitle = 'Browse Menu',
     brandColor = '#C72C48',
     showLogo = true,
@@ -63,27 +62,18 @@ export function NavigationOverlay({
 
   if (!isVisible) return null;
 
-  // Check if "Recommendations" category exists
-  const hasRecommendations = groupCategories.some(cat => 
-    Object.values(groupCategoryMap).some(groupCat => groupCat === cat) &&
-    Object.keys(categoryIndexMap).some(catKey => catKey === 'Recommendations')
-  );
+  // Determine if Recommendations exist
+  const hasRecommendations = Object.keys(categoryIndexMap).some(catKey => catKey === 'Recommendations');
 
   const handleCategoryClick = (groupCategory) => {
-    // Get setFilters function from cart store
     const setFilters = useCartStore.getState()?.setFilters;
-    
     if (setFilters) {
       if (groupCategory === "Today's Specials") {
-        // Filter for Recommendations category
         setFilters({ category: ['Recommendations'] });
       } else {
-        // Filter for the selected group category
         setFilters({ category: [groupCategory] });
       }
     }
-    
-    // Auto-dismiss after selection
     onClose?.();
   };
 
@@ -91,318 +81,143 @@ export function NavigationOverlay({
     <>
       <style>
         {`
-          @keyframes scaleIn {
-            0% {
-              opacity: 0;
-              transform: scale(0.95) translateY(10px);
-            }
-            100% {
-              opacity: 1;
-              transform: scale(1) translateY(0);
-            }
+          @keyframes sheetEnter {
+            0% { opacity: 0; transform: translateY(12px); }
+            100% { opacity: 1; transform: translateY(0); }
           }
-          
-          @keyframes backdropBlur {
-            0% {
-              backdrop-filter: blur(0px);
-              background: rgba(0, 0, 0, 0);
-            }
-            100% {
-              backdrop-filter: blur(30px);
-              background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.6) 100%);
-            }
-          }
-          
-          .navigation-overlay {
-            animation: scaleIn 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-          }
-          
-          .navigation-backdrop {
-            animation: backdropBlur 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-          }
-          
-          .nav-button {
-            transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-          }
-          
-          .nav-button:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-          }
-          
-          .nav-button:active {
-            transform: translateY(0px);
-          }
+          .nav-sheet-enter { animation: sheetEnter .35s ease-out; }
+          .nav-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,0,0,.08); }
+          .nav-card:active { transform: translateY(0); }
         `}
       </style>
-      
-      {/* Full Screen Overlay */}
+
+      {/* Full-screen premium surface */}
       <div 
-        className="navigation-backdrop"
         style={{
           position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'linear-gradient(180deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.6) 100%)',
+          inset: 0,
+          background: 'linear-gradient(180deg, #F7F8FC 0%, #F1F3F6 100%)',
           zIndex: 10000,
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '16px',
-          overflow: 'hidden',
+          overflow: 'hidden'
         }}
-        onClick={onClose}
       >
-        {/* Navigation Menu */}
-        <div 
-          className="navigation-overlay"
+        {/* Close */}
+        <button
+          onClick={onClose}
+          aria-label="Close"
           style={{
-            background: 'rgba(255, 255, 255, 0.95)',
-            backdropFilter: 'blur(30px)',
-            WebkitBackdropFilter: 'blur(30px)',
-            borderRadius: '28px',
-            maxWidth: '380px',
-            width: '100%',
-            maxHeight: '90vh',
-            boxShadow: '0 32px 64px rgba(0, 0, 0, 0.12)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            position: 'relative',
-            overflow: 'hidden',
+            position: 'absolute',
+            top: 12,
+            right: 12,
+            width: 40,
+            height: 40,
+            borderRadius: 12,
+            border: '1px solid rgba(17,24,39,0.08)',
+            background: 'rgba(255,255,255,0.85)',
+            boxShadow: '0 6px 16px rgba(0,0,0,0.08)',
             display: 'flex',
-            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer'
           }}
-          onClick={(e) => e.stopPropagation()}
         >
-          {/* Scrollable Content */}
-          <div style={{
-            flex: 1,
-            overflowY: 'auto',
-            overflowX: 'hidden',
-            display: 'flex',
-            flexDirection: 'column',
-          }}>
-            {/* Cover Image Section */}
-            {coverImage && (
-              <div style={{
-                position: 'relative',
-                width: '100%',
-                height: '25vh',
-                minHeight: '120px',
-                maxHeight: '200px',
-                overflow: 'hidden',
-                borderTopLeftRadius: '28px',
-                borderTopRightRadius: '28px',
-                backgroundColor: 'rgba(0, 0, 0, 0.05)',
-              }}>
-                <img 
-                  src={coverImage} 
-                  alt="Restaurant Cover"
-                  style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                    objectPosition: 'center',
-                    transform: `translate(-50%, -50%) rotate(${rotate}deg)`,
-                    transition: 'transform 0.3s ease',
-                  }}
-                  onError={(e) => {
-                    e.target.style.display = 'none';
-                  }}
-                />
-                <div style={{
-                  position: 'absolute',
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  height: '60px',
-                  background: 'linear-gradient(transparent, rgba(0,0,0,0.4))',
-                }} />
+          <svg width="18" height="18" viewBox="0 0 24 24" stroke="#111827" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 6L6 18" />
+            <path d="M6 6l12 12" />
+          </svg>
+        </button>
+
+        {/* Scrollable content */}
+        <div className="nav-sheet-enter" style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          {/* Hero */}
+          <div style={{ position: 'relative', width: '100%', height: '34vh', minHeight: 180, maxHeight: 280, overflow: 'hidden' }}>
+            {coverImage ? (
+              <img
+                src={coverImage}
+                alt="Cover"
+                style={{ width: '100%', height: '100%', objectFit: 'cover', transform: `rotate(${rotate}deg)` }}
+                onError={(e) => { e.target.style.display = 'none'; }}
+              />
+            ) : (
+              <div style={{ width: '100%', height: '100%', background: `linear-gradient(135deg, ${brandColor}, #ff9a8d)` }} />
+            )}
+            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(transparent, rgba(0,0,0,0.45))' }} />
+
+            {/* Centered logo bubble */}
+            {showLogo && logoUrl && (
+              <div style={{ position: 'absolute', left: '50%', bottom: -42, transform: 'translateX(-50%)', zIndex: 3 }}>
+                <div style={{ width: 96, height: 96, borderRadius: '50%', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 16px 40px rgba(0,0,0,0.16)', border: '3px solid #FFF', overflow: 'hidden' }}>
+                  <img src={logoUrl} alt={restaurantName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none'; }} />
+                </div>
               </div>
             )}
+          </div>
 
-            {/* Header - Apple-Style Branding */}
-            <div style={{
-              marginBottom: '24px',
-              padding: '24px 24px 0 24px',
-              position: 'relative',
-            }}>
-              {/* Logo Section - Centered */}
-              {showLogo && logoUrl && (
-                <div style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  position: 'relative',
-                  marginTop: coverImage ? '-60px' : '0',
-                  zIndex: 3,
-                }}>
-                  <div style={{
-                    width: '100px',
-                    height: '100px',
-                    borderRadius: '50%',
-                    background: 'rgba(255, 255, 255, 0.98)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 12px 32px rgba(0, 0, 0, 0.12), 0 6px 12px rgba(0, 0, 0, 0.08)',
-                    border: '3px solid rgba(255, 255, 255, 0.95)',
-                    position: 'relative',
-                    zIndex: 2,
-                    marginBottom: '16px',
-                    overflow: 'hidden',
-                  }}>
-                    <img 
-                      src={logoUrl} 
-                      alt={restaurantName}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        objectPosition: 'center',
-                      }}
-                      onError={(e) => {
-                        // Hide logo if image fails to load
-                        e.target.style.display = 'none';
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
-              
-              {/* Restaurant Name - Bottom Position */}
-              <div style={{
-                textAlign: 'center',
-                marginTop: '12px',
-              }}>
-                <div style={{
-                  fontSize: '28px',
-                  fontWeight: '300',
-                  color: '#1A1A1A',
-                  fontFamily: themeFont,
-                  letterSpacing: '0.05em',
-                  lineHeight: '1.1',
-                  textShadow: 'none',
-                  textTransform: 'uppercase',
-                }}>
-                  {restaurantName}
-                </div>
-              </div>
+          {/* Title */}
+          <div style={{ padding: '56px 20px 8px 20px', textAlign: 'center' }}>
+            <div style={{ fontSize: 28, fontWeight: 300, color: '#1A1A1A', fontFamily: themeFont, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              {restaurantName}
             </div>
+          </div>
 
-            {/* Specials Section */}
-            {hasRecommendations && (
-              <div style={{
-                marginBottom: '20px',
-                padding: '0 24px',
-              }}>
-                <button
-                  className="nav-button"
-                  onClick={() => handleCategoryClick("Today's Specials")}
-                  style={{
-                    width: '100%',
-                    padding: '16px',
-                    background: specialsBackgroundImage 
-                      ? `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url(${specialsBackgroundImage})`
-                      : `linear-gradient(135deg, #FF6B35, #F7931E)`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                    border: 'none',
-                    borderRadius: '16px',
-                    color: 'white',
-                    fontSize: '15px',
-                    fontWeight: '700',
-                    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    boxShadow: '0 6px 20px rgba(255, 107, 53, 0.3), 0 3px 6px rgba(255, 107, 53, 0.2)',
-                    position: 'relative',
-                    overflow: 'hidden',
-                    transition: 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-                    letterSpacing: '-0.01em',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.transform = 'translateY(-3px) scale(1.02)';
-                    e.target.style.boxShadow = '0 12px 32px rgba(255, 107, 53, 0.4), 0 6px 12px rgba(255, 107, 53, 0.25)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.transform = 'translateY(0) scale(1)';
-                    e.target.style.boxShadow = '0 8px 24px rgba(255, 107, 53, 0.3), 0 4px 8px rgba(255, 107, 53, 0.2)';
-                  }}
-                >
-                  <span style={{ fontSize: '18px' }}>✨</span>
-                  {specialsTitle}
-                </button>
-              </div>
-            )}
+          {/* Specials CTA */}
+          {hasRecommendations && (
+            <div style={{ padding: '0 20px 12px 20px' }}>
+              <button
+                onClick={() => handleCategoryClick("Today's Specials")}
+                className="nav-card"
+                style={{
+                  width: '100%',
+                  border: 'none',
+                  borderRadius: 18,
+                  padding: '16px 18px',
+                  color: '#fff',
+                  fontSize: 15,
+                  fontWeight: 700,
+                  letterSpacing: '-0.01em',
+                  background: specialsBackgroundImage
+                    ? `linear-gradient(rgba(0,0,0,.35), rgba(0,0,0,.35)), url(${specialsBackgroundImage})`
+                    : `linear-gradient(135deg, #FF6B35, #F7931E)`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  boxShadow: '0 12px 30px rgba(255, 107, 53, 0.35)'
+                }}
+              >
+                <span style={{ fontSize: 18, marginRight: 6 }}>✨</span>
+                {specialsTitle}
+              </button>
+            </div>
+          )}
 
-            {/* Browse Menu Section */}
-            {/* <div style={{
-              marginBottom: '20px',
-              padding: '0 24px',
-            }}>
-              <div style={{
-                fontSize: '16px',
-                fontWeight: '600',
-                color: '#374151',
-                fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                marginBottom: '16px',
-                textAlign: 'center',
-                letterSpacing: '-0.01em',
-              }}>
-                {browseMenuTitle}
-              </div>
-            </div> */}
-
-            {/* Navigation Buttons */}
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '6px',
-              padding: '0 24px 24px 24px',
-            }}>
-              {/* Group Categories */}
-              {groupCategories.map((groupCategory, index) => (
-                groupCategory !== "Recommendations" && (
+          {/* Category grid */}
+          <div style={{ padding: '4px 20px 24px 20px' }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#374151', margin: '8px 0 12px 2px', letterSpacing: '.02em' }}>
+              {browseMenuTitle}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              {groupCategories.filter(gc => gc !== 'Recommendations').map((groupCategory) => (
                 <button
                   key={groupCategory}
-                  className="nav-button"
+                  className="nav-card"
                   onClick={() => handleCategoryClick(groupCategory)}
                   style={{
-                    width: '100%',
-                    padding: '14px 16px',
-                    background: 'rgba(255, 255, 255, 0.9)',
-                    border: '1px solid rgba(0, 0, 0, 0.06)',
-                    borderRadius: '12px',
-                    color: '#1F2937',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                    cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '6px',
-                    boxShadow: '0 3px 8px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04)',
-                    transition: 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-                    position: 'relative',
-                    overflow: 'hidden',
-                    backdropFilter: 'blur(12px)',
-                    WebkitBackdropFilter: 'blur(12px)',
-                    letterSpacing: '-0.01em',
+                    textAlign: 'center',
+                    minHeight: 64,
+                    padding: '12px',
+                    borderRadius: 14,
+                    border: '1px solid rgba(17,24,39,0.08)',
+                    background: 'rgba(255,255,255,0.9)',
+                    boxShadow: '0 6px 16px rgba(0,0,0,0.06)'
                   }}
-                > 
-                  {groupCategory} Menu
+                >
+                  <span style={{ fontSize: 14, fontWeight: 600, color: '#1F2937', letterSpacing: '-0.01em' }}>{groupCategory} Menu</span>
                 </button>
-              )))}
+              ))}
             </div>
           </div>
         </div>
