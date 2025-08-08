@@ -693,7 +693,7 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick, enableNavigati
           boxSizing: 'border-box',
           padding: '1px', // Minimal padding
           overflow: 'hidden', // Ensure no horizontal scroll
-          background: 'linear-gradient(180deg, #F7F8FC 0%, #F1F3F6 100%)',
+          background: 'linear-gradient(180deg, #F4F6FA 0%, #EEF1F6 100%)',
         }}
       >
                 {memoizedVirtuoso}

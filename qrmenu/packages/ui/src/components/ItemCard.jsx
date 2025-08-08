@@ -85,7 +85,9 @@ export function ItemCard({ item, containerWidth, onItemClick, preload=false, aut
     flexDirection: 'column',
     width: '100%',
     margin: 0,
-    transition: 'all 0.2s ease-in-out'
+    transition: 'all 0.2s ease-in-out',
+    border: '1px solid rgba(17, 24, 39, 0.06)',
+    boxShadow: '0 8px 20px rgba(16, 24, 40, 0.06)'
   };
 
   const imageContainerStyle = {
@@ -219,8 +221,8 @@ export function ItemCard({ item, containerWidth, onItemClick, preload=false, aut
     margin: 0,
     transition: 'transform 0.12s ease, box-shadow 0.2s ease, background 0.3s ease',
     gap: '10px',
-    border: '1px solid rgba(17, 24, 39, 0.06)',
-    boxShadow: '0 10px 30px rgba(0,0,0,0.06), 0 2px 10px rgba(0,0,0,0.04)',
+    border: '1px solid rgba(17, 24, 39, 0.08)',
+    boxShadow: '0 10px 22px rgba(16,24,40,0.07), 0 2px 8px rgba(16,24,40,0.05)',
     backdropFilter: 'blur(6px)',
     WebkitBackdropFilter: 'blur(6px)'
   };
@@ -372,12 +374,14 @@ export function ItemCard({ item, containerWidth, onItemClick, preload=false, aut
       className="cursor-pointer"
       onMouseEnter={(e) => {
         e.currentTarget.style.transform = 'translateY(-1px)';
-        e.currentTarget.style.boxShadow = '0 14px 32px rgba(0,0,0,0.08)';
+        e.currentTarget.style.boxShadow = '0 14px 32px rgba(16,24,40,0.10)';
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.transform = 'translateY(0)';
-        e.currentTarget.style.boxShadow = 'none';
+        e.currentTarget.style.boxShadow = '0 8px 20px rgba(16,24,40,0.06)';
       }}
+      onMouseDown={(e) => { e.currentTarget.style.transform = 'translateY(0) scale(0.998)'; }}
+      onMouseUp={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; }}
     >
       {hasMedia ? (
         // Card with optimized image or video
