@@ -8,6 +8,7 @@ import { FilterDropdown } from './FilterDropdown.jsx';
 import { FilterDropdownButton } from './FilterDropdownButton.jsx';
 import { NavigationOverlay } from './NavigationOverlay.jsx';
 import { HomeIcon } from '@heroicons/react/24/outline';
+import { StackedNoMediaList } from './StackedNoMediaList.jsx';
 
 export function MasonryFeed({ filters = {}, gap = 2, onItemClick, enableNavigationOverlay=false, showAggregatedCategory=false, isNavigationOverlayVisible=false, onNavigationOverlayClose, onNavigationOverlayOpen, enableImageGalleryFeed=false, showImageGalleryFeed=false, onCategoryDataChange }) {
   const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -490,37 +491,63 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick, enableNavigati
               </div>
             )}
 
-            {/* Full-width items outside the masonry grid */}
-            {groupItems.filter(item => item.columnSpan === 'all').map((item, itemIndex) => (
-              <div
-                key={item.id}
-                className="full-width-item"
-                data-category={category}
-                style={{
-                  width: '100%',
-                  padding: '0px 8px', // Same as masonry container
-                  backgroundColor: getBackgroundForCategory(groupIndex),
-                  borderRadius: '10px',
-                  margin: '0 0 6px 0', // Same margin as masonry items
-                  // Create explicit stacking context for full-width items to isolate video z-index
-                  position: 'relative',
-                  zIndex: 0, // Lower than category header (zIndex: 100)
-                }}
-              >
-                <FeedItemSwitcher 
-                  item={item} 
-                  containerWidth={Math.min((window.innerWidth || 400) - 16, 800)} // Full width minus padding, max 800px
-                  onItemClick={() => {
-                    const allCurrentItems = data ? data.items : [];
-                    onItemClick?.(item, allCurrentItems);
-                  }}
-                  preload={true}
-                  autoplay={true}
-                  muted={true}
-                  context_namespace={`masonry-feed`}
-                />
-              </div>
-            ))}
+            {/* Full-width items outside the masonry grid: show any media items individually, then group all no-media items into a stacked list */}
+            {(() => {
+              const fullWidthItems = groupItems.filter(item => item.columnSpan === 'all');
+              const mediaItems = fullWidthItems.filter(it => it.image_url !== null);
+              const noMediaItems = fullWidthItems.filter(it => it.image_url === null);
+              return (
+                <>
+                  {mediaItems.map((item) => (
+                    <div
+                      key={`media-${item.id}`}
+                      className="full-width-item"
+                      data-category={category}
+                      style={{
+                        width: '100%',
+                        padding: '0px 8px',
+                        backgroundColor: getBackgroundForCategory(groupIndex),
+                        borderRadius: '10px',
+                        margin: '0 0 6px 0',
+                        position: 'relative',
+                        zIndex: 0,
+                      }}
+                    >
+                      <FeedItemSwitcher 
+                        item={item} 
+                        containerWidth={Math.min((window.innerWidth || 400) - 16, 800)}
+                        onItemClick={() => {
+                          const allCurrentItems = data ? data.items : [];
+                          onItemClick?.(item, allCurrentItems);
+                        }}
+                        preload={true}
+                        autoplay={true}
+                        muted={true}
+                        context_namespace={`masonry-feed`}
+                      />
+                    </div>
+                  ))}
+                  {noMediaItems.length > 0 && (
+                    <div
+                      key={`stacked-${category}`}
+                      style={{
+                        width: '100%',
+                        padding: '0px 8px',
+                        margin: '0 0 8px 0'
+                      }}
+                    >
+                      <StackedNoMediaList
+                        items={noMediaItems}
+                        onItemClick={(clickedItem) => {
+                          const allCurrentItems = data ? data.items : [];
+                          onItemClick?.(clickedItem, allCurrentItems);
+                        }}
+                      />
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         );
       }}
