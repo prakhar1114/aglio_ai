@@ -50,14 +50,39 @@ export function ItemCard({ item, containerWidth, onItemClick, preload=false, aut
     onItemClick?.(item);
   };
 
+  // --- Premium helpers for no-media cards ---
+  const getInitials = (name) => {
+    if (!name) return '';
+    const words = String(name).trim().split(/\s+/);
+    const first = words[0]?.[0] || '';
+    const second = words[1]?.[0] || '';
+    return (first + second).toUpperCase();
+  };
+
+  const hashToHue = (str) => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+      hash = hash & hash;
+    }
+    return Math.abs(hash) % 360;
+  };
+
+  const getPastelGradient = (seed) => {
+    const hue = hashToHue(seed || 'menu');
+    const hue2 = (hue + 30) % 360;
+    const c1 = `hsl(${hue}, 82%, 86%)`;
+    const c2 = `hsl(${hue2}, 78%, 75%)`;
+    return `linear-gradient(135deg, ${c1}, ${c2})`;
+  };
+
+  // Base styles
   const cardStyle = {
     borderRadius: '12px', // theme radius.lg
     overflow: 'hidden',
-    // boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06)', // theme shadows.lg
     backgroundColor: '#FFFFFF', // theme colors.surface
     display: 'flex',
     flexDirection: 'column',
-    // border: '1px solid #E5E7EB', // theme colors.border.light
     width: '100%',
     margin: 0,
     transition: 'all 0.2s ease-in-out'
@@ -84,8 +109,6 @@ export function ItemCard({ item, containerWidth, onItemClick, preload=false, aut
     height: '100%',
     display: 'block'
   };
-
-  
 
   const contentStyle = {
     padding: '8px 12px', // theme spacing sm + md
@@ -132,45 +155,41 @@ export function ItemCard({ item, containerWidth, onItemClick, preload=false, aut
   };
 
   const addButtonStyle = {
-    padding: '6px', // Reduced footprint - square aspect ratio
-    fontSize: '12px', // theme typography.sizes.xs
-    color: '#FFFFFF', // theme colors.text.inverse
-    borderRadius: '6px', // Slightly smaller radius to match smaller size
+    padding: '6px',
+    fontSize: '12px',
+    color: '#FFFFFF',
+    borderRadius: '8px',
     border: 'none',
-    background: '#C72C48', // theme colors.primary (Zomato Red)
+    background: '#C72C48',
     cursor: 'pointer',
-    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.15)', // Subtle shadow for smaller element
-    fontWeight: '600', // theme typography.weights.semibold
+    boxShadow: '0 6px 16px rgba(199, 44, 72, 0.25)',
+    fontWeight: '600',
     fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    transition: 'all 0.2s ease-in-out',
-    width: '28px', // Explicit size for perfect square
-    height: '28px', // Maintains minimum touch target
+    transition: 'transform 0.15s ease, box-shadow 0.2s ease',
+    width: '34px',
+    height: '34px',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
-    ':hover': {
-      transform: 'translateY(-1px)',
-      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.2)'
-    }
+    justifyContent: 'center'
   };
 
   const quantityButtonStyle = {
-    padding: '4px 8px', // theme spacing xs + sm
-    fontSize: '12px', // theme typography.sizes.xs
+    padding: '6px 10px',
+    fontSize: '12px',
     border: 'none',
     background: 'transparent',
     cursor: 'pointer',
-    color: '#1C1C1E', // theme colors.text.primary
-    fontWeight: '600', // theme typography.weights.semibold
+    color: '#1C1C1E',
+    fontWeight: '600',
     fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    transition: 'all 0.15s ease-in-out'
+    transition: 'opacity 0.15s ease'
   };
 
   const quantityStyle = {
-    padding: '0 8px', // theme spacing.sm
-    fontSize: '12px', // theme typography.sizes.xs
-    fontWeight: '600', // theme typography.weights.semibold
-    color: '#1C1C1E', // theme colors.text.primary
+    padding: '0 8px',
+    fontSize: '12px',
+    fontWeight: '600',
+    color: '#1C1C1E',
     fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     minWidth: '20px',
     textAlign: 'center'
@@ -179,55 +198,124 @@ export function ItemCard({ item, containerWidth, onItemClick, preload=false, aut
   const quantityPillStyle = {
     display: 'flex',
     alignItems: 'center',
-    background: '#FFFFFF', // theme colors.surface
-    borderRadius: '16px', // theme radius.xl
-    border: '1px solid #E5E7EB', // theme colors.border.light
-    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06)', // theme shadows.lg
+    background: '#FFFFFF',
+    borderRadius: '16px',
+    border: '1px solid #E5E7EB',
+    boxShadow: '0 8px 20px rgba(0,0,0,0.06)',
     overflow: 'hidden'
   };
 
-  // Style for inline cards without images
+  // ---- Premium styles for inline cards without images ----
   const noImageCardStyle = {
-    borderRadius: '12px', // Same as media cards
+    borderRadius: '14px',
     overflow: 'hidden',
-    backgroundColor: '#FFFFFF', // Same as media cards
+    background: 'rgba(255,255,255,0.9)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     width: '100%',
-    height: '56px', // Fixed single-row height
-    padding: '8px 12px', // Same padding as media card content
+    minHeight: '84px',
+    padding: '10px 12px',
     margin: 0,
-    transition: 'all 0.2s ease-in-out',
-    gap: '8px'
+    transition: 'transform 0.12s ease, box-shadow 0.2s ease, background 0.3s ease',
+    gap: '10px',
+    border: '1px solid rgba(17, 24, 39, 0.06)',
+    boxShadow: '0 10px 30px rgba(0,0,0,0.06), 0 2px 10px rgba(0,0,0,0.04)',
+    backdropFilter: 'blur(6px)',
+    WebkitBackdropFilter: 'blur(6px)'
+  };
+
+  const avatarWrapperStyle = {
+    position: 'relative',
+    width: '56px',
+    height: '56px',
+    borderRadius: '12px',
+    overflow: 'hidden',
+    flexShrink: 0,
+    boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.6)'
+  };
+
+  const avatarInnerStyle = {
+    width: '100%',
+    height: '100%'
+  };
+
+  const avatarMonogramStyle = {
+    position: 'absolute',
+    inset: 0,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: 'rgba(0,0,0,0.45)',
+    fontWeight: 700,
+    fontSize: '16px',
+    fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    letterSpacing: '0.04em',
+    textShadow: '0 1px 0 rgba(255,255,255,0.8)'
+  };
+
+  const avatarGlossStyle = {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '55%',
+    background: 'linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0.0))'
+  };
+
+  const noImageMiddleStyle = {
+    flex: 1,
+    minWidth: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px'
   };
 
   const noImageTitleStyle = {
-    fontSize: '14px', // Same as media cards
-    fontWeight: '600', // Same as media cards
-    color: '#1C1C1E', // Same as media cards
-    lineHeight: '1.4',
+    fontSize: '15px',
+    fontWeight: '600',
+    color: '#101114',
+    lineHeight: 1.35,
     fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     margin: 0,
     padding: 0,
-    flex: 1, // Take available space
     overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap' // Single line only
+    display: '-webkit-box',
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: 'vertical'
+  };
+
+  const chipRowStyle = {
+    display: 'flex',
+    gap: '6px',
+    flexWrap: 'nowrap',
+    overflow: 'hidden'
+  };
+
+  const chipStyle = {
+    fontSize: '11px',
+    color: '#374151',
+    background: 'rgba(17, 24, 39, 0.06)',
+    border: '1px solid rgba(17,24,39,0.08)',
+    padding: '4px 8px',
+    borderRadius: '999px',
+    whiteSpace: 'nowrap',
+    fontWeight: 500,
+    letterSpacing: '-0.01em'
   };
 
   const noImageRightSectionStyle = {
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
-    flexShrink: 0 // Don't shrink, maintain fixed width
+    gap: '10px',
+    flexShrink: 0
   };
 
   const noImagePriceStyle = {
-    fontSize: '12px', // Same as media cards
-    color: '#C72C48', // Same as media cards
+    fontSize: '13px',
+    color: '#C72C48',
     whiteSpace: 'nowrap',
-    fontWeight: '700',
+    fontWeight: 700,
     fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     margin: 0,
     padding: 0
@@ -237,16 +325,16 @@ export function ItemCard({ item, containerWidth, onItemClick, preload=false, aut
     padding: '6px',
     fontSize: '12px',
     color: '#FFFFFF',
-    borderRadius: '6px',
+    borderRadius: '10px',
     border: 'none',
     background: '#C72C48',
     cursor: 'pointer',
-    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.15)',
+    boxShadow: '0 6px 16px rgba(199, 44, 72, 0.25)',
     fontWeight: '600',
     fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    transition: 'all 0.2s ease-in-out',
-    width: '28px',
-    height: '28px',
+    transition: 'transform 0.15s ease, box-shadow 0.2s ease',
+    width: '36px',
+    height: '36px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center'
@@ -255,10 +343,10 @@ export function ItemCard({ item, containerWidth, onItemClick, preload=false, aut
   const noImageQuantityPillStyle = {
     display: 'flex',
     alignItems: 'center',
-    background: '#FFFFFF',
-    borderRadius: '16px',
-    border: '1px solid #E5E7EB',
-    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06)',
+    background: 'rgba(255,255,255,0.95)',
+    borderRadius: '18px',
+    border: '1px solid rgba(17,24,39,0.08)',
+    boxShadow: '0 8px 20px rgba(0,0,0,0.06)',
     overflow: 'hidden'
   };
 
@@ -270,6 +358,11 @@ export function ItemCard({ item, containerWidth, onItemClick, preload=false, aut
 
   const hasMedia = item.image_url !== null;
 
+  // Prepare chips from tags (up to 2, short labels)
+  const chips = Array.isArray(item?.tags)
+    ? item.tags.filter(t => typeof t === 'string' && t.length <= 16).slice(0, 2)
+    : [];
+
   return (
     <div 
       style={cardStyle}
@@ -277,6 +370,14 @@ export function ItemCard({ item, containerWidth, onItemClick, preload=false, aut
       role="button"
       tabIndex={0}
       className="cursor-pointer"
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = 'translateY(-1px)';
+        e.currentTarget.style.boxShadow = '0 14px 32px rgba(0,0,0,0.08)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = 'translateY(0)';
+        e.currentTarget.style.boxShadow = 'none';
+      }}
     >
       {hasMedia ? (
         // Card with optimized image or video
@@ -306,6 +407,7 @@ export function ItemCard({ item, containerWidth, onItemClick, preload=false, aut
                         handleAdd();
                       }}
                       style={addButtonStyle}
+                      aria-label="Add item"
                     >
                       <svg
                         width="14"
@@ -331,6 +433,7 @@ export function ItemCard({ item, containerWidth, onItemClick, preload=false, aut
                           handleRemove();
                         }}
                         style={quantityButtonStyle}
+                        aria-label="Decrease quantity"
                       >
                         −
                       </button>
@@ -341,6 +444,7 @@ export function ItemCard({ item, containerWidth, onItemClick, preload=false, aut
                           handleAdd();
                         }}
                         style={quantityButtonStyle}
+                        aria-label="Increase quantity"
                       >
                         +
                       </button>
@@ -359,10 +463,30 @@ export function ItemCard({ item, containerWidth, onItemClick, preload=false, aut
           </div>
         </div>
       ) : (
-        // Inline card without image
+        // Premium inline card without image
         <div style={noImageCardStyle}>
-          <h3 style={noImageTitleStyle}>{item.name}</h3>
+          {/* Avatar gradient */}
+          <div style={avatarWrapperStyle} aria-hidden>
+            <div style={{ ...avatarInnerStyle, background: getPastelGradient(item?.name || String(item?.id || '')) }} />
+            <div style={avatarGlossStyle} />
+            <div style={avatarMonogramStyle}>{getInitials(item?.name)}</div>
+          </div>
+
+          {/* Middle text + chips */}
+          <div style={noImageMiddleStyle}>
+            <h3 style={noImageTitleStyle}>{item.name}</h3>
+            {chips.length > 0 && (
+              <div style={chipRowStyle}>
+                {chips.map((chip) => (
+                  <span key={chip} style={chipStyle}>{chip}</span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Right section with price and add/qty */}
           <div style={noImageRightSectionStyle}>
+            {shouldShowPriceAndButton && <p style={noImagePriceStyle}>₹{item.base_price}</p>}
             {shouldShowPriceAndButton && (
               qty === 0 ? (
                 <button
@@ -371,6 +495,7 @@ export function ItemCard({ item, containerWidth, onItemClick, preload=false, aut
                     handleAdd();
                   }}
                   style={noImageButtonStyle}
+                  aria-label="Add item"
                 >
                   <svg
                     width="14"
@@ -396,6 +521,7 @@ export function ItemCard({ item, containerWidth, onItemClick, preload=false, aut
                       handleRemove();
                     }}
                     style={quantityButtonStyle}
+                    aria-label="Decrease quantity"
                   >
                     −
                   </button>
@@ -406,13 +532,13 @@ export function ItemCard({ item, containerWidth, onItemClick, preload=false, aut
                       handleAdd();
                     }}
                     style={quantityButtonStyle}
+                    aria-label="Increase quantity"
                   >
                     +
                   </button>
                 </div>
               )
             )}
-            {shouldShowPriceAndButton && <p style={noImagePriceStyle}>₹{item.base_price}</p>}
           </div>
         </div>
       )}
