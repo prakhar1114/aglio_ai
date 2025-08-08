@@ -8,6 +8,7 @@ import { FilterDropdown } from './FilterDropdown.jsx';
 import { FilterDropdownButton } from './FilterDropdownButton.jsx';
 import { NavigationOverlay } from './NavigationOverlay.jsx';
 import { HomeIcon } from '@heroicons/react/24/outline';
+import { StackedNoMediaList } from './StackedNoMediaList.jsx';
 
 export function MasonryFeed({ filters = {}, gap = 2, onItemClick, enableNavigationOverlay=false, showAggregatedCategory=false, isNavigationOverlayVisible=false, onNavigationOverlayClose, onNavigationOverlayOpen, enableImageGalleryFeed=false, showImageGalleryFeed=false, onCategoryDataChange }) {
   const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -409,13 +410,13 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick, enableNavigati
           >
             <span
               style={{
-                color: '#374151', // Darker text color for more prominence
-                fontSize: '14px', // Bigger font size
-                fontWeight: '600', // Bolder weight for more prominence
+                color: '#111827', // Darker text color for prominence
+                fontSize: '13px',
+                fontWeight: 700,
                 fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                 letterSpacing: '-0.01em',
                 textTransform: 'uppercase',
-                opacity: 0.9, // Higher opacity for more prominence
+                opacity: 0.9,
               }}
             >
               {category}
@@ -430,9 +431,6 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick, enableNavigati
         // Apple-like subtle alternating backgrounds for visual differentiation
         const getBackgroundForCategory = (index) => {
           const backgrounds = [
-            // '#F7F9FC', // theme colors.background
-            // 'rgba(226, 55, 68, 0.02)', // theme colors.primarySubtle (very subtle Zomato red tint)
-            // 'rgba(250, 251, 252, 1)', // theme colors.surfaceElevated
             'transparent',
           ];
           return backgrounds[index % backgrounds.length];
@@ -448,13 +446,13 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick, enableNavigati
                 style={{
                   // Use CSS columns for true masonry layout like Pinterest
                   columnCount: columnCount,
-                  columnGap: `4px`, // theme spacing.xs - minimal gap for Apple-like breathing
+                  columnGap: `6px`, // slightly wider for breathing space
                   width: '100%',
-                  padding: `0px 4px`, // Minimal padding - just enough to prevent edge collision
-                  margin: '0 0 4px 0',
+                  padding: `0px 8px`, // balanced padding
+                  margin: '0 0 6px 0',
                   lineHeight: '1',
-                  backgroundColor: getBackgroundForCategory(groupIndex), // Subtle alternating backgrounds
-                  borderRadius: '8px', // theme radius.md for gentle container feel
+                  backgroundColor: getBackgroundForCategory(groupIndex),
+                  borderRadius: '10px',
                 }}
               >
                 {groupItems.filter(item => item.columnSpan !== 'all').map((item, itemIndex) => (
@@ -463,14 +461,14 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick, enableNavigati
                     className="feed-item"
                     data-category={category}
                     style={{
-                      borderRadius: '0px',
+                      borderRadius: '12px',
                       overflow: 'hidden',
-                      breakInside: 'avoid', // Prevents items from breaking across columns
-                      margin: '0 0 4px 0', // theme spacing.xs bottom margin for subtle item separation
+                      breakInside: 'avoid',
+                      margin: '0 0 6px 0',
                       padding: '0',
                       display: isMobile ? 'inline-block' : 'block',
                       width: '100%',
-                      verticalAlign: 'top', // Align to top to prevent text baseline spacing
+                      verticalAlign: 'top',
                       // Create explicit stacking context for full-width items to isolate video z-index
                       position: 'relative',
                       zIndex: 0, // Lower than category header (zIndex: 100)
@@ -493,38 +491,63 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick, enableNavigati
               </div>
             )}
 
-            {/* Full-width items outside the masonry grid */}
-            {groupItems.filter(item => item.columnSpan === 'all').map((item, itemIndex) => (
-              <div
-                key={item.id}
-                className="full-width-item"
-                data-category={category}
-                style={{
-                  width: '100%',
-                  padding: '0px 4px', // Same as masonry container
-                  backgroundColor: getBackgroundForCategory(groupIndex),
-                  borderRadius: '8px',
-                  // border: groupIndex % 3 === 1 ? '1px solid rgba(226, 55, 68, 0.08)' : 'none',
-                  margin: '0 0 4px 0', // Same margin as masonry items
-                  // Create explicit stacking context for full-width items to isolate video z-index
-                  position: 'relative',
-                  zIndex: 0, // Lower than category header (zIndex: 100)
-                }}
-              >
-                <FeedItemSwitcher 
-                  item={item} 
-                  containerWidth={Math.min((window.innerWidth || 400) - 16, 800)} // Full width minus padding, max 800px
-                  onItemClick={() => {
-                    const allCurrentItems = data ? data.items : [];
-                    onItemClick?.(item, allCurrentItems);
-                  }}
-                  preload={true}
-                  autoplay={true}
-                  muted={true}
-                  context_namespace={`masonry-feed`}
-                />
-              </div>
-            ))}
+            {/* Full-width items outside the masonry grid: show any media items individually, then group all no-media items into a stacked list */}
+            {(() => {
+              const fullWidthItems = groupItems.filter(item => item.columnSpan === 'all');
+              const mediaItems = fullWidthItems.filter(it => it.image_url !== null);
+              const noMediaItems = fullWidthItems.filter(it => it.image_url === null);
+              return (
+                <>
+                  {mediaItems.map((item) => (
+                    <div
+                      key={`media-${item.id}`}
+                      className="full-width-item"
+                      data-category={category}
+                      style={{
+                        width: '100%',
+                        padding: '0px 8px',
+                        backgroundColor: getBackgroundForCategory(groupIndex),
+                        borderRadius: '10px',
+                        margin: '0 0 6px 0',
+                        position: 'relative',
+                        zIndex: 0,
+                      }}
+                    >
+                      <FeedItemSwitcher 
+                        item={item} 
+                        containerWidth={Math.min((window.innerWidth || 400) - 16, 800)}
+                        onItemClick={() => {
+                          const allCurrentItems = data ? data.items : [];
+                          onItemClick?.(item, allCurrentItems);
+                        }}
+                        preload={true}
+                        autoplay={true}
+                        muted={true}
+                        context_namespace={`masonry-feed`}
+                      />
+                    </div>
+                  ))}
+                  {noMediaItems.length > 0 && (
+                    <div
+                      key={`stacked-${category}`}
+                      style={{
+                        width: '100%',
+                        padding: '0px 8px',
+                        margin: '0 0 8px 0'
+                      }}
+                    >
+                      <StackedNoMediaList
+                        items={noMediaItems}
+                        onItemClick={(clickedItem) => {
+                          const allCurrentItems = data ? data.items : [];
+                          onItemClick?.(clickedItem, allCurrentItems);
+                        }}
+                      />
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         );
       }}
@@ -670,7 +693,7 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick, enableNavigati
           boxSizing: 'border-box',
           padding: '1px', // Minimal padding
           overflow: 'hidden', // Ensure no horizontal scroll
-          backgroundColor: '#D8D8DD',
+          background: 'linear-gradient(180deg, #F7F8FC 0%, #F1F3F6 100%)',
         }}
       >
                 {memoizedVirtuoso}

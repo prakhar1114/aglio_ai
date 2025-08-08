@@ -333,29 +333,29 @@ export function CategoryDropdownButton({
           style={{
             backdropFilter: 'blur(20px)', // Apple-style backdrop blur
             WebkitBackdropFilter: 'blur(20px)',
-            padding: '8px 14px', // Slightly more padding for better touch target
-            borderRadius: '10px', // Apple-style rounded corners
-            border: '1px solid rgba(255, 255, 255, 0.3)', // Subtle border
+            padding: '10px 16px', // Slightly more padding for better touch target
+            borderRadius: '12px', // Apple-style rounded corners
+            border: '1px solid rgba(17, 24, 39, 0.08)', // Subtle border darker
             fontSize: '16px',
-            fontWeight: '500', // Apple's medium weight
+            fontWeight: '600', // Medium weight
             fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
             display: 'flex',
             alignItems: 'center',
-            gap: '6px',
+            gap: '8px',
             cursor: 'pointer',
-            transition: 'all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)', // Apple's easing
+            transition: 'all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
             lineHeight: '1.4',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)', // Subtle shadow
+            boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
             letterSpacing: '-0.01em',
-            fill: "transparent"
+            background: 'rgba(255,255,255,0.85)'
           }}
         >
           <span 
             key={animationKey}
             className={isAnimating ? 'category-text-animating' : ''}
             style={{ 
-              color: '#1C1C1E', // Apple's primary text color
-              fontWeight: '500',
+              color: '#111827', // primary text
+              fontWeight: '600',
               letterSpacing: '-0.01em',
               fontSize: '16px', // Base font size
               transition: 'font-size 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
@@ -368,7 +368,7 @@ export function CategoryDropdownButton({
             width="16"
             height="16"
             viewBox="0 0 24 24"
-            stroke="#86868B"
+            stroke="#6B7280"
             style={{
               transition: 'transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
               transform: isDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)'
@@ -438,20 +438,21 @@ export function CategoryDropdownButton({
           style={{
             backdropFilter: 'blur(20px)', // Apple-style backdrop blur
             WebkitBackdropFilter: 'blur(20px)',
-            padding: '8px 14px', // Slightly more padding for better touch target
-            borderRadius: '10px', // Apple-style rounded corners
-            border: '1px solid rgba(255, 255, 255, 0.3)', // Subtle border
+            padding: '10px 16px',
+            borderRadius: '12px',
+            border: '1px solid rgba(17, 24, 39, 0.08)',
             fontSize: '16px',
-            fontWeight: '500', // Apple's medium weight
+            fontWeight: '600',
             fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
             display: 'flex',
             alignItems: 'center',
-            gap: '6px',
+            gap: '8px',
             cursor: 'pointer',
-            transition: 'all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)', // Apple's easing
+            transition: 'all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
             lineHeight: '1.4',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)', // Subtle shadow
-            letterSpacing: '-0.01em'
+            boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
+            letterSpacing: '-0.01em',
+            background: 'rgba(255,255,255,0.85)'
           }}
 
         >
@@ -459,10 +460,10 @@ export function CategoryDropdownButton({
             key={animationKey}
             className={isAnimating ? 'category-text-animating' : ''}
             style={{ 
-              color: '#1C1C1E', // Apple's primary text color
-              fontWeight: '500',
+              color: '#111827',
+              fontWeight: '600',
               letterSpacing: '-0.01em',
-              fontSize: '16px', // Base font size
+              fontSize: '16px',
               transition: 'font-size 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
             }}
           >
@@ -474,7 +475,7 @@ export function CategoryDropdownButton({
             height="16"
             viewBox="0 0 24 24"
             fill="none"
-            stroke="#86868B"
+            stroke="#6B7280"
             style={{
               transition: 'transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
               transform: isDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)'
