@@ -149,7 +149,7 @@ export function NavigationOverlay({
             {showLogo && logoUrl && (
               <div style={{ position: 'absolute', left: '50%', bottom: -42, transform: 'translateX(-50%)', zIndex: 3 }}>
                 <div style={{ width: 96, height: 96, borderRadius: '50%', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 16px 40px rgba(0,0,0,0.16)', border: '3px solid #FFF', overflow: 'hidden' }}>
-                  <img src={logoUrl} alt={restaurantName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none'; }} />
+                  <img src={logoUrl} alt={restaurantName} style={{ width: '84%', height: '84%', objectFit: 'contain', objectPosition: 'center' }} onError={(e) => { e.target.style.display = 'none'; }} />
                 </div>
               </div>
             )}
