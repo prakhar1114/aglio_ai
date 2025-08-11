@@ -13,13 +13,13 @@ importers:
         version: 4.12.0
       '@heroicons/react':
         specifier: ^2.2.0
-        version: 2.2.0(react@18.3.1)
+        version: 2.2.0(react@19.1.1)
       react-router-dom:
         specifier: ^6.30.1
-        version: 6.30.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 6.30.1(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       zustand:
         specifier: ^5.0.5
-        version: 5.0.5(react@18.3.1)(use-sync-external-store@1.5.0(react@18.3.1))
+        version: 5.0.5(@types/react@19.1.9)(react@19.1.1)(use-sync-external-store@1.5.0(react@19.1.1))
     devDependencies:
       '@vitejs/plugin-react':
         specifier: ^4.2.1
@@ -35,28 +35,37 @@ importers:
     dependencies:
       '@headlessui/react':
         specifier: ^2.2.7
-        version: 2.2.7(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+        version: 2.2.7(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@heroicons/react':
         specifier: ^2.2.0
-        version: 2.2.0(react@19.1.1)
+        version: 2.2.0(react@18.3.1)
+      '@qrmenu/core':
+        specifier: workspace:*
+        version: link:../packages/core
+      '@qrmenu/theme-loader':
+        specifier: workspace:*
+        version: link:../packages/theme-loader
+      '@qrmenu/ui':
+        specifier: workspace:*
+        version: link:../packages/ui
       lucide-react:
         specifier: ^0.536.0
-        version: 0.536.0(react@19.1.1)
+        version: 0.536.0(react@18.3.1)
       react:
-        specifier: ^19.1.0
-        version: 19.1.1
+        specifier: ^18.3.1
+        version: 18.3.1
       react-dom:
-        specifier: ^19.1.0
-        version: 19.1.1(react@19.1.1)
+        specifier: ^18.3.1
+        version: 18.3.1(react@18.3.1)
       react-hook-form:
         specifier: ^7.62.0
-        version: 7.62.0(react@19.1.1)
+        version: 7.62.0(react@18.3.1)
       react-hot-toast:
         specifier: ^2.5.2
-        version: 2.5.2(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+        version: 2.5.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-router-dom:
         specifier: ^6.30.1
-        version: 6.30.1(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+        version: 6.30.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
     devDependencies:
       '@eslint/js':
         specifier: ^9.30.1
@@ -114,7 +123,7 @@ importers:
         version: 11.1.0
       zustand:
         specifier: ^4.5.2
-        version: 4.5.7(react@18.3.1)
+        version: 4.5.7(@types/react@19.1.9)(react@18.3.1)
     devDependencies:
       '@vitejs/plugin-react':
         specifier: ^4.2.1
@@ -188,7 +197,7 @@ importers:
         version: 6.30.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       zustand:
         specifier: ^4.5.7
-        version: 4.5.7(react@18.3.1)
+        version: 4.5.7(@types/react@19.1.9)(react@18.3.1)
     devDependencies:
       '@vitejs/plugin-react':
         specifier: ^4.2.1
@@ -231,7 +240,7 @@ importers:
         version: 6.30.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       zustand:
         specifier: ^4.5.7
-        version: 4.5.7(react@18.3.1)
+        version: 4.5.7(@types/react@19.1.9)(react@18.3.1)
     devDependencies:
       '@vitejs/plugin-react':
         specifier: ^4.2.1
@@ -274,7 +283,7 @@ importers:
         version: 6.30.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       zustand:
         specifier: ^4.5.7
-        version: 4.5.7(react@18.3.1)
+        version: 4.5.7(@types/react@19.1.9)(react@18.3.1)
     devDependencies:
       '@vitejs/plugin-react':
         specifier: ^4.2.1
@@ -317,7 +326,7 @@ importers:
         version: 6.30.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       zustand:
         specifier: ^4.5.7
-        version: 4.5.7(react@18.3.1)
+        version: 4.5.7(@types/react@19.1.9)(react@18.3.1)
     devDependencies:
       '@vitejs/plugin-react':
         specifier: ^4.2.1
@@ -360,7 +369,7 @@ importers:
         version: 6.30.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       zustand:
         specifier: ^4.5.7
-        version: 4.5.7(react@18.3.1)
+        version: 4.5.7(@types/react@19.1.9)(react@18.3.1)
     devDependencies:
       '@vitejs/plugin-react':
         specifier: ^4.2.1
@@ -403,7 +412,7 @@ importers:
         version: 6.30.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       zustand:
         specifier: ^4.5.7
-        version: 4.5.7(react@18.3.1)
+        version: 4.5.7(@types/react@19.1.9)(react@18.3.1)
     devDependencies:
       '@vitejs/plugin-react':
         specifier: ^4.2.1
@@ -446,7 +455,7 @@ importers:
         version: 6.30.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       zustand:
         specifier: ^4.5.7
-        version: 4.5.7(react@18.3.1)
+        version: 4.5.7(@types/react@19.1.9)(react@18.3.1)
     devDependencies:
       '@vitejs/plugin-react':
         specifier: ^4.2.1
@@ -489,7 +498,7 @@ importers:
         version: 6.30.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       zustand:
         specifier: ^4.5.7
-        version: 4.5.7(react@18.3.1)
+        version: 4.5.7(@types/react@19.1.9)(react@18.3.1)
     devDependencies:
       '@vitejs/plugin-react':
         specifier: ^4.2.1
@@ -532,7 +541,7 @@ importers:
         version: 6.30.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       zustand:
         specifier: ^4.5.7
-        version: 4.5.7(react@18.3.1)
+        version: 4.5.7(@types/react@19.1.9)(react@18.3.1)
     devDependencies:
       '@vitejs/plugin-react':
         specifier: ^4.2.1
@@ -581,7 +590,7 @@ importers:
         version: 6.30.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       zustand:
         specifier: ^4.5.7
-        version: 4.5.7(react@18.3.1)
+        version: 4.5.7(@types/react@19.1.9)(react@18.3.1)
     devDependencies:
       '@vitejs/plugin-react':
         specifier: ^4.2.1
@@ -2834,31 +2843,31 @@ snapshots:
       '@floating-ui/core': 1.7.3
       '@floating-ui/utils': 0.2.10
 
-  '@floating-ui/react-dom@2.1.5(react-dom@19.1.1(react@19.1.1))(react@19.1.1)':
+  '@floating-ui/react-dom@2.1.5(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
       '@floating-ui/dom': 1.7.3
-      react: 19.1.1
-      react-dom: 19.1.1(react@19.1.1)
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
 
-  '@floating-ui/react@0.26.28(react-dom@19.1.1(react@19.1.1))(react@19.1.1)':
+  '@floating-ui/react@0.26.28(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
-      '@floating-ui/react-dom': 2.1.5(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+      '@floating-ui/react-dom': 2.1.5(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@floating-ui/utils': 0.2.10
-      react: 19.1.1
-      react-dom: 19.1.1(react@19.1.1)
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
       tabbable: 6.2.0
 
   '@floating-ui/utils@0.2.10': {}
 
-  '@headlessui/react@2.2.7(react-dom@19.1.1(react@19.1.1))(react@19.1.1)':
+  '@headlessui/react@2.2.7(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
-      '@floating-ui/react': 0.26.28(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
-      '@react-aria/focus': 3.21.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
-      '@react-aria/interactions': 3.25.4(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
-      '@tanstack/react-virtual': 3.13.12(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
-      react: 19.1.1
-      react-dom: 19.1.1(react@19.1.1)
-      use-sync-external-store: 1.5.0(react@19.1.1)
+      '@floating-ui/react': 0.26.28(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@react-aria/focus': 3.21.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@react-aria/interactions': 3.25.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@tanstack/react-virtual': 3.13.12(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      use-sync-external-store: 1.5.0(react@18.3.1)
 
   '@heroicons/react@2.2.0(react@18.3.1)':
     dependencies:
@@ -2926,54 +2935,54 @@ snapshots:
   '@pkgjs/parseargs@0.11.0':
     optional: true
 
-  '@react-aria/focus@3.21.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)':
+  '@react-aria/focus@3.21.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
-      '@react-aria/interactions': 3.25.4(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
-      '@react-aria/utils': 3.30.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
-      '@react-types/shared': 3.31.0(react@19.1.1)
+      '@react-aria/interactions': 3.25.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@react-aria/utils': 3.30.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@react-types/shared': 3.31.0(react@18.3.1)
       '@swc/helpers': 0.5.17
       clsx: 2.1.1
-      react: 19.1.1
-      react-dom: 19.1.1(react@19.1.1)
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
 
-  '@react-aria/interactions@3.25.4(react-dom@19.1.1(react@19.1.1))(react@19.1.1)':
+  '@react-aria/interactions@3.25.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
-      '@react-aria/ssr': 3.9.10(react@19.1.1)
-      '@react-aria/utils': 3.30.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+      '@react-aria/ssr': 3.9.10(react@18.3.1)
+      '@react-aria/utils': 3.30.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@react-stately/flags': 3.1.2
-      '@react-types/shared': 3.31.0(react@19.1.1)
+      '@react-types/shared': 3.31.0(react@18.3.1)
       '@swc/helpers': 0.5.17
-      react: 19.1.1
-      react-dom: 19.1.1(react@19.1.1)
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
 
-  '@react-aria/ssr@3.9.10(react@19.1.1)':
+  '@react-aria/ssr@3.9.10(react@18.3.1)':
     dependencies:
       '@swc/helpers': 0.5.17
-      react: 19.1.1
+      react: 18.3.1
 
-  '@react-aria/utils@3.30.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)':
+  '@react-aria/utils@3.30.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
-      '@react-aria/ssr': 3.9.10(react@19.1.1)
+      '@react-aria/ssr': 3.9.10(react@18.3.1)
       '@react-stately/flags': 3.1.2
-      '@react-stately/utils': 3.10.8(react@19.1.1)
-      '@react-types/shared': 3.31.0(react@19.1.1)
+      '@react-stately/utils': 3.10.8(react@18.3.1)
+      '@react-types/shared': 3.31.0(react@18.3.1)
       '@swc/helpers': 0.5.17
       clsx: 2.1.1
-      react: 19.1.1
-      react-dom: 19.1.1(react@19.1.1)
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
 
   '@react-stately/flags@3.1.2':
     dependencies:
       '@swc/helpers': 0.5.17
 
-  '@react-stately/utils@3.10.8(react@19.1.1)':
+  '@react-stately/utils@3.10.8(react@18.3.1)':
     dependencies:
       '@swc/helpers': 0.5.17
-      react: 19.1.1
+      react: 18.3.1
 
-  '@react-types/shared@3.31.0(react@19.1.1)':
+  '@react-types/shared@3.31.0(react@18.3.1)':
     dependencies:
-      react: 19.1.1
+      react: 18.3.1
 
   '@remix-run/router@1.23.0': {}
 
@@ -3052,11 +3061,11 @@ snapshots:
       '@tanstack/query-core': 5.81.2
       react: 18.3.1
 
-  '@tanstack/react-virtual@3.13.12(react-dom@19.1.1(react@19.1.1))(react@19.1.1)':
+  '@tanstack/react-virtual@3.13.12(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
       '@tanstack/virtual-core': 3.13.12
-      react: 19.1.1
-      react-dom: 19.1.1(react@19.1.1)
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
 
   '@tanstack/virtual-core@3.13.12': {}
 
@@ -3655,9 +3664,9 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
-  lucide-react@0.536.0(react@19.1.1):
+  lucide-react@0.536.0(react@18.3.1):
     dependencies:
-      react: 19.1.1
+      react: 18.3.1
 
   magic-string@0.30.17:
     dependencies:
@@ -3843,16 +3852,16 @@ snapshots:
       react: 19.1.1
       scheduler: 0.26.0
 
-  react-hook-form@7.62.0(react@19.1.1):
+  react-hook-form@7.62.0(react@18.3.1):
     dependencies:
-      react: 19.1.1
+      react: 18.3.1
 
-  react-hot-toast@2.5.2(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
+  react-hot-toast@2.5.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
     dependencies:
       csstype: 3.1.3
       goober: 2.1.16(csstype@3.1.3)
-      react: 19.1.1
-      react-dom: 19.1.1(react@19.1.1)
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
 
   react-is@18.3.1: {}
 
@@ -4094,6 +4103,7 @@ snapshots:
   use-sync-external-store@1.5.0(react@19.1.1):
     dependencies:
       react: 19.1.1
+    optional: true
 
   util-deprecate@1.0.2: {}
 
@@ -4201,13 +4211,15 @@ snapshots:
 
   yocto-queue@1.2.1: {}
 
-  zustand@4.5.7(react@18.3.1):
+  zustand@4.5.7(@types/react@19.1.9)(react@18.3.1):
     dependencies:
       use-sync-external-store: 1.5.0(react@18.3.1)
     optionalDependencies:
+      '@types/react': 19.1.9
       react: 18.3.1
 
-  zustand@5.0.5(react@18.3.1)(use-sync-external-store@1.5.0(react@18.3.1)):
+  zustand@5.0.5(@types/react@19.1.9)(react@19.1.1)(use-sync-external-store@1.5.0(react@19.1.1)):
     optionalDependencies:
-      react: 18.3.1
-      use-sync-external-store: 1.5.0(react@18.3.1)
+      '@types/react': 19.1.9
+      react: 19.1.1
+      use-sync-external-store: 1.5.0(react@19.1.1)

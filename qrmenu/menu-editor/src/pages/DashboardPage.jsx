@@ -1,13 +1,15 @@
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRightOnRectangleIcon, Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
+import { ArrowRightOnRectangleIcon, Bars3Icon, XMarkIcon, EyeIcon } from '@heroicons/react/24/outline';
 import { useState } from 'react';
 import Card from '../components/Card';
+// import { MenuScreenPreview } from '../components/MenuScreenPreview';
 
 function DashboardPage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  // const [showMenuPreview, setShowMenuPreview] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -159,9 +161,26 @@ function DashboardPage() {
                 </div>
               </div>
             </Card>
+            
+            {/* <Card className="cursor-pointer" onClick={() => setShowMenuPreview(true)}>
+              <div className="p-4">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <div className="h-8 w-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <EyeIcon className="h-5 w-5 text-blue-600" />
+                    </div>
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-900">Preview Menu</p>
+                    <p className="text-xs text-gray-500">See how your menu looks to customers</p>
+                  </div>
+                </div>
+              </div>
+            </Card> */}
           </div>
         </div>
-      </main>
+      </main>      
+
     </div>
   );
 }
