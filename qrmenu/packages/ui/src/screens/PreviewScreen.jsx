@@ -141,7 +141,7 @@ function MediaSection({ item, currentIndex, totalItems, playerContextId, showSwi
   // Calculate dynamic viewport width for optimal media sizing
   const getViewportWidth = () => {
     if (typeof window !== 'undefined') {
-      return window.innerWidth;
+      return Math.min(window.innerWidth, 449);
     }
     return 428; // Fallback for SSR
   };
@@ -152,7 +152,7 @@ function MediaSection({ item, currentIndex, totalItems, playerContextId, showSwi
   // Update viewport width on resize
   useEffect(() => {
     const handleResize = () => {
-      setViewportWidth(getViewportWidth());
+      setViewportWidth(Math.min(getViewportWidth(), 449));
     };
 
     window.addEventListener('resize', handleResize);
@@ -612,7 +612,10 @@ function PreviewScreenComponent({
         className="fixed inset-0 bg-white flex flex-col animate-slide-in-right overflow-y-auto"
         style={{ 
           zIndex: zIndex,
-          touchAction: 'manipulation' // More permissive than pan-y
+          touchAction: 'manipulation', // More permissive than pan-y
+          maxWidth: '449px',
+          left: '50%',
+          transform: 'translateX(-50%)'
         }}
       >
         {/* Header */}

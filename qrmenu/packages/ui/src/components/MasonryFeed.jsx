@@ -229,11 +229,13 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick, enableNavigati
   const getColumnCount = () => {
     if (typeof window !== 'undefined') {
       const viewportWidth = window.innerWidth - 8; // Account for minimal padding (4px * 2)
+      // Constrain to max 449px container width for mobile optimization
+      const containerWidth = Math.min(viewportWidth, 449);
       // Dynamic columns - each column should be ~180-200px wide, max 396px per card
-      if (viewportWidth < 250) return 1;
-      if (viewportWidth < 450) return 2;
-      if (viewportWidth < 650) return 3;
-      return Math.min(Math.floor(viewportWidth / 200), 4); // Max 4 columns, ~200px per column
+      if (containerWidth < 250) return 1;
+      if (containerWidth < 450) return 2;
+      if (containerWidth < 650) return 3;
+      return Math.min(Math.floor(containerWidth / 200), 4); // Max 4 columns, ~200px per column
     }
     return 2;
   };
@@ -242,10 +244,12 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick, enableNavigati
   const getCardWidth = () => {
     if (typeof window !== 'undefined') {
       const viewportWidth = window.innerWidth - 8;
+      // Constrain to max 449px container width for mobile optimization
+      const containerWidth = Math.min(viewportWidth, 449);
       const columnCount = getColumnCount();
       const gapWidth = (columnCount - 1) * 4; // 4px gap between columns
       const paddingWidth = 2 * 4; // 4px padding on each side
-      const availableWidth = viewportWidth - gapWidth - paddingWidth;
+      const availableWidth = containerWidth - gapWidth - paddingWidth;
       const calculatedWidth = Math.floor(availableWidth / columnCount);
       
       // Ensure each card is maximum 396px
@@ -513,7 +517,7 @@ export function MasonryFeed({ filters = {}, gap = 2, onItemClick, enableNavigati
               >
                 <FeedItemSwitcher 
                   item={item} 
-                  containerWidth={Math.min((window.innerWidth || 400) - 16, 800)} // Full width minus padding, max 800px
+                  containerWidth={Math.min((window.innerWidth || 400) - 16, 449)} // Full width minus padding, max 800px
                   onItemClick={() => {
                     const allCurrentItems = data ? data.items : [];
                     onItemClick?.(item, allCurrentItems);
